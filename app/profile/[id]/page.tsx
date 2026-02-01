@@ -1,0 +1,549 @@
+"use client"
+
+import { useEffect, useState } from "react"
+import { useParams, useRouter } from "next/navigation"
+import Image from "next/image"
+import { ArrowLeft, MapPin, Briefcase, GraduationCap, Heart, MessageCircle, Flag, User as UserIcon, ChevronLeft, ChevronRight, Target, Globe, Compass, X, MoreVertical } from "lucide-react"
+import { AppLayout } from "@/components/app-layout"
+import { Button } from "@/components/ui/button"
+import { Badge } from "@/components/ui/badge"
+import { Card, CardContent } from "@/components/ui/card"
+import { Separator } from "@/components/ui/separator"
+import { Label } from "@/components/ui/label"
+import { Dialog, DialogContent } from "@/components/ui/dialog"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
+import { api } from "@/lib/api"
+import { Skeleton } from "@/components/ui/skeleton"
+import { cn } from "@/lib/utils"
+
+export default function UserProfilePage() {
+  const params = useParams()
+  const router = useRouter()
+  const userId = params.id as string
+
+  const [user, setUser] = useState<any>(null)
+  const [profile, setProfile] = useState<any>(null)
+  const [isLoading, setIsLoading] = useState(true)
+  const [currentPhotoIndex, setCurrentPhotoIndex] = useState(0)
+  const [showPhotoModal, setShowPhotoModal] = useState(false)
+  const [selectedPhotoIndex, setSelectedPhotoIndex] = useState(0)
+  const [isLiked, setIsLiked] = useState(false)
+  const [likeId, setLikeId] = useState<string | null>(null)
+  const [isLiking, setIsLiking] = useState(false)
+  const [hasMatched, setHasMatched] = useState(false)
+
+  useEffect(() => {
+    loadProfile()
+  }, [userId])
+
+  useEffect(() => {
+    const loadLikeStatus = async () => {
+      const result = await api.browse.getLikedProfiles()
+      if (result.data) {
+        const match = result.data.find((p: { id: string; like_id?: string }) => p.id === userId)
+        setIsLiked(!!match)
+        setLikeId(match?.like_id || null)
+      }
+    }
+
+    if (userId) {
+      loadLikeStatus()
+    }
+  }, [userId])
+
+  useEffect(() => {
+    const loadMatchStatus = async () => {
+      const result = await api.matches.getMatches()
+      if (result.data) {
+        const match = result.data.find((m: any) => m.users.includes(userId))
+        setHasMatched(!!match)
+      }
+    }
+
+    if (userId) {
+      loadMatchStatus()
+    }
+  }, [userId])
+
+  const loadProfile = async () => {
+    setIsLoading(true)
+    const result = await api.users.getById(userId)
+    if (result.data) {
+      setUser(result.data.user)
+      setProfile(result.data.profile)
+    }
+    setIsLoading(false)
+  }
+
+  const calculateAge = () => {
+    if (!user?.birthdate) return null
+    const birthDate = new Date(user.birthdate)
+    const today = new Date()
+    let age = today.getFullYear() - birthDate.getFullYear()
+    const monthDiff = today.getMonth() - birthDate.getMonth()
+    if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
+      age--
+    }
+    return age
+  }
+
+  const nextPhoto = () => {
+    if (selectedPhotoIndex < photos.length - 1) {
+      setSelectedPhotoIndex(selectedPhotoIndex + 1)
+    }
+  }
+
+  const prevPhoto = () => {
+    if (selectedPhotoIndex > 0) {
+      setSelectedPhotoIndex(selectedPhotoIndex - 1)
+    }
+  }
+
+  const handlePhotoClick = (index: number) => {
+    setSelectedPhotoIndex(index)
+    setShowPhotoModal(true)
+  }
+
+  const handleMessage = () => {
+    router.push(`/messages`)
+  }
+
+  const handleToggleLike = async () => {
+    if (isLiking) return
+    setIsLiking(true)
+
+    if (isLiked && likeId) {
+      await api.browse.unlike(likeId)
+      setIsLiked(false)
+      setLikeId(null)
+    } else {
+      await api.browse.like(userId)
+      const result = await api.browse.getLikedProfiles()
+      if (result.data) {
+        const match = result.data.find((p: { id: string; like_id?: string }) => p.id === userId)
+        setIsLiked(!!match)
+        setLikeId(match?.like_id || null)
+      }
+    }
+
+    setIsLiking(false)
+  }
+
+  if (isLoading) {
+    return (
+      <AppLayout>
+        <div className="max-w-4xl mx-auto p-4 md:p-6">
+          <Skeleton className="h-10 w-32 mb-6" />
+          <div className="grid md:grid-cols-2 gap-6">
+            <Skeleton className="aspect-[4/5] w-full rounded-xl" />
+            <div className="space-y-4">
+              <Skeleton className="h-8 w-48" />
+              <Skeleton className="h-4 w-full" />
+              <Skeleton className="h-4 w-full" />
+              <Skeleton className="h-4 w-3/4" />
+            </div>
+          </div>
+        </div>
+      </AppLayout>
+    )
+  }
+
+  if (!user || !profile) {
+    return (
+      <AppLayout>
+        <div className="max-w-4xl mx-auto p-4 md:p-6">
+          <div className="text-center py-12">
+            <UserIcon className="h-16 w-16 text-muted-foreground mx-auto mb-4" />
+            <h2 className="text-xl font-semibold mb-2">Profile not found</h2>
+            <p className="text-muted-foreground mb-4">This user may have deleted their account.</p>
+            <Button onClick={() => router.back()}>Go Back</Button>
+          </div>
+        </div>
+      </AppLayout>
+    )
+  }
+
+  const age = calculateAge()
+  const photos = user.photos || []
+  const location = [profile.location_city, profile.location_state].filter(Boolean).join(", ")
+
+  return (
+    <AppLayout>
+      <div className="max-w-5xl mx-auto p-4 md:p-6">
+        {/* Back Button */}
+        <Button
+          variant="ghost"
+          onClick={() => router.back()}
+          className="mb-6 -ml-2"
+        >
+          <ArrowLeft className="h-4 w-4 mr-2" />
+          Back
+        </Button>
+
+        <div className="grid md:grid-cols-2 gap-6 mb-6">
+          {/* Photo Gallery - Main Photo Only (No Swipe) */}
+          <div className="space-y-4">
+            <div className="relative aspect-[4/5] rounded-xl overflow-hidden bg-muted">
+              {photos.length > 0 ? (
+                <Image
+                  src={photos[0]}
+                  alt={user.first_name}
+                  fill
+                  className="object-cover"
+                />
+              ) : (
+                <div className="flex items-center justify-center h-full">
+                  <UserIcon className="h-24 w-24 text-muted-foreground" />
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Profile Info */}
+          <div className="space-y-4">
+            <div>
+              <h1 className="text-3xl font-bold text-foreground">
+                {user.first_name} {user.last_name && user.last_name[0] + "."}
+                {age && `, ${age}`}
+              </h1>
+              {location && (
+                <div className="flex items-center gap-1 text-muted-foreground mt-2">
+                  <MapPin className="h-4 w-4" />
+                  <span>{location}</span>
+                </div>
+              )}
+            </div>
+
+            {/* Action Buttons */}
+            <div className="flex gap-3 pt-4">
+              {hasMatched && (
+                <Button className="flex-1" onClick={handleMessage}>
+                  <MessageCircle className="h-4 w-4 mr-2" />
+                  Message
+                </Button>
+              )}
+              <Button
+                variant="outline"
+                size="icon"
+                className="bg-transparent"
+                onClick={handleToggleLike}
+                disabled={isLiking}
+              >
+                <Heart
+                  className={cn(
+                    "h-4 w-4",
+                    isLiked ? "fill-red-500 text-red-500" : "text-foreground"
+                  )}
+                />
+              </Button>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" size="icon" className="bg-transparent">
+                    <MoreVertical className="h-4 w-4" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuItem className="text-destructive">
+                    <Flag className="mr-2 h-4 w-4" />
+                    Report
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
+          </div>
+        </div>
+
+        {/* About Me Section */}
+        <Card className="mb-6">
+          <CardContent className="p-6">
+            <h2 className="text-xl font-semibold mb-4">About</h2>
+            <p className="text-muted-foreground leading-relaxed">{profile.bio || "No bio added yet"}</p>
+          </CardContent>
+        </Card>
+
+        {/* Photo Grid - Centered */}
+        {photos.length > 1 && (
+          <Card className="mb-6">
+            <CardContent className="p-6">
+              <h2 className="text-xl font-semibold mb-4">Photos</h2>
+              <div className="max-w-3xl mx-auto">
+                <div className="grid grid-cols-3 gap-3">
+                  {photos.map((photo: string, idx: number) => (
+                    <div
+                      key={idx}
+                      className="relative aspect-square rounded-lg overflow-hidden cursor-pointer group border-2 border-border hover:border-primary/50 transition-all"
+                      onClick={() => handlePhotoClick(idx)}
+                    >
+                      <Image
+                        src={photo}
+                        alt={`Photo ${idx + 1}`}
+                        fill
+                        className="object-cover transition-transform group-hover:scale-110"
+                      />
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Details Section */}
+        <Card className="mb-6">
+          <CardContent className="p-6 space-y-4">
+            <h2 className="text-xl font-semibold">Details</h2>
+
+            <div className="grid gap-3">
+              <div className="flex items-center gap-2 text-foreground">
+                <span className="text-sm font-medium text-muted-foreground">Occupation:</span>
+                <span>{profile.occupation || "Not specified"}</span>
+              </div>
+
+              <div className="flex items-center gap-2 text-foreground">
+                <span className="text-sm font-medium text-muted-foreground">Education:</span>
+                <span className="capitalize">
+                  {profile.education ? profile.education.replace(/-/g, " ") : "Not specified"}
+                </span>
+              </div>
+            </div>
+
+            <div>
+              <h3 className="font-semibold mb-2">Interests</h3>
+              {profile.interests && profile.interests.length > 0 ? (
+                <div className="flex flex-wrap gap-2">
+                  {profile.interests.map((interest: string, idx: number) => (
+                    <Badge key={idx} variant="secondary" className="capitalize">
+                      {interest}
+                    </Badge>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-muted-foreground">No interests added yet</p>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Photo Modal */}
+        <Dialog open={showPhotoModal} onOpenChange={setShowPhotoModal}>
+          <DialogContent className="max-w-4xl p-0 bg-black/95">
+            <div className="relative h-[80vh]">
+              <button
+                onClick={() => setShowPhotoModal(false)}
+                className="absolute top-4 right-4 z-50 p-2 rounded-full bg-black/50 text-white hover:bg-black/70 transition-colors"
+              >
+                <X className="h-6 w-6" />
+              </button>
+              
+              {photos.length > 0 && (
+                <>
+                  <div className="relative w-full h-full flex items-center justify-center">
+                    <Image
+                      src={photos[selectedPhotoIndex]}
+                      alt={`Photo ${selectedPhotoIndex + 1}`}
+                      fill
+                      className="object-contain"
+                    />
+                  </div>
+
+                  {photos.length > 1 && (
+                    <>
+                      <button
+                        onClick={prevPhoto}
+                        disabled={selectedPhotoIndex === 0}
+                        className="absolute left-4 top-1/2 -translate-y-1/2 p-3 rounded-full bg-black/50 text-white hover:bg-black/70 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                      >
+                        <ChevronLeft className="h-8 w-8" />
+                      </button>
+                      <button
+                        onClick={nextPhoto}
+                        disabled={selectedPhotoIndex === photos.length - 1}
+                        className="absolute right-4 top-1/2 -translate-y-1/2 p-3 rounded-full bg-black/50 text-white hover:bg-black/70 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                      >
+                        <ChevronRight className="h-8 w-8" />
+                      </button>
+                      
+                      <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-2">
+                        {photos.map((_: any, idx: number) => (
+                          <button
+                            key={idx}
+                            onClick={() => setSelectedPhotoIndex(idx)}
+                            className={`h-2 rounded-full transition-all ${
+                              idx === selectedPhotoIndex
+                                ? "w-8 bg-white"
+                                : "w-2 bg-white/50 hover:bg-white/70"
+                            }`}
+                          />
+                        ))}
+                      </div>
+                    </>
+                  )}
+                </>
+              )}
+            </div>
+          </DialogContent>
+        </Dialog>
+
+        {/* Favorites */}
+        <Card className="mb-6">
+          <CardContent className="p-6 space-y-4">
+            <h2 className="text-xl font-semibold">Favorites</h2>
+            <Separator />
+
+            <div>
+              <p className="text-sm text-muted-foreground mb-2">Favorite Music</p>
+              {user.favorite_music && Array.isArray(user.favorite_music) && user.favorite_music.filter((item: string) => item && item.length > 0 && item.length < 50).length > 0 ? (
+                <div className="flex flex-wrap gap-2">
+                  {user.favorite_music.filter((item: string) => item && item.length > 0 && item.length < 50).map((music: string, idx: number) => (
+                    <Badge key={idx} variant="secondary">{music}</Badge>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-muted-foreground">Not specified</p>
+              )}
+            </div>
+
+            <Separator />
+
+            <div>
+              <p className="text-sm text-muted-foreground mb-2">Favorite Animals</p>
+              {user.animals && Array.isArray(user.animals) && user.animals.filter((item: string) => item && item.length > 0 && item.length < 50).length > 0 ? (
+                <div className="flex flex-wrap gap-2">
+                  {user.animals.filter((item: string) => item && item.length > 0 && item.length < 50).map((animal: string, idx: number) => (
+                    <Badge key={idx} variant="secondary">{animal}</Badge>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-muted-foreground">Not specified</p>
+              )}
+            </div>
+
+            <Separator />
+
+            <div>
+              <p className="text-sm text-muted-foreground mb-2">Pet Peeves</p>
+              {user.pet_peeves && Array.isArray(user.pet_peeves) && user.pet_peeves.filter((item: string) => item && item.length > 0 && item.length < 50).length > 0 ? (
+                <div className="flex flex-wrap gap-2">
+                  {user.pet_peeves.filter((item: string) => item && item.length > 0 && item.length < 50).map((peeve: string, idx: number) => (
+                    <Badge key={idx} variant="secondary">{peeve}</Badge>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-muted-foreground">Not specified</p>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Preferences & Background */}
+        <Card className="mb-6">
+          <CardContent className="p-6 space-y-6">
+            <h2 className="text-xl font-semibold">Preferences & Background</h2>
+            <Separator />
+
+            <div>
+              <Label className="text-sm text-muted-foreground mb-2 block flex items-center gap-2">
+                <Heart className="h-4 w-4" />
+                What I'm Looking For
+              </Label>
+              {profile.looking_for_description && Array.isArray(profile.looking_for_description) && profile.looking_for_description.length > 0 ? (
+                <div className="flex flex-wrap gap-2">
+                  {profile.looking_for_description.map((item: string, idx: number) => (
+                    <Badge key={idx} variant="secondary">{item}</Badge>
+                  ))}
+                </div>
+              ) : (
+                <p className="font-medium">Not specified</p>
+              )}
+            </div>
+
+            <Separator />
+
+            <div>
+              <Label className="text-sm text-muted-foreground mb-2 block flex items-center gap-2">
+                <Target className="h-4 w-4" />
+                Life Goals
+              </Label>
+              {profile.life_goals && Array.isArray(profile.life_goals) && profile.life_goals.length > 0 ? (
+                <div className="flex flex-wrap gap-2">
+                  {profile.life_goals.map((goal: string, idx: number) => (
+                    <Badge key={idx} variant="secondary">{goal}</Badge>
+                  ))}
+                </div>
+              ) : (
+                <p className="font-medium">Not specified</p>
+              )}
+            </div>
+
+            <Separator />
+
+            <div>
+              <Label className="text-sm text-muted-foreground mb-2 block flex items-center gap-2">
+                <Globe className="h-4 w-4" />
+                Languages
+              </Label>
+              {profile.languages && profile.languages.length > 0 ? (
+                <div className="flex flex-wrap gap-2">
+                  {profile.languages.map((lang: string, idx: number) => (
+                    <Badge key={idx} variant="secondary">{lang}</Badge>
+                  ))}
+                </div>
+              ) : (
+                <p className="font-medium">Not specified</p>
+              )}
+            </div>
+
+            <Separator />
+
+            <div>
+              <Label className="text-sm text-muted-foreground mb-2 block">Cultural Background</Label>
+              <p className="font-medium">{profile.cultural_background || "Not specified"}</p>
+            </div>
+
+            <Separator />
+
+            <div>
+              <Label className="text-sm text-muted-foreground mb-2 block flex items-center gap-2">
+                <MessageCircle className="h-4 w-4" />
+                Personal Preferences
+              </Label>
+              <p className="text-foreground leading-relaxed">{profile.personal_preferences || "Not specified"}</p>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Get to Know Me Prompts */}
+        <Card>
+          <CardContent className="p-6 space-y-4">
+            <h2 className="text-xl font-semibold">Get to Know Me</h2>
+            <Separator />
+
+            <div>
+              <p className="text-sm text-muted-foreground mb-1">I'm weirdly good at...</p>
+              <p className="font-medium">{profile.prompt_good_at || "Not answered yet"}</p>
+            </div>
+
+            <Separator />
+
+            <div>
+              <p className="text-sm text-muted-foreground mb-1">My perfect weekend...</p>
+              <p className="font-medium">{profile.prompt_perfect_weekend || "Not answered yet"}</p>
+            </div>
+
+            <Separator />
+
+            <div>
+              <p className="text-sm text-muted-foreground mb-1">Message me if...</p>
+              <p className="font-medium">{profile.prompt_message_if || "Not answered yet"}</p>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    </AppLayout>
+  )
+}

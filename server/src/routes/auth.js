@@ -1,0 +1,396 @@
+import express from 'express';
+import jwt from 'jsonwebtoken';
+import crypto from 'crypto';
+import { body, validationResult } from 'express-validator';
+import User from '../models/User.js';
+import Profile from '../models/Profile.js';
+import { auth } from '../middleware/auth.js';
+import { sendVerificationEmail, sendPasswordResetEmail } from '../utils/email.js';
+import logger from '../utils/logger.js';
+
+const router = express.Router();
+const isProduction = process.env.NODE_ENV === 'production';
+
+// Generate JWT token with expiration
+const generateToken = (userId) => {
+  return jwt.sign({ userId }, process.env.JWT_SECRET, { expiresIn: '7d' });
+};
+
+// Generate refresh token (longer expiration for refresh)
+const generateRefreshToken = (userId) => {
+  return jwt.sign({ userId, type: 'refresh' }, process.env.JWT_SECRET, { expiresIn: '30d' });
+};
+
+// Validate password complexity
+const validatePasswordStrength = (password) => {
+  const errors = [];
+  if (password.length < 8) errors.push('Password must be at least 8 characters long');
+  if (!/[A-Z]/.test(password)) errors.push('Password must contain at least one uppercase letter');
+  if (!/[a-z]/.test(password)) errors.push('Password must contain at least one lowercase letter');
+  if (!/\d/.test(password)) errors.push('Password must contain at least one number');
+  if (!/[!@#$%^&*(),.?":{}|<>]/.test(password)) errors.push('Password must contain at least one special character');
+  return { isValid: errors.length === 0, errors };
+};
+
+// Generate verification code
+const generateVerificationCode = () => {
+  return Math.floor(100000 + Math.random() * 900000).toString();
+};
+
+// POST /api/auth/signup
+router.post('/signup', [
+  body('email').isEmail().normalizeEmail(),
+  body('password').isLength({ min: 8 }).trim()
+], async (req, res, next) => {
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      logger.warn('[SIGNUP] Validation error:', errors.array()[0].msg);
+      return res.status(400).json({ message: errors.array()[0].msg });
+    }
+
+    const { email, password } = req.body;
+
+    // Validate password strength
+    const passwordValidation = validatePasswordStrength(password);
+    if (!passwordValidation.isValid) {
+      logger.warn('[SIGNUP] Weak password attempt for email:', email);
+      return res.status(400).json({ message: 'Password does not meet security requirements', errors: passwordValidation.errors });
+    }
+
+    // Check if user exists
+    const existingUser = await User.findOne({ email });
+    if (existingUser) {
+      logger.warn('[SIGNUP] Duplicate email registration attempt:', email);
+      return res.status(400).json({ message: 'Email already registered' });
+    }
+
+    // Generate verification code
+    const verificationCode = generateVerificationCode();
+
+    // Create user
+    const user = new User({
+      email,
+      password,
+      verification_code: verificationCode,
+      verification_code_expires: new Date(Date.now() + 10 * 60 * 1000) // 10 minutes
+    });
+
+    // In development, auto-verify the email
+    if (!isProduction) {
+      user.email_verified = true;
+      user.verification_code = undefined;
+      user.verification_code_expires = undefined;
+    }
+
+    await user.save();
+
+    // Create empty profile
+    const profile = new Profile({ user_id: user._id });
+    await profile.save();
+
+    // Send verification email only in production
+    if (isProduction) {
+      await sendVerificationEmail(email, verificationCode);
+    } else {
+      logger.log(`[DEV] Auto-verifying user: ${email} (verification code: ${verificationCode})`);
+    }
+
+    const token = generateToken(user._id);
+
+    res.status(201).json({
+      user_id: user._id,
+      email: user.email,
+      token,
+      requiresVerification: isProduction  // Only requires verification in production
+    });
+  } catch (error) {
+    logger.error('[SIGNUP] Error creating account:', error.message);
+    res.status(500).json({ message: 'Error creating account' });
+  }
+});
+
+// POST /api/auth/verify-email
+router.post('/verify-email', [
+  body('email').isEmail().normalizeEmail(),
+  body('code').isLength({ min: 6, max: 6 })
+], async (req, res, next) => {
+  try {
+    const { email, code } = req.body;
+
+    const user = await User.findOne({ email });
+    if (!user) {
+      logger.warn('[VERIFY] User not found:', email);
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    if (user.email_verified) {
+      return res.json({ message: 'Email already verified' });
+    }
+
+    logger.debug('[VERIFY] Verification attempt for:', email);
+
+    if (user.verification_code !== code) {
+      logger.warn('[VERIFY] Invalid code attempt for:', email);
+      return res.status(400).json({ message: 'Invalid verification code' });
+    }
+
+    if (user.verification_code_expires < new Date()) {
+      logger.warn('[VERIFY] Expired code attempt for:', email);
+      return res.status(400).json({ message: 'Verification code expired' });
+    }
+
+    user.email_verified = true;
+    user.verification_code = undefined;
+    user.verification_code_expires = undefined;
+    await user.save();
+
+    logger.log('[VERIFY] Email verified for:', email);
+    res.json({ message: 'Email verified successfully' });
+  } catch (error) {
+    logger.error('[VERIFY] Error verifying email:', error.message);
+    res.status(500).json({ message: 'Error verifying email' });
+  }
+});
+
+// POST /api/auth/resend-verification
+router.post('/resend-verification', [
+  body('email').isEmail().normalizeEmail()
+], async (req, res, next) => {
+  try {
+    const { email } = req.body;
+
+    const user = await User.findOne({ email });
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    if (user.email_verified) {
+      return res.json({ message: 'Email already verified' });
+    }
+
+    const verificationCode = generateVerificationCode();
+    user.verification_code = verificationCode;
+    user.verification_code_expires = new Date(Date.now() + 10 * 60 * 1000);
+    await user.save();
+
+    // Send verification email
+    if (isProduction) {
+      await sendVerificationEmail(email, verificationCode);
+    } else {
+      logger.log(`[DEV] New verification code for ${email}: ${verificationCode}`);
+    }
+
+    res.json({ message: 'Verification code sent' });
+  } catch (error) {
+    logger.error('[RESEND] Error sending verification code:', error.message);
+    res.status(500).json({ message: 'Error sending verification code' });
+  }
+});
+
+// POST /api/auth/login
+router.post('/login', [
+  body('email').isEmail().normalizeEmail(),
+  body('password').exists()
+], async (req, res, next) => {
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ message: 'Invalid email or password' });
+    }
+
+    const { email, password } = req.body;
+
+    const user = await User.findOne({ email });
+    if (!user) {
+      return res.status(401).json({ message: 'Invalid email or password' });
+    }
+
+    const isMatch = await user.comparePassword(password);
+    if (!isMatch) {
+      return res.status(401).json({ message: 'Invalid email or password' });
+    }
+
+    if (user.is_banned) {
+      return res.status(403).json({ message: 'Account has been banned' });
+    }
+
+    if (user.is_suspended) {
+      return res.status(403).json({ message: 'Account is suspended' });
+    }
+
+    const profile = await Profile.findOne({ user_id: user._id });
+    const token = generateToken(user._id);
+
+    user.last_active = new Date();
+    await user.save();
+
+    res.json({
+      user: user.toJSON(),
+      profile,
+      token
+    });
+  } catch (error) {
+    console.error('Login error:', error);
+    res.status(500).json({ message: 'Error logging in' });
+  }
+});
+
+// GET /api/auth/me
+router.get('/me', auth, async (req, res) => {
+  try {
+    const profile = await Profile.findOne({ user_id: req.userId });
+    res.json({
+      user: req.user.toJSON(),
+      profile
+    });
+  } catch (error) {
+    console.error('Get me error:', error);
+    res.status(500).json({ message: 'Error fetching user data' });
+  }
+});
+
+// PUT /api/auth/complete-onboarding
+router.put('/complete-onboarding', auth, async (req, res) => {
+  try {
+    const {
+      first_name,
+      last_name,
+      birthdate,
+      gender,
+      location_state,
+      lpa_membership_id,
+      district_number,
+      bio,
+      occupation,
+      education,
+      interests,
+      location_city,
+      favorite_music,
+      animals,
+      pet_peeves,
+      photos,
+      looking_for_description,
+      life_goals,
+      languages,
+      cultural_background,
+      religion,
+      personal_preferences,
+      prompt_good_at,
+      prompt_perfect_weekend,
+      prompt_message_if
+    } = req.body;
+
+    // Update user
+    const user = req.user;
+    user.first_name = first_name || user.first_name;
+    user.last_name = last_name || user.last_name;
+    user.birthdate = birthdate || user.birthdate;
+    user.gender = gender || user.gender;
+    user.location_state = location_state || user.location_state;
+    user.district_number = district_number || user.district_number;
+    user.lpa_membership_id = lpa_membership_id || user.lpa_membership_id;
+    user.photos = photos || user.photos;
+    user.favorite_music = favorite_music || user.favorite_music;
+    user.animals = animals || user.animals;
+    user.pet_peeves = pet_peeves || user.pet_peeves;
+    user.onboarding_completed = true;
+    await user.save();
+
+    // Update or create profile
+    let profile = await Profile.findOne({ user_id: req.userId });
+    if (!profile) {
+      profile = new Profile({ user_id: req.userId });
+    }
+    
+    profile.location_state = location_state || profile.location_state;
+    profile.district_number = district_number || profile.district_number;
+    profile.lpa_membership_id = lpa_membership_id || profile.lpa_membership_id;
+    profile.bio = bio || profile.bio;
+    profile.occupation = occupation || profile.occupation;
+    profile.education = education || profile.education;
+    profile.interests = interests || profile.interests;
+    profile.location_city = location_city || profile.location_city;
+    profile.looking_for_description = looking_for_description ? (Array.isArray(looking_for_description) ? looking_for_description : [looking_for_description]) : profile.looking_for_description;
+    profile.life_goals = life_goals ? (Array.isArray(life_goals) ? life_goals : [life_goals]) : profile.life_goals;
+    profile.languages = languages || profile.languages;
+    profile.cultural_background = cultural_background || profile.cultural_background;
+    profile.religion = religion || profile.religion;
+    profile.personal_preferences = personal_preferences || profile.personal_preferences;
+    profile.prompt_good_at = prompt_good_at || profile.prompt_good_at;
+    profile.prompt_perfect_weekend = prompt_perfect_weekend || profile.prompt_perfect_weekend;
+    profile.prompt_message_if = prompt_message_if || profile.prompt_message_if;
+    await profile.save();
+
+    res.json({
+      user: user.toJSON(),
+      profile
+    });
+  } catch (error) {
+    console.error('Complete onboarding error:', error);
+    res.status(500).json({ message: 'Error completing onboarding' });
+  }
+});
+
+// POST /api/auth/forgot-password
+router.post('/forgot-password', [
+  body('email').isEmail().normalizeEmail()
+], async (req, res, next) => {
+  try {
+    const { email } = req.body;
+
+    const user = await User.findOne({ email });
+    if (!user) {
+      // Don't reveal if email exists
+      return res.json({ message: 'If an account exists, a reset link will be sent' });
+    }
+
+    const resetToken = crypto.randomBytes(32).toString('hex');
+    user.password_reset_token = resetToken;
+    user.password_reset_expires = new Date(Date.now() + 60 * 60 * 1000); // 1 hour
+    await user.save();
+
+    // Send reset email
+    if (isProduction) {
+      await sendPasswordResetEmail(email, resetToken);
+    } else {
+      logger.log(`[DEV] Password reset token for ${email}: ${resetToken}`);
+    }
+
+    res.json({ message: 'If an account exists, a reset link will be sent' });
+  } catch (error) {
+    logger.error('[FORGOT] Error in forgot password:', error.message);
+    res.status(500).json({ message: 'Error processing request' });
+  }
+});
+
+// POST /api/auth/reset-password
+router.post('/reset-password', [
+  body('token').exists(),
+  body('password').isLength({ min: 6 })
+], async (req, res, next) => {
+  try {
+    const { token, password } = req.body;
+
+    const user = await User.findOne({
+      password_reset_token: token,
+      password_reset_expires: { $gt: new Date() }
+    });
+
+    if (!user) {
+      return res.status(400).json({ message: 'Invalid or expired reset token' });
+    }
+
+    user.password = password;
+    user.password_reset_token = undefined;
+    user.password_reset_expires = undefined;
+    await user.save();
+
+    res.json({ message: 'Password reset successfully' });
+  } catch (error) {
+    console.error('Reset password error:', error);
+    res.status(500).json({ message: 'Error resetting password' });
+  }
+});
+
+export default router;

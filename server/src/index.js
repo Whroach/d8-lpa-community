@@ -134,21 +134,13 @@ app.use(errorHandler);
 
 // 404 handler
 app.use((req, res) => {
-  res.status(404).json({ message: 'Not found' });
-});
-
-// 404 handler
-app.use((req, res) => {
   res.status(404).json({ message: 'Route not found' });
 });
 
 // Connect to MongoDB and start server
 const mongoURI = process.env.MONGODB_URI || 'mongodb://localhost:27017/dating-app';
 
-mongoose.connect(mongoURI, {
-  useNewUrlParser: true,
-  useUnifiedTopology: true,
-})
+mongoose.connect(mongoURI)
   .then(() => {
     console.log('Connected to MongoDB');
     httpServer.listen(PORT, () => {

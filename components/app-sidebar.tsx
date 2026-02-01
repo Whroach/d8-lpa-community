@@ -115,8 +115,18 @@ export function AppSidebar() {
     loadCounts()
 
     // Listen for notifications read event
-    const handleNotificationsRead = () => {
-      setBadgeCounts((prev) => ({ ...prev, notifications: 0 }))
+    const handleNotificationsRead = async () => {
+      // Add a small delay to allow backend to update
+      setTimeout(async () => {
+        const notificationsResult = await api.notifications.getAll()
+        if (notificationsResult.data) {
+          const unreadNotifications = notificationsResult.data.filter(
+            (n: { read: boolean }) => !n.read
+          ).length
+          console.log('Unread notifications after mark all read:', unreadNotifications)
+          setBadgeCounts((prev) => ({ ...prev, notifications: unreadNotifications }))
+        }
+      }, 300)
     }
 
     const handleMatchesViewed = () => {

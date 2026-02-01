@@ -38,9 +38,15 @@ export default function NotificationsPage() {
   const [isLoading, setIsLoading] = useState(true)
 
   useEffect(() => {
-    loadNotifications()
-    // Mark all as read when user visits the page
-    markAllAsReadOnLoad()
+    const initPage = async () => {
+      // Mark all as read when user visits the page
+      await markAllAsReadOnLoad()
+      // Wait a moment for the backend to update
+      await new Promise(resolve => setTimeout(resolve, 500))
+      // Then load the updated notifications
+      await loadNotifications()
+    }
+    initPage()
   }, [])
 
   const loadNotifications = async () => {
@@ -58,12 +64,25 @@ export default function NotificationsPage() {
   }
 
   const markAllAsReadOnLoad = async () => {
-    // Mark all as read in the background
-    await api.notifications.markAllAsRead()
-    // Update all notifications to read state
-    setNotifications((prev) => prev.map((n) => ({ ...n, read: true })))
-    // Trigger sidebar update
-    window.dispatchEvent(new Event('notificationsRead'))
+    try {
+      console.log('[NotificationsPage] Starting markAllAsReadOnLoad')
+      // Mark all as read on the backend
+      const result = await api.notifications.markAllAsRead()
+      console.log('[NotificationsPage] Mark all as read result:', result)
+      
+      // Update all notifications to read state locally
+      setNotifications((prev) => {
+        const updated = prev.map((n) => ({ ...n, read: true }))
+        console.log('[NotificationsPage] Updated notifications locally:', updated)
+        return updated
+      })
+      
+      // Trigger sidebar update - this will reload the notification count
+      console.log('[NotificationsPage] Dispatching notificationsRead event')
+      window.dispatchEvent(new Event('notificationsRead'))
+    } catch (error) {
+      console.error('[NotificationsPage] Error marking all as read:', error)
+    }
   }
 
   const handleMarkAsRead = async (id: string) => {

@@ -76,6 +76,21 @@ router.put('/read-all', auth, async (req, res) => {
   }
 });
 
+// PUT /api/notifications/mark-all-read (alias for read-all)
+router.put('/mark-all-read', auth, async (req, res) => {
+  try {
+    await Notification.updateMany(
+      { user_id: req.userId, read: false },
+      { read: true, read_at: new Date() }
+    );
+
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Mark all as read error:', error);
+    res.status(500).json({ message: 'Error marking notifications as read' });
+  }
+});
+
 // DELETE /api/notifications/:id
 router.delete('/:id', auth, async (req, res) => {
   try {

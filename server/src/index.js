@@ -56,10 +56,12 @@ app.set('io', io);
 // ============================================
 
 // 1. CORS configuration (MUST be first for preflight requests)
+const allowedOrigins = process.env.NODE_ENV === 'production'
+  ? (process.env.ALLOWED_ORIGINS || 'https://your-frontend.railway.app').split(',')
+  : ['http://localhost:3000', 'http://localhost:3001', 'http://localhost:5001'];
+
 app.use(cors({
-  origin: process.env.NODE_ENV === 'development'
-    ? ['http://localhost:3000', 'http://localhost:3001', 'https://*.vercel.app']
-    : ['https://*.vercel.app'],
+  origin: allowedOrigins,
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization'],
@@ -141,12 +143,18 @@ app.use((req, res) => {
 });
 
 // Connect to MongoDB and start server
-mongoose.connect(process.env.MONGODB_URI)
+const mongoURI = process.env.MONGODB_URI || 'mongodb://localhost:27017/dating-app';
+
+mongoose.connect(mongoURI, {
+  useNewUrlParser: true,
+  useUnifiedTopology: true,
+})
   .then(() => {
     console.log('Connected to MongoDB');
     httpServer.listen(PORT, () => {
       console.log(`Server running on port ${PORT}`);
       console.log(`Socket.io server ready`);
+      console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
     });
   })
   .catch((err) => {

@@ -71,15 +71,3 @@ const logger = {
 };
 
 export default logger;
-    if (isDevelopment) {
-      console.log(`[${method}] ${path} -> ${status} ${userId ? `(user: ${userId})` : ''}`);
-    } else {
-      // Only log failures and security-relevant requests
-      if (status >= 400) {
-        console.log(`[${method}] ${path} -> ${status}`);
-      }
-    }
-  }
-};
-
-export default logger;

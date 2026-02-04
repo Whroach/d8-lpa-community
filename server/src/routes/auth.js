@@ -196,26 +196,33 @@ router.post('/login', [
   try {
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
+      logger.warn('[LOGIN] Validation error:', errors.array()[0].msg);
       return res.status(400).json({ message: 'Invalid email or password' });
     }
 
     const { email, password } = req.body;
+    
+    logger.log(`[LOGIN] Login attempt for email: ${email}`);
 
     const user = await User.findOne({ email });
     if (!user) {
+      logger.warn(`[LOGIN] User not found: ${email}`);
       return res.status(401).json({ message: 'Invalid email or password' });
     }
 
     const isMatch = await user.comparePassword(password);
     if (!isMatch) {
+      logger.warn(`[LOGIN] Invalid password for user: ${email}`);
       return res.status(401).json({ message: 'Invalid email or password' });
     }
 
     if (user.is_banned) {
+      logger.warn(`[LOGIN] Login attempt on banned account: ${email}`);
       return res.status(403).json({ message: 'Account has been banned' });
     }
 
     if (user.is_suspended) {
+      logger.warn(`[LOGIN] Login attempt on suspended account: ${email}`);
       return res.status(403).json({ message: 'Account is suspended' });
     }
 
@@ -225,13 +232,16 @@ router.post('/login', [
     user.last_active = new Date();
     await user.save();
 
+    logger.info(`[LOGIN] Successful login for user: ${email}, User ID: ${user._id}`);
+
     res.json({
       user: user.toJSON(),
       profile,
       token
     });
   } catch (error) {
-    console.error('Login error:', error);
+    logger.error('[LOGIN] Login error:', error.message);
+    logger.error('[LOGIN] Error stack:', error.stack);
     res.status(500).json({ message: 'Error logging in' });
   }
 });
@@ -338,10 +348,13 @@ router.post('/forgot-password', [
 ], async (req, res, next) => {
   try {
     const { email } = req.body;
+    
+    logger.log(`[FORGOT-PASSWORD] Request initiated for email: ${email}`);
 
     const user = await User.findOne({ email });
     if (!user) {
       // Don't reveal if email exists
+      logger.warn(`[FORGOT-PASSWORD] Account not found for email: ${email}`);
       return res.json({ message: 'If an account exists, a reset link will be sent' });
     }
 
@@ -350,16 +363,28 @@ router.post('/forgot-password', [
     user.password_reset_expires = new Date(Date.now() + 60 * 60 * 1000); // 1 hour
     await user.save();
 
+    logger.log(`[FORGOT-PASSWORD] Reset token generated for: ${email}`);
+    logger.log(`[FORGOT-PASSWORD] Reset token expiry: ${user.password_reset_expires}`);
+
     // Send reset email
     if (isProduction) {
-      await sendPasswordResetEmail(email, resetToken);
+      try {
+        await sendPasswordResetEmail(email, resetToken);
+        logger.info(`[FORGOT-PASSWORD] Password reset email sent successfully to: ${email}`);
+      } catch (emailError) {
+        logger.error(`[FORGOT-PASSWORD] Failed to send email to ${email}:`, emailError.message);
+        logger.error(`[FORGOT-PASSWORD] Email error details:`, emailError);
+        throw emailError;
+      }
     } else {
       logger.log(`[DEV] Password reset token for ${email}: ${resetToken}`);
+      logger.log(`[DEV] Reset link: ${process.env.FRONTEND_URL}/reset-password?token=${resetToken}`);
     }
 
     res.json({ message: 'If an account exists, a reset link will be sent' });
   } catch (error) {
-    logger.error('[FORGOT] Error in forgot password:', error.message);
+    logger.error('[FORGOT-PASSWORD] Error in forgot password:', error.message);
+    logger.error('[FORGOT-PASSWORD] Error stack:', error.stack);
     res.status(500).json({ message: 'Error processing request' });
   }
 });
@@ -371,6 +396,8 @@ router.post('/reset-password', [
 ], async (req, res, next) => {
   try {
     const { token, password } = req.body;
+    
+    logger.log(`[RESET-PASSWORD] Reset attempt with token: ${token.substring(0, 10)}...`);
 
     const user = await User.findOne({
       password_reset_token: token,
@@ -378,7 +405,17 @@ router.post('/reset-password', [
     });
 
     if (!user) {
+      logger.warn(`[RESET-PASSWORD] Invalid or expired reset token attempted`);
       return res.status(400).json({ message: 'Invalid or expired reset token' });
+    }
+
+    logger.log(`[RESET-PASSWORD] Valid token found for user: ${user.email}`);
+
+    // Validate password strength
+    const passwordValidation = validatePasswordStrength(password);
+    if (!passwordValidation.isValid) {
+      logger.warn(`[RESET-PASSWORD] Weak password attempted for user: ${user.email}`);
+      return res.status(400).json({ message: 'Password does not meet security requirements', errors: passwordValidation.errors });
     }
 
     user.password = password;
@@ -386,9 +423,12 @@ router.post('/reset-password', [
     user.password_reset_expires = undefined;
     await user.save();
 
+    logger.info(`[RESET-PASSWORD] Password reset successfully for user: ${user.email}`);
+
     res.json({ message: 'Password reset successfully' });
   } catch (error) {
-    console.error('Reset password error:', error);
+    logger.error('[RESET-PASSWORD] Reset password error:', error.message);
+    logger.error('[RESET-PASSWORD] Error stack:', error.stack);
     res.status(500).json({ message: 'Error resetting password' });
   }
 });

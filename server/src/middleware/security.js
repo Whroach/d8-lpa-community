@@ -150,14 +150,25 @@ export const validateRequest = (req, res, next) => {
 // Error handling middleware that doesn't expose sensitive info
 export const errorHandler = (err, req, res, next) => {
   const isDevelopment = process.env.NODE_ENV !== 'production';
+  const requestId = req.requestId || `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
 
-  logger.error('[ERROR]', {
+  const errorLog = {
+    requestId,
+    timestamp: new Date().toISOString(),
     message: err.message,
     status: err.status || 500,
     path: req.path,
     method: req.method,
-    timestamp: new Date().toISOString()
-  });
+    userId: req.userId || 'anonymous',
+    ip: req.ip
+  };
+
+  if (isDevelopment) {
+    errorLog.stack = err.stack;
+    errorLog.details = err;
+  }
+
+  logger.error('[API ERROR HANDLER]', JSON.stringify(errorLog, null, 2));
 
   // Default error object
   let error = {
@@ -188,18 +199,109 @@ export const errorHandler = (err, req, res, next) => {
   res.status(error.status || 500).json(error);
 };
 
-// Request logging middleware
+// Enhanced request logging middleware with payload and response logging
 export const requestLogger = (req, res, next) => {
   const start = Date.now();
+  const requestId = `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
 
-  // Log request
-  logger.request(req.method, req.path, req.method === 'GET' ? 200 : 'pending', req.userId);
+  // Extract sensitive fields to redact
+  const sensitiveFields = ['password', 'token', 'authorization', 'secret', 'api_key', 'apiKey', 'refresh_token'];
+  
+  const redactSensitiveData = (obj) => {
+    if (!obj || typeof obj !== 'object') return obj;
+    
+    const redacted = JSON.parse(JSON.stringify(obj));
+    const walk = (o) => {
+      for (const key in o) {
+        if (sensitiveFields.some(field => field.toLowerCase() === key.toLowerCase())) {
+          o[key] = '***REDACTED***';
+        } else if (typeof o[key] === 'object' && o[key] !== null) {
+          walk(o[key]);
+        }
+      }
+    };
+    walk(redacted);
+    return redacted;
+  };
 
-  // Log response when sent
+  // Log incoming request
+  const logRequest = () => {
+    const requestData = {
+      requestId,
+      timestamp: new Date().toISOString(),
+      method: req.method,
+      path: req.path,
+      query: req.query,
+      userId: req.userId || 'anonymous',
+      ip: req.ip,
+      userAgent: req.headers['user-agent']
+    };
+
+    // Log body for non-GET requests
+    if (['POST', 'PUT', 'PATCH'].includes(req.method)) {
+      requestData.payload = redactSensitiveData(req.body);
+    }
+
+    logger.log('[API REQUEST]', JSON.stringify(requestData, null, 2));
+  };
+
+  // Intercept response data
+  const originalJson = res.json;
+  let responseData = null;
+
+  res.json = function(data) {
+    responseData = data;
+    return originalJson.call(this, data);
+  };
+
+  logRequest();
+
+  // Log response and errors when sent
   res.on('finish', () => {
     const duration = Date.now() - start;
-    logger.request(req.method, req.path, res.statusCode, req.userId);
+    
+    const responseLog = {
+      requestId,
+      timestamp: new Date().toISOString(),
+      method: req.method,
+      path: req.path,
+      statusCode: res.statusCode,
+      duration: `${duration}ms`,
+      userId: req.userId || 'anonymous',
+      ip: req.ip
+    };
+
+    // Log response data (redacted)
+    if (responseData) {
+      responseLog.response = redactSensitiveData(responseData);
+    }
+
+    // Log errors
+    if (res.statusCode >= 400) {
+      logger.error('[API ERROR]', JSON.stringify(responseLog, null, 2));
+    } else {
+      logger.log('[API RESPONSE]', JSON.stringify(responseLog, null, 2));
+    }
   });
+
+  // Log any errors thrown during request processing
+  const originalSend = res.send;
+  res.send = function(data) {
+    if (res.statusCode >= 400 && data) {
+      const errorLog = {
+        requestId,
+        timestamp: new Date().toISOString(),
+        method: req.method,
+        path: req.path,
+        statusCode: res.statusCode,
+        error: typeof data === 'string' ? data : redactSensitiveData(data),
+        userId: req.userId || 'anonymous',
+        ip: req.ip
+      };
+      logger.error('[API ERROR]', JSON.stringify(errorLog, null, 2));
+    }
+    return originalSend.call(this, data);
+  };
 
   next();
 };

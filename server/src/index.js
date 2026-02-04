@@ -57,11 +57,24 @@ app.set('io', io);
 
 // 1. CORS configuration (MUST be first for preflight requests)
 const allowedOrigins = process.env.NODE_ENV === 'production'
-  ? (process.env.ALLOWED_ORIGINS || 'https://your-frontend.railway.app').split(',')
+  ? (process.env.ALLOWED_ORIGINS || 'https://app.d8lpa.com').split(',').map(origin => origin.trim())
   : ['http://localhost:3000', 'http://localhost:3001', 'http://localhost:5001'];
 
+console.log('[CORS] Environment:', process.env.NODE_ENV);
+console.log('[CORS] Allowed origins:', allowedOrigins);
+
 app.use(cors({
-  origin: allowedOrigins,
+  origin: (origin, callback) => {
+    // Allow requests with no origin (like mobile apps or curl requests)
+    if (!origin) return callback(null, true);
+    
+    if (allowedOrigins.includes(origin) || allowedOrigins.includes('*')) {
+      return callback(null, true);
+    } else {
+      console.log('[CORS] Blocked origin:', origin);
+      return callback(new Error('Not allowed by CORS'));
+    }
+  },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization'],

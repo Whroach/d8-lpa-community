@@ -91,7 +91,7 @@ export const sendPasswordResetEmail = async (email, token) => {
       return false;
     }
 
-    const resetLink = `${process.env.NEXT_PUBLIC_API_URL}/reset-password?token=${token}`;
+    const resetLink = `${process.env.FRONTEND_URL}/reset-password?token=${token}`;
 
     const mailOptions = {
       from: `${process.env.SMTP_FROM_NAME} <${process.env.SMTP_FROM_EMAIL}>`,

@@ -10,6 +10,7 @@
     "seed": "node src/seed.js",
     "clear": "node src/clear.js",
     "create-admin": "node src/create-admin.js",
+    "create-prod-admin": "node src/create-prod-admin.js",
     "make-admin": "node src/make-admin.js",
     "update-gender": "node src/update-gender-preference.js"
   },

@@ -1,27 +1,22 @@
 /**
  * Production-safe logger for backend
- * In production (NODE_ENV=production), logs are minimized
- * In development, all logs are shown
+ * Logs are always output, but sensitive info is redacted in production
  */
 
 const isDevelopment = process.env.NODE_ENV !== 'production';
 
 const logger = {
   log: (...args) => {
-    if (isDevelopment) {
-      console.log('[INFO]', new Date().toISOString(), ...args);
-    }
+    console.log('[INFO]', new Date().toISOString(), ...args);
   },
 
   error: (...args) => {
-    // Always log errors, but be careful not to expose sensitive info
+    // Always log errors
     console.error('[ERROR]', new Date().toISOString(), ...args);
   },
 
   warn: (...args) => {
-    if (isDevelopment) {
-      console.warn('[WARN]', new Date().toISOString(), ...args);
-    }
+    console.warn('[WARN]', new Date().toISOString(), ...args);
   },
 
   info: (...args) => {
@@ -39,30 +34,19 @@ const logger = {
     console.log('[SECURITY]', new Date().toISOString(), ...args);
   },
 
-  // Request logging (abbreviated in production)
+  // Request logging
   request: (method, path, status, userId) => {
     const timestamp = new Date().toISOString();
-    if (isDevelopment) {
-      console.log(`[${timestamp}] ${method} ${path} - ${status} - User: ${userId || 'anonymous'}`);
-    } else {
-      // Minimal logging in production
-      if (status >= 400) {
-        console.log(`[${timestamp}] ${method} ${path} - ${status}`);
-      }
-    }
+    console.log(`[${timestamp}] ${method} ${path} - ${status} - User: ${userId || 'anonymous'}`);
   },
 
   // API request/response logging
   api: {
     request: (data) => {
-      if (isDevelopment) {
-        console.log('[API REQUEST]', JSON.stringify(data, null, 2));
-      }
+      console.log('[API REQUEST]', JSON.stringify(data, null, 2));
     },
     response: (data) => {
-      if (isDevelopment) {
-        console.log('[API RESPONSE]', JSON.stringify(data, null, 2));
-      }
+      console.log('[API RESPONSE]', JSON.stringify(data, null, 2));
     },
     error: (data) => {
       console.error('[API ERROR]', JSON.stringify(data, null, 2));

@@ -91,12 +91,20 @@ router.post('/signup', [
 
     // Send verification email only in production
     if (isProduction) {
-      await sendVerificationEmail(email, verificationCode);
+      try {
+        await sendVerificationEmail(email, verificationCode);
+        logger.info(`[SIGNUP] Verification email sent to: ${email}`);
+      } catch (emailError) {
+        logger.error(`[SIGNUP] Failed to send verification email to ${email}:`, emailError.message);
+        // Don't fail the signup if email fails, but user won't be verified
+      }
     } else {
       logger.log(`[DEV] Auto-verifying user: ${email} (verification code: ${verificationCode})`);
     }
 
     const token = generateToken(user._id);
+
+    logger.info(`[SIGNUP] Account created successfully: ${email}, requiresVerification: ${isProduction}`);
 
     res.status(201).json({
       user_id: user._id,
@@ -106,7 +114,8 @@ router.post('/signup', [
     });
   } catch (error) {
     logger.error('[SIGNUP] Error creating account:', error.message);
-    res.status(500).json({ message: 'Error creating account' });
+    logger.error('[SIGNUP] Error stack:', error.stack);
+    res.status(500).json({ message: 'Error creating account', error: error.message });
   }
 });
 
@@ -116,7 +125,15 @@ router.post('/verify-email', [
   body('code').isLength({ min: 6, max: 6 })
 ], async (req, res, next) => {
   try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      logger.warn('[VERIFY] Validation error:', errors.array()[0].msg);
+      return res.status(400).json({ message: 'Invalid email or code format' });
+    }
+
     const { email, code } = req.body;
+
+    logger.log('[VERIFY] Email verification attempt for:', email);
 
     const user = await User.findOne({ email });
     if (!user) {
@@ -125,10 +142,11 @@ router.post('/verify-email', [
     }
 
     if (user.email_verified) {
+      logger.log('[VERIFY] Email already verified for:', email);
       return res.json({ message: 'Email already verified' });
     }
 
-    logger.debug('[VERIFY] Verification attempt for:', email);
+    logger.debug('[VERIFY] Verification attempt for:', email, 'with code:', code.substring(0, 3) + '***');
 
     if (user.verification_code !== code) {
       logger.warn('[VERIFY] Invalid code attempt for:', email);
@@ -145,10 +163,11 @@ router.post('/verify-email', [
     user.verification_code_expires = undefined;
     await user.save();
 
-    logger.log('[VERIFY] Email verified for:', email);
+    logger.info('[VERIFY] Email verified successfully for:', email);
     res.json({ message: 'Email verified successfully' });
   } catch (error) {
     logger.error('[VERIFY] Error verifying email:', error.message);
+    logger.error('[VERIFY] Error stack:', error.stack);
     res.status(500).json({ message: 'Error verifying email' });
   }
 });

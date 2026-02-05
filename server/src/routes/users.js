@@ -241,6 +241,8 @@ router.post('/photos', auth, upload.single('photo'), async (req, res) => {
     const subfolder = isProfilePicture ? 'profilePicture' : 'photos';
     const fileName = `${ENVIRONMENT_FOLDER}/users/${userId}/${subfolder}/${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExtension}`;
 
+    logger.log('[UPLOAD] Starting photo upload:', { fileName, isProfilePicture, userId });
+
     // Upload to S3
     const uploadParams = {
       Bucket: BUCKET_NAME,
@@ -250,19 +252,30 @@ router.post('/photos', auth, upload.single('photo'), async (req, res) => {
     };
 
     await s3Client.send(new PutObjectCommand(uploadParams));
+    logger.log('[UPLOAD] Photo uploaded to S3:', { fileName, photoUrl: `https://${BUCKET_NAME}.s3.${AWS_REGION}.amazonaws.com/${fileName}` });
 
     // Generate the photo URL
     const photoUrl = `https://${BUCKET_NAME}.s3.${AWS_REGION}.amazonaws.com/${fileName}`;
 
-    // Add photo to user's photos array
-    const user = req.user;
-    user.photos.push(photoUrl);
-    await user.save();
+    // Add photo to profile's photos array (not user)
+    let profile = await Profile.findOne({ user_id: userId });
+    if (!profile) {
+      profile = new Profile({ user_id: userId });
+    }
+    
+    if (!profile.photos) {
+      profile.photos = [];
+    }
+    profile.photos.push(photoUrl);
+    await profile.save();
+
+    logger.log('[UPLOAD] Photo added to profile successfully:', { url: photoUrl, totalPhotos: profile.photos.length });
 
     res.json({ url: photoUrl });
   } catch (error) {
     logger.error('[UPLOAD] Error uploading photo:', error.message);
-    res.status(500).json({ message: 'Error uploading photo' });
+    logger.error('[UPLOAD] Error stack:', error.stack);
+    res.status(500).json({ message: 'Error uploading photo', error: error.message });
   }
 });
 
@@ -271,9 +284,13 @@ router.delete('/photos', auth, async (req, res) => {
   try {
     const { url } = req.body;
     
-    const user = req.user;
-    user.photos = user.photos.filter(p => p !== url);
-    await user.save();
+    // Delete from profile (not user)
+    const profile = await Profile.findOne({ user_id: req.userId });
+    if (profile) {
+      profile.photos = profile.photos.filter(p => p !== url);
+      await profile.save();
+      logger.log('[DELETE] Photo deleted from profile:', { url, remainingPhotos: profile.photos.length });
+    }
 
     res.json({ success: true });
   } catch (error) {

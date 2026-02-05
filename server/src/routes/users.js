@@ -267,11 +267,18 @@ router.post('/photos', auth, upload.single('photo'), async (req, res) => {
       profile.photos = [];
     }
     profile.photos.push(photoUrl);
+    
+    // If this is the first photo or explicitly marked as profile picture, set it as profile_picture_url
+    if (profile.photos.length === 1 || isProfilePicture) {
+      profile.profile_picture_url = photoUrl;
+      logger.log('[UPLOAD] Set as profile picture:', { url: photoUrl });
+    }
+    
     await profile.save();
 
-    logger.log('[UPLOAD] Photo added to profile successfully:', { url: photoUrl, totalPhotos: profile.photos.length });
+    logger.log('[UPLOAD] Photo added to profile successfully:', { url: photoUrl, totalPhotos: profile.photos.length, isProfilePicture });
 
-    res.json({ url: photoUrl });
+    res.json({ url: photoUrl, isProfilePicture: profile.profile_picture_url === photoUrl });
   } catch (error) {
     logger.error('[UPLOAD] Error uploading photo:', error.message);
     logger.error('[UPLOAD] Error stack:', error.stack);
@@ -288,6 +295,12 @@ router.delete('/photos', auth, async (req, res) => {
     const profile = await Profile.findOne({ user_id: req.userId });
     if (profile) {
       profile.photos = profile.photos.filter(p => p !== url);
+      
+      // If deleted photo was the profile picture, set the first remaining photo
+      if (profile.profile_picture_url === url) {
+        profile.profile_picture_url = profile.photos.length > 0 ? profile.photos[0] : null;
+      }
+      
       await profile.save();
       logger.log('[DELETE] Photo deleted from profile:', { url, remainingPhotos: profile.photos.length });
     }
@@ -296,6 +309,37 @@ router.delete('/photos', auth, async (req, res) => {
   } catch (error) {
     logger.error('[DELETE] Error deleting photo:', error.message);
     res.status(500).json({ message: 'Error deleting photo' });
+  }
+});
+
+// PUT /api/users/profile-picture - Set which photo is the profile picture
+router.put('/profile-picture', auth, async (req, res) => {
+  try {
+    const { photoUrl } = req.body;
+    
+    if (!photoUrl) {
+      return res.status(400).json({ message: 'Photo URL required' });
+    }
+    
+    const profile = await Profile.findOne({ user_id: req.userId });
+    if (!profile) {
+      return res.status(404).json({ message: 'Profile not found' });
+    }
+    
+    // Verify the photo exists in the user's photos array
+    if (!profile.photos.includes(photoUrl)) {
+      return res.status(400).json({ message: 'Photo not found in user\'s photos' });
+    }
+    
+    profile.profile_picture_url = photoUrl;
+    await profile.save();
+    
+    logger.log('[PROFILE-PICTURE] Updated profile picture:', { userId: req.userId, photoUrl });
+    
+    res.json({ success: true, profile_picture_url: photoUrl });
+  } catch (error) {
+    logger.error('[PROFILE-PICTURE] Error updating profile picture:', error.message);
+    res.status(500).json({ message: 'Error updating profile picture' });
   }
 });
 

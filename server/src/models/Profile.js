@@ -54,6 +54,12 @@ const profileSchema = new mongoose.Schema({
     type: String // URLs to photos
   }],
   
+  // Main profile picture (separate from photos array)
+  profile_picture_url: {
+    type: String,
+    default: null
+  },
+  
   // Music, Animals, Pet Peeves
   favorite_music: [{
     type: String

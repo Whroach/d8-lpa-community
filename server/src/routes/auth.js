@@ -284,6 +284,7 @@ router.put('/complete-onboarding', auth, async (req, res) => {
       custom_peeve,
       photos,
       looking_for,
+      looking_for_relationship,
       looking_for_description,
       life_goals,
       languages,
@@ -299,16 +300,12 @@ router.put('/complete-onboarding', auth, async (req, res) => {
     logger.log('[ONBOARDING] Updating profile for user:', req.userId);
     logger.log('[ONBOARDING] Received payload keys:', Object.keys(req.body));
 
-    // Update user
+    // Update user with only basic info
     const user = req.user;
     user.first_name = first_name || user.first_name;
     user.last_name = last_name || user.last_name;
     user.birthdate = birthdate || user.birthdate;
     user.gender = gender || user.gender;
-    user.location_state = location_state || user.location_state;
-    user.district_number = district_number || user.district_number;
-    user.lpa_membership_id = lpa_membership_id || user.lpa_membership_id;
-    user.photos = photos || user.photos;
     user.agreed_to_guidelines = agreed_to_guidelines !== undefined ? agreed_to_guidelines : user.agreed_to_guidelines;
     user.onboarding_completed = true;
     await user.save();
@@ -323,11 +320,13 @@ router.put('/complete-onboarding', auth, async (req, res) => {
     
     // Basic profile info
     profile.location_state = location_state || profile.location_state;
+    profile.location_city = location_city || profile.location_city;
     profile.district_number = district_number || profile.district_number;
     profile.lpa_membership_id = lpa_membership_id || profile.lpa_membership_id;
     profile.bio = bio || profile.bio;
     profile.occupation = occupation || profile.occupation;
     profile.education = education || profile.education;
+    profile.photos = photos || profile.photos;
     
     // Interests and preferences
     profile.interests = interests || profile.interests;
@@ -338,13 +337,11 @@ router.put('/complete-onboarding', auth, async (req, res) => {
     profile.pet_peeves = pet_peeves || profile.pet_peeves;
     profile.custom_peeve = custom_peeve || profile.custom_peeve;
     
-    // Location
-    profile.location_city = location_city || profile.location_city;
-    
-    // Looking for and preferences
+    // Looking for
     if (looking_for && Array.isArray(looking_for)) {
       profile.looking_for_gender = looking_for;
     }
+    profile.looking_for_relationship = looking_for_relationship || profile.looking_for_relationship;
     profile.looking_for_description = looking_for_description ? (Array.isArray(looking_for_description) ? looking_for_description : [looking_for_description]) : profile.looking_for_description;
     profile.life_goals = life_goals ? (Array.isArray(life_goals) ? life_goals : [life_goals]) : profile.life_goals;
     profile.languages = languages || profile.languages;

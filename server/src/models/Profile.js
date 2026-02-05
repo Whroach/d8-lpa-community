@@ -49,6 +49,11 @@ const profileSchema = new mongoose.Schema({
     type: String
   }],
   
+  // Photos (moved from User model)
+  photos: [{
+    type: String // URLs to photos
+  }],
+  
   // Music, Animals, Pet Peeves
   favorite_music: [{
     type: String
@@ -73,6 +78,13 @@ const profileSchema = new mongoose.Schema({
   },
 
   // New profile fields
+  looking_for_gender: [{
+    type: String
+  }],
+  looking_for_relationship: {
+    type: String,
+    enum: ['long-term', 'short-term', 'casual', 'friendship', 'not-sure', '']
+  },
   looking_for_description: [{
     type: String
   }],

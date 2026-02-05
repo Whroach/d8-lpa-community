@@ -116,6 +116,7 @@ router.put('/profile', auth, async (req, res) => {
       life_goals,
       languages,
       cultural_background,
+      personal_preferences,
       distance_preference,
       age_preference_min,
       age_preference_max,
@@ -123,49 +124,68 @@ router.put('/profile', auth, async (req, res) => {
       location_state,
       location_country,
       favorite_music,
+      custom_music,
       animals,
-      pet_peeves
+      custom_animal,
+      pet_peeves,
+      custom_peeve
     } = req.body;
 
-    // Update user fields
+    // Update user - only basic user info
     const user = req.user;
     if (first_name !== undefined) user.first_name = first_name;
     if (last_name !== undefined) user.last_name = last_name;
     if (birthdate !== undefined) user.birthdate = birthdate;
     if (gender !== undefined) user.gender = gender;
-    if (looking_for !== undefined) user.looking_for = looking_for;
-    if (looking_for_relationship !== undefined) user.looking_for_relationship = looking_for_relationship;
-    if (photos !== undefined) user.photos = photos;
     await user.save();
 
-    // Update profile fields
-    const profile = await Profile.findOne({ user_id: req.userId });
-    if (profile) {
-      if (bio !== undefined) profile.bio = bio;
-      if (height !== undefined) profile.height = height;
-      if (body_type !== undefined) profile.body_type = body_type;
-      if (occupation !== undefined) profile.occupation = occupation;
-      if (education !== undefined) profile.education = education;
-      if (religion !== undefined) profile.religion = religion;
-      if (drinking !== undefined) profile.drinking = drinking;
-      if (smoking !== undefined) profile.smoking = smoking;
-      if (wants_kids !== undefined) profile.wants_kids = wants_kids;
-      if (interests !== undefined) profile.interests = interests;
-      if (looking_for_description !== undefined) profile.looking_for_description = looking_for_description;
-      if (life_goals !== undefined) profile.life_goals = life_goals;
-      if (languages !== undefined) profile.languages = languages;
-      if (cultural_background !== undefined) profile.cultural_background = cultural_background;
-      if (distance_preference !== undefined) profile.distance_preference = distance_preference;
-      if (age_preference_min !== undefined) profile.age_preference_min = age_preference_min;
-      if (age_preference_max !== undefined) profile.age_preference_max = age_preference_max;
-      if (location_city !== undefined) profile.location_city = location_city;
-      if (location_state !== undefined) profile.location_state = location_state;
-      if (location_country !== undefined) profile.location_country = location_country;
-      if (favorite_music !== undefined) profile.favorite_music = favorite_music;
-      if (animals !== undefined) profile.animals = animals;
-      if (pet_peeves !== undefined) profile.pet_peeves = pet_peeves;
-      await profile.save();
+    // Update profile - all profile-related fields
+    let profile = await Profile.findOne({ user_id: req.userId });
+    if (!profile) {
+      profile = new Profile({ user_id: req.userId });
     }
+    
+    // Profile content
+    if (bio !== undefined) profile.bio = bio;
+    if (height !== undefined) profile.height = height;
+    if (body_type !== undefined) profile.body_type = body_type;
+    if (occupation !== undefined) profile.occupation = occupation;
+    if (education !== undefined) profile.education = education;
+    if (religion !== undefined) profile.religion = religion;
+    if (drinking !== undefined) profile.drinking = drinking;
+    if (smoking !== undefined) profile.smoking = smoking;
+    if (wants_kids !== undefined) profile.wants_kids = wants_kids;
+    if (interests !== undefined) profile.interests = interests;
+    if (personal_preferences !== undefined) profile.personal_preferences = personal_preferences;
+    
+    // Looking for
+    if (looking_for !== undefined) profile.looking_for_gender = looking_for;
+    if (looking_for_relationship !== undefined) profile.looking_for_relationship = looking_for_relationship;
+    if (looking_for_description !== undefined) profile.looking_for_description = looking_for_description;
+    
+    // Preferences
+    if (life_goals !== undefined) profile.life_goals = life_goals;
+    if (languages !== undefined) profile.languages = languages;
+    if (cultural_background !== undefined) profile.cultural_background = cultural_background;
+    if (distance_preference !== undefined) profile.distance_preference = distance_preference;
+    if (age_preference_min !== undefined) profile.age_preference_min = age_preference_min;
+    if (age_preference_max !== undefined) profile.age_preference_max = age_preference_max;
+    
+    // Location
+    if (location_city !== undefined) profile.location_city = location_city;
+    if (location_state !== undefined) profile.location_state = location_state;
+    if (location_country !== undefined) profile.location_country = location_country;
+    
+    // Music, Animals, Pet Peeves
+    if (favorite_music !== undefined) profile.favorite_music = favorite_music;
+    if (custom_music !== undefined) profile.custom_music = custom_music;
+    if (animals !== undefined) profile.animals = animals;
+    if (custom_animal !== undefined) profile.custom_animal = custom_animal;
+    if (pet_peeves !== undefined) profile.pet_peeves = pet_peeves;
+    if (custom_peeve !== undefined) profile.custom_peeve = custom_peeve;
+    if (photos !== undefined) profile.photos = photos;
+    
+    await profile.save();
 
     res.json({
       user: user.toJSON(),

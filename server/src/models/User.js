@@ -31,47 +31,11 @@ const userSchema = new mongoose.Schema({
     type: String,
     enum: ['male', 'female', 'non-binary', 'other', '']
   },
-  looking_for: [{
-    type: String,
-    enum: ['male', 'female', 'non-binary', 'everyone']
-  }],
-  looking_for_relationship: {
-    type: String,
-    enum: ['long-term', 'short-term', 'casual', 'friendship', 'not-sure', '']
-  },
-  photos: [{
-    type: String // URLs to photos
-  }],
-  location_state: {
-    type: String,
-    default: ''
-  },
-  district_number: {
-    type: String,
-    default: ''
-  },
-  lpa_membership_id: {
-    type: String,
-    default: ''
-  },
-  occupation: {
-    type: String,
-    default: ''
-  },
-  education: {
-    type: String,
-    default: ''
-  },
-  favorite_music: [{
-    type: String
-  }],
-  animals: [{
-    type: String
-  }],
-  pet_peeves: [{
-    type: String
-  }],
   onboarding_completed: {
+    type: Boolean,
+    default: false
+  },
+  agreed_to_guidelines: {
     type: Boolean,
     default: false
   },

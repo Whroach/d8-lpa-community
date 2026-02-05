@@ -277,9 +277,13 @@ router.put('/complete-onboarding', auth, async (req, res) => {
       interests,
       location_city,
       favorite_music,
+      custom_music,
       animals,
+      custom_animal,
       pet_peeves,
+      custom_peeve,
       photos,
+      looking_for,
       looking_for_description,
       life_goals,
       languages,
@@ -288,8 +292,12 @@ router.put('/complete-onboarding', auth, async (req, res) => {
       personal_preferences,
       prompt_good_at,
       prompt_perfect_weekend,
-      prompt_message_if
+      prompt_message_if,
+      agreed_to_guidelines
     } = req.body;
+
+    logger.log('[ONBOARDING] Updating profile for user:', req.userId);
+    logger.log('[ONBOARDING] Received payload keys:', Object.keys(req.body));
 
     // Update user
     const user = req.user;
@@ -301,11 +309,11 @@ router.put('/complete-onboarding', auth, async (req, res) => {
     user.district_number = district_number || user.district_number;
     user.lpa_membership_id = lpa_membership_id || user.lpa_membership_id;
     user.photos = photos || user.photos;
-    user.favorite_music = favorite_music || user.favorite_music;
-    user.animals = animals || user.animals;
-    user.pet_peeves = pet_peeves || user.pet_peeves;
+    user.agreed_to_guidelines = agreed_to_guidelines !== undefined ? agreed_to_guidelines : user.agreed_to_guidelines;
     user.onboarding_completed = true;
     await user.save();
+
+    logger.log('[ONBOARDING] User saved with:', { first_name, last_name, birthdate, gender });
 
     // Update or create profile
     let profile = await Profile.findOne({ user_id: req.userId });
@@ -313,31 +321,58 @@ router.put('/complete-onboarding', auth, async (req, res) => {
       profile = new Profile({ user_id: req.userId });
     }
     
+    // Basic profile info
     profile.location_state = location_state || profile.location_state;
     profile.district_number = district_number || profile.district_number;
     profile.lpa_membership_id = lpa_membership_id || profile.lpa_membership_id;
     profile.bio = bio || profile.bio;
     profile.occupation = occupation || profile.occupation;
     profile.education = education || profile.education;
+    
+    // Interests and preferences
     profile.interests = interests || profile.interests;
+    profile.favorite_music = favorite_music || profile.favorite_music;
+    profile.custom_music = custom_music || profile.custom_music;
+    profile.animals = animals || profile.animals;
+    profile.custom_animal = custom_animal || profile.custom_animal;
+    profile.pet_peeves = pet_peeves || profile.pet_peeves;
+    profile.custom_peeve = custom_peeve || profile.custom_peeve;
+    
+    // Location
     profile.location_city = location_city || profile.location_city;
+    
+    // Looking for and preferences
+    if (looking_for && Array.isArray(looking_for)) {
+      profile.looking_for_gender = looking_for;
+    }
     profile.looking_for_description = looking_for_description ? (Array.isArray(looking_for_description) ? looking_for_description : [looking_for_description]) : profile.looking_for_description;
     profile.life_goals = life_goals ? (Array.isArray(life_goals) ? life_goals : [life_goals]) : profile.life_goals;
     profile.languages = languages || profile.languages;
     profile.cultural_background = cultural_background || profile.cultural_background;
     profile.religion = religion || profile.religion;
     profile.personal_preferences = personal_preferences || profile.personal_preferences;
+    
+    // Prompts
     profile.prompt_good_at = prompt_good_at || profile.prompt_good_at;
     profile.prompt_perfect_weekend = prompt_perfect_weekend || profile.prompt_perfect_weekend;
     profile.prompt_message_if = prompt_message_if || profile.prompt_message_if;
+    
     await profile.save();
+
+    logger.log('[ONBOARDING] Profile saved with:', { 
+      animals: profile.animals, 
+      favorite_music: profile.favorite_music,
+      custom_animal: profile.custom_animal,
+      pet_peeves: profile.pet_peeves 
+    });
 
     res.json({
       user: user.toJSON(),
       profile
     });
   } catch (error) {
-    console.error('Complete onboarding error:', error);
+    logger.error('[ONBOARDING] Error completing onboarding:', error.message);
+    logger.error('[ONBOARDING] Error stack:', error.stack);
     res.status(500).json({ message: 'Error completing onboarding' });
   }
 });

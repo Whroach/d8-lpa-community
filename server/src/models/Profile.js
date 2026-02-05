@@ -48,6 +48,29 @@ const profileSchema = new mongoose.Schema({
   interests: [{
     type: String
   }],
+  
+  // Music, Animals, Pet Peeves
+  favorite_music: [{
+    type: String
+  }],
+  custom_music: {
+    type: String,
+    default: ''
+  },
+  animals: [{
+    type: String
+  }],
+  custom_animal: {
+    type: String,
+    default: ''
+  },
+  pet_peeves: [{
+    type: String
+  }],
+  custom_peeve: {
+    type: String,
+    default: ''
+  },
 
   // New profile fields
   looking_for_description: [{

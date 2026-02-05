@@ -179,12 +179,16 @@ router.post('/resend-verification', [
   try {
     const { email } = req.body;
 
+    logger.log('[RESEND] Verification code resend requested for:', email);
+
     const user = await User.findOne({ email });
     if (!user) {
+      logger.warn('[RESEND] User not found:', email);
       return res.status(404).json({ message: 'User not found' });
     }
 
     if (user.email_verified) {
+      logger.log('[RESEND] Email already verified for:', email);
       return res.json({ message: 'Email already verified' });
     }
 
@@ -193,9 +197,25 @@ router.post('/resend-verification', [
     user.verification_code_expires = new Date(Date.now() + 10 * 60 * 1000);
     await user.save();
 
+    logger.log('[RESEND] Verification code generated for:', email);
+
     // Send verification email
     if (isProduction) {
-      await sendVerificationEmail(email, verificationCode);
+      try {
+        await sendVerificationEmail(email, verificationCode);
+        logger.info('[RESEND] Verification email sent successfully to:', email);
+      } catch (emailError) {
+        logger.error('[RESEND] Failed to send verification email to', email, ':', emailError.message);
+        logger.error('[RESEND] Email error details:', {
+          code: emailError.code,
+          message: emailError.message,
+          command: emailError.command
+        });
+        return res.status(500).json({ 
+          message: 'Failed to send verification email. Please try again later.',
+          error: emailError.message 
+        });
+      }
     } else {
       logger.log(`[DEV] New verification code for ${email}: ${verificationCode}`);
     }
@@ -203,7 +223,8 @@ router.post('/resend-verification', [
     res.json({ message: 'Verification code sent' });
   } catch (error) {
     logger.error('[RESEND] Error sending verification code:', error.message);
-    res.status(500).json({ message: 'Error sending verification code' });
+    logger.error('[RESEND] Error stack:', error.stack);
+    res.status(500).json({ message: 'Error sending verification code', error: error.message });
   }
 });
 

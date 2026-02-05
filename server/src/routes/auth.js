@@ -368,6 +368,12 @@ router.put('/complete-onboarding', auth, async (req, res) => {
     profile.education = education || profile.education;
     profile.photos = photos || profile.photos;
     
+    // Set profile picture from photos array (use first photo if available)
+    if (photos && Array.isArray(photos) && photos.length > 0 && !profile.profile_picture_url) {
+      profile.profile_picture_url = photos[0];
+      logger.log('[ONBOARDING] Set profile picture to first photo:', photos[0]);
+    }
+    
     // Interests and preferences
     profile.interests = interests || profile.interests;
     profile.favorite_music = favorite_music || profile.favorite_music;

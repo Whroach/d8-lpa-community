@@ -41,7 +41,11 @@ const io = new Server(httpServer, {
   cors: {
     origin: process.env.NODE_ENV === 'development' 
       ? ['http://localhost:3000', 'http://localhost:3001', 'https://*.vercel.app']
-      : ['https://*.vercel.app'],
+      : [
+          'https://app.d8lpa.com',
+          'https://*.vercel.app',
+          'https://*.railway.app'
+        ],
     credentials: true
   }
 });

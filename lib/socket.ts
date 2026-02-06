@@ -13,7 +13,8 @@ export const getSocket = (): Socket => {
       reconnection: true,
       reconnectionDelay: 1000,
       reconnectionDelayMax: 5000,
-      reconnectionAttempts: 5
+      reconnectionAttempts: 5,
+      transports: ['websocket', 'polling']
     });
 
     socket.on('connect', () => {

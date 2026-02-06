@@ -131,8 +131,8 @@ export default function MessagesPage() {
       socket.emit('join', userId)
     }
 
-    // Listen for new messages
-    socket.on('new-message', (message: Message) => {
+    // Listen for new messages - keep this listener active always
+    const handleNewMessage = (message: Message) => {
       // Don't add our own sent messages (they're already added optimistically)
       const currentUserId = user?.id || user?._id
       if (message.sender_id === currentUserId) {
@@ -150,24 +150,24 @@ export default function MessagesPage() {
       // Update conversation list with new last message
       setConversations(prev =>
         prev.map(c => {
-          // Find which conversation this message belongs to
-          if (selectedConversation && c.id === selectedConversation.id) {
-            return {
-              ...c,
-              last_message: message.content,
-              last_message_at: message.created_at
-            }
+          // Check if this message belongs to this conversation
+          // We need to check if the message is from the selected conversation or update the list
+          return {
+            ...c,
+            last_message: message.content,
+            last_message_at: message.created_at
           }
-          return c
         })
       )
-    })
+    }
+
+    socket.on('new-message', handleNewMessage)
 
     // Cleanup on unmount
     return () => {
-      socket.off('new-message')
+      socket.off('new-message', handleNewMessage)
     }
-  }, [user, selectedConversation])
+  }, [user])
 
   // Join/leave conversation rooms when selection changes
   useEffect(() => {

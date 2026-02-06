@@ -37,6 +37,7 @@ const navItems = [
   { href: "/browse", label: "Browse", icon: Compass, badgeKey: null },
   { href: "/messages", label: "Messages", icon: MessageCircle, badgeKey: "messages" },
   { href: "/matches", label: "Matches", icon: Users, badgeKey: "matches" },
+  { href: "/notifications", label: "Notifications", icon: Bell, badgeKey: "notifications" },
   { href: "/events", label: "Events", icon: Calendar, badgeKey: "events" },
 ]
 

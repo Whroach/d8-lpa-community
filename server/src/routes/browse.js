@@ -180,6 +180,7 @@ router.get('/', auth, async (req, res) => {
 
       // Check if already liked
       const isLiked = likedUserIds.includes(user._id.toString());
+      const likedEntry = likes.find(like => like.to_user.toString() === user._id.toString());
 
       return {
         id: user._id,
@@ -197,7 +198,8 @@ router.get('/', auth, async (req, res) => {
         favorite_music: profile?.favorite_music || [],
         animals: profile?.animals || [],
         pet_peeves: profile?.pet_peeves || [],
-        is_liked: isLiked
+        is_liked: isLiked,
+        like_id: isLiked ? likedEntry?._id : null
       };
     }));
 
@@ -314,6 +316,7 @@ router.post('/:userId/like', auth, async (req, res) => {
     res.json({
       success: true,
       is_match: !!match,
+      like_id: like._id,
       match: match ? {
         id: match._id,
         user: {

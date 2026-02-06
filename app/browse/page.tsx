@@ -67,6 +67,7 @@ export default function BrowsePage() {
   const [isLoading, setIsLoading] = useState(true)
   const [actioningId, setActioningId] = useState<string | null>(null)
   const [likedProfiles, setLikedProfiles] = useState<Set<string>>(new Set())
+  const [likeIds, setLikeIds] = useState<Map<string, string>>(new Map())
   
   // Filter state
   const [selectedLocations, setSelectedLocations] = useState<string[]>([])
@@ -92,7 +93,13 @@ export default function BrowsePage() {
       const liked = new Set(
         result.data.filter((p: Profile) => p.is_liked).map((p: Profile) => p.id)
       )
+      const likeIdMap = new Map(
+        result.data
+          .filter((p: Profile) => p.is_liked && p.like_id)
+          .map((p: Profile) => [p.id, p.like_id])
+      )
       setLikedProfiles(liked)
+      setLikeIds(likeIdMap)
     }
     setIsLoading(false)
   }
@@ -172,19 +179,29 @@ export default function BrowsePage() {
 
   const handleLike = async (profileId: string) => {
     setActioningId(profileId)
-    await api.browse.like(profileId)
+    const result = await api.browse.like(profileId)
+    if (result.data?.like_id) {
+      setLikeIds((prev) => new Map(prev).set(profileId, result.data.like_id))
+    }
     setLikedProfiles((prev) => new Set(prev).add(profileId))
     setActioningId(null)
   }
 
   const handleUnlike = async (profileId: string) => {
     setActioningId(profileId)
-    // Simulate API call
-    await new Promise((resolve) => setTimeout(resolve, 300))
+    const likeId = likeIds.get(profileId)
+    if (likeId) {
+      await api.browse.unlike(likeId)
+    }
     setLikedProfiles((prev) => {
       const newSet = new Set(prev)
       newSet.delete(profileId)
       return newSet
+    })
+    setLikeIds((prev) => {
+      const newMap = new Map(prev)
+      newMap.delete(profileId)
+      return newMap
     })
     setActioningId(null)
   }

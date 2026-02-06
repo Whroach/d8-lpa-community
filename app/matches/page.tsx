@@ -84,6 +84,8 @@ export default function MatchesPage() {
     const result = await api.browse.unlike(likeId)
     if (!result.error) {
       setLikedProfiles((prev) => prev.filter((p) => p.like_id !== likeId))
+      // Reload matches to remove from active matches if they were matched
+      await loadMatches()
     }
   }
 

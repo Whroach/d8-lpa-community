@@ -349,6 +349,20 @@ export const api = {
       }
       return apiRequest<any>(`/browse/${userId}/block`, { method: "POST" })
     },
+    getBlockedList: async () => {
+      if (USE_MOCK_DATA) {
+        await delay(200)
+        return { data: [] }
+      }
+      return apiRequest<any[]>("/browse/blocked-list")
+    },
+    unblock: async (userId: string) => {
+      if (USE_MOCK_DATA) {
+        await delay(200)
+        return { data: { success: true } }
+      }
+      return apiRequest<any>(`/browse/${userId}/unblock`, { method: "DELETE" })
+    },
     report: async (userId: string, reason: string) => {
       if (USE_MOCK_DATA) {
         await delay(200)

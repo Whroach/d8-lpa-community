@@ -50,8 +50,11 @@ router.get('/', auth, async (req, res) => {
       genderPreference = currentUser.gender === 'male' ? ['female'] : ['male'];
     }
 
-    logger.debug('Current user gender:', currentUser.gender);
-    logger.debug('Gender preference:', genderPreference);
+    logger.log('[BROWSE] Gender preference:', { 
+      userGender: currentUser.gender,
+      lookingFor: genderPreference,
+      source: currentUser.looking_for?.length > 0 ? 'user_model' : 'profile_model'
+    });
 
     // Get users the current user has already liked
     const likes = await Like.find({ from_user: req.userId });
@@ -81,13 +84,14 @@ router.get('/', auth, async (req, res) => {
     // Apply gender filter - handle "everyone" specially
     if (genderPreference.length > 0 && !genderPreference.includes('everyone')) {
       query.gender = { $in: genderPreference };
-      logger.debug('Applied gender filter:', query.gender);
+      logger.log('[BROWSE] Applied gender filter:', genderPreference);
     } else if (genderPreference.includes('everyone')) {
-      logger.debug('User wants to see everyone - no gender filter applied');
+      logger.log('[BROWSE] User wants to see everyone - no gender filter applied');
     }
 
     // Get users
     const users = await User.find(query).limit(50);
+    logger.log('[BROWSE] Found total matching users:', users.length);
 
     // Get privacy settings for filtering
     const allPrivacySettings = await UserPrivacySettings.find({});
@@ -114,6 +118,7 @@ router.get('/', auth, async (req, res) => {
       
       // If profile_visible is false, hide from browse
       if (privacySettings && !privacySettings.profile_visible) {
+        logger.log('[BROWSE] Filtered out (profile_visible=false):', user._id);
         return null;
       }
       
@@ -121,6 +126,7 @@ router.get('/', auth, async (req, res) => {
       if (privacySettings && privacySettings.selective_mode) {
         const profileOwnerLikes = likesMap.get(user._id.toString()) || [];
         if (!profileOwnerLikes.includes(req.userId.toString())) {
+          logger.log('[BROWSE] Filtered out (selective_mode and no like back):', user._id);
           return null;
         }
       }
@@ -142,6 +148,11 @@ router.get('/', auth, async (req, res) => {
       if (otherUserPreference.length > 0 && 
           !otherUserPreference.includes('everyone') && 
           !otherUserPreference.includes(currentUser.gender)) {
+        logger.log('[BROWSE] Filtered out (other user not interested in current gender):', {
+          userId: user._id,
+          otherUserPreference,
+          currentUserGender: currentUser.gender
+        });
         return null;
       }
       
@@ -157,6 +168,12 @@ router.get('/', auth, async (req, res) => {
       // Filter by age preference
       if (currentProfile) {
         if (age < currentProfile.age_preference_min || age > currentProfile.age_preference_max) {
+          logger.log('[BROWSE] Filtered out (age preference):', {
+            userId: user._id,
+            age,
+            minPref: currentProfile.age_preference_min,
+            maxPref: currentProfile.age_preference_max
+          });
           return null;
         }
       }
@@ -170,15 +187,16 @@ router.get('/', auth, async (req, res) => {
         last_name: user.last_name,
         age,
         gender: user.gender,
-        photos: user.photos,
+        photos: profile?.photos || [],
+        profile_picture_url: profile?.profile_picture_url || null,
         bio: profile?.bio || '',
         location_city: profile?.location_city || '',
         distance: Math.floor(Math.random() * 25) + 1, // Placeholder - would calculate from coordinates
         occupation: profile?.occupation || '',
         interests: profile?.interests || [],
-        favorite_music: user.favorite_music || [],
-        animals: user.animals || [],
-        pet_peeves: user.pet_peeves || [],
+        favorite_music: profile?.favorite_music || [],
+        animals: profile?.animals || [],
+        pet_peeves: profile?.pet_peeves || [],
         is_liked: isLiked
       };
     }));
@@ -186,9 +204,15 @@ router.get('/', auth, async (req, res) => {
     // Filter out nulls (users outside age range)
     const filteredProfiles = profiles.filter(p => p !== null);
 
+    logger.log('[BROWSE] Final response:', {
+      totalUsersQueried: users.length,
+      profilesAfterFilter: filteredProfiles.length,
+      genderPreference
+    });
+
     res.json(filteredProfiles);
   } catch (error) {
-    console.error('Browse profiles error:', error);
+    logger.error('Browse profiles error:', error.message);
     res.status(500).json({ message: 'Error fetching profiles' });
   }
 });
@@ -203,6 +227,10 @@ router.post('/:userId/like', auth, async (req, res) => {
     if (!targetUser) {
       return res.status(404).json({ message: 'User not found' });
     }
+
+    // Get target user's profile for photos
+    const targetUserProfile = await Profile.findOne({ user_id: targetUserId });
+    const currentUserProfile = await Profile.findOne({ user_id: req.userId });
 
     // Check if already liked
     const existingLike = await Like.findOne({ 
@@ -253,7 +281,7 @@ router.post('/:userId/like', auth, async (req, res) => {
           type: 'match',
           title: 'New Match!',
           message: `You and ${targetUser.first_name} matched! Start a conversation now.`,
-          avatar: targetUser.photos[0],
+          avatar: targetUserProfile?.profile_picture_url || (targetUserProfile?.photos && targetUserProfile.photos[0]),
           related_user: targetUserId,
           related_match: match._id
         });
@@ -265,7 +293,7 @@ router.post('/:userId/like', auth, async (req, res) => {
           type: 'match',
           title: 'New Match!',
           message: `You and ${req.user.first_name} matched! Start a conversation now.`,
-          avatar: req.user.photos[0],
+          avatar: currentUserProfile?.profile_picture_url || (currentUserProfile?.photos && currentUserProfile.photos[0]),
           related_user: req.userId,
           related_match: match._id
         });
@@ -291,12 +319,12 @@ router.post('/:userId/like', auth, async (req, res) => {
         user: {
           id: targetUser._id,
           first_name: targetUser.first_name,
-          photos: targetUser.photos
+          photos: targetUserProfile?.photos || []
         }
       } : null
     });
   } catch (error) {
-    console.error('Like error:', error);
+    logger.error('Like error:', error.message);
     res.status(500).json({ message: 'Error processing like' });
   }
 });
@@ -310,6 +338,10 @@ router.post('/:userId/superlike', auth, async (req, res) => {
     if (!targetUser) {
       return res.status(404).json({ message: 'User not found' });
     }
+
+    // Get target user's profile for photos
+    const targetUserProfile = await Profile.findOne({ user_id: targetUserId });
+    const currentUserProfile = await Profile.findOne({ user_id: req.userId });
 
     const existingLike = await Like.findOne({ 
       from_user: req.userId, 
@@ -367,7 +399,7 @@ router.post('/:userId/superlike', auth, async (req, res) => {
           type: 'match',
           title: 'New Match!',
           message: `You and ${targetUser.first_name} matched! Start a conversation now.`,
-          avatar: targetUser.photos[0],
+          avatar: targetUserProfile?.profile_picture_url || (targetUserProfile?.photos && targetUserProfile.photos[0]),
           related_user: targetUserId,
           related_match: match._id
         });
@@ -379,7 +411,7 @@ router.post('/:userId/superlike', auth, async (req, res) => {
           type: 'match',
           title: 'New Match!',
           message: `You and ${req.user.first_name} matched! Start a conversation now.`,
-          avatar: req.user.photos[0],
+          avatar: currentUserProfile?.profile_picture_url || (currentUserProfile?.photos && currentUserProfile.photos[0]),
           related_user: req.userId,
           related_match: match._id
         });
@@ -394,12 +426,12 @@ router.post('/:userId/superlike', auth, async (req, res) => {
         user: {
           id: targetUser._id,
           first_name: targetUser.first_name,
-          photos: targetUser.photos
+          photos: targetUserProfile?.photos || []
         }
       } : null
     });
   } catch (error) {
-    console.error('Superlike error:', error);
+    logger.error('Superlike error:', error.message);
     res.status(500).json({ message: 'Error processing superlike' });
   }
 });
@@ -462,7 +494,8 @@ router.get('/liked', auth, async (req, res) => {
         last_name: user.last_name,
         age,
         gender: user.gender,
-        photos: user.photos,
+        photos: profile?.photos || [],
+        profile_picture_url: profile?.profile_picture_url || null,
         bio: profile?.bio || '',
         location_city: profile?.location_city || '',
         occupation: profile?.occupation || '',
@@ -612,6 +645,70 @@ router.post('/:userId/block', auth, async (req, res) => {
   }
 });
 
+// GET /api/browse/blocked-list - Get list of blocked users
+router.get('/blocked-list', auth, async (req, res) => {
+  try {
+    // Get all users blocked by current user
+    const blockedRecords = await Block.find({ blocker: req.userId }).populate('blocked', 'first_name last_name');
+    
+    const blockedUsers = await Promise.all(
+      blockedRecords.map(async (record) => {
+        const profile = await Profile.findOne({ user_id: record.blocked._id });
+        return {
+          id: record.blocked._id,
+          first_name: record.blocked.first_name,
+          last_name: record.blocked.last_name,
+          profile_picture_url: profile?.profile_picture_url || null,
+          blocked_at: record.created_at || new Date()
+        };
+      })
+    );
+
+    res.json(blockedUsers);
+  } catch (error) {
+    logger.error('Get blocked list error:', error.message);
+    res.status(500).json({ message: 'Error fetching blocked users' });
+  }
+});
+
+// DELETE /api/browse/:userId/unblock - Unblock a user
+router.delete('/:userId/unblock', auth, async (req, res) => {
+  try {
+    const targetUserId = req.params.userId;
+
+    // Check if blocked
+    const block = await Block.findOne({
+      blocker: req.userId,
+      blocked: targetUserId
+    });
+
+    if (!block) {
+      return res.status(404).json({ message: 'User not blocked' });
+    }
+
+    // Delete the block
+    await Block.deleteOne({
+      blocker: req.userId,
+      blocked: targetUserId
+    });
+
+    // Archive the unblock action
+    await ActionHistory.create({
+      action_type: 'unblock',
+      user_id: req.userId,
+      target_user_id: targetUserId,
+      original_data: {
+        block_id: block._id
+      }
+    });
+
+    res.json({ success: true });
+  } catch (error) {
+    logger.error('Unblock error:', error.message);
+    res.status(500).json({ message: 'Error unblocking user' });
+  }
+});
+
 // POST /api/browse/:userId/report - Report a user
 router.post('/:userId/report', auth, async (req, res) => {
   try {
@@ -639,7 +736,7 @@ router.post('/:userId/report', auth, async (req, res) => {
 
     res.json({ success: true });
   } catch (error) {
-    console.error('Report error:', error);
+    logger.error('Report error:', error.message);
     res.status(500).json({ message: 'Error reporting user' });
   }
 });

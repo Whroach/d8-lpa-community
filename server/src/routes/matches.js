@@ -47,7 +47,8 @@ router.get('/', auth, async (req, res) => {
           first_name: otherUser.first_name,
           last_name: otherUser.last_name,
           age,
-          photos: otherUser.photos,
+          photos: otherProfile?.photos || [],
+          profile_picture_url: otherProfile?.profile_picture_url || null,
           bio: otherProfile?.bio || '',
           location_city: otherProfile?.location_city || '',
           location_state: otherProfile?.location_state || '',
@@ -73,12 +74,18 @@ router.get('/', auth, async (req, res) => {
     const activeMatches = validMatches.filter(m => m.is_active !== false);
     const inactiveMatches = validMatches.filter(m => m.is_active === false);
 
+    logger.log('[MATCHES] Returning matches for user:', {
+      userId: req.userId,
+      activeCount: activeMatches.length,
+      inactiveCount: inactiveMatches.length
+    });
+
     res.json({
       active: activeMatches,
       inactive: inactiveMatches
     });
   } catch (error) {
-    console.error('Get matches error:', error);
+    logger.error('Get matches error:', error.message);
     res.status(500).json({ message: 'Error fetching matches' });
   }
 });

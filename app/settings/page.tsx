@@ -20,7 +20,9 @@ import {
   Sun,
   Check,
   Trash2,
-  AlertTriangle
+  AlertTriangle,
+  X,
+  Users
 } from "lucide-react"
 import { AppLayout } from "@/components/app-layout"
 import { ProtectedRoute } from "@/components/protected-route"
@@ -41,6 +43,15 @@ import {
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { api } from "@/lib/api"
+import { Avatar } from "@/components/ui/avatar"
+
+type BlockedUser = {
+  id: string
+  first_name: string
+  last_name: string
+  profile_picture_url: string | null
+  blocked_at: string
+}
 
 export default function SettingsPage() {
   const router = useRouter()
@@ -48,6 +59,12 @@ export default function SettingsPage() {
   const [isSaving, setIsSaving] = useState(false)
   const [hasChanges, setHasChanges] = useState(false)
   const [saveSuccess, setSaveSuccess] = useState(false)
+  
+  // Blocked users states
+  const [showBlockedUsersDialog, setShowBlockedUsersDialog] = useState(false)
+  const [blockedUsers, setBlockedUsers] = useState<BlockedUser[]>([])
+  const [isLoadingBlocked, setIsLoadingBlocked] = useState(false)
+  const [isUnblocking, setIsUnblocking] = useState<string | null>(null)
   
   // Disable/Delete account states
   const [showDisableDialog, setShowDisableDialog] = useState(false)
@@ -245,6 +262,45 @@ export default function SettingsPage() {
     setSettings(newSettings)
     setHasChanges(true)
     setSaveSuccess(false)
+  }
+
+  const loadBlockedUsers = async () => {
+    setIsLoadingBlocked(true)
+    try {
+      const result = await api.browse.getBlockedList()
+      if (result.data) {
+        setBlockedUsers(result.data)
+      } else if (result.error) {
+        alert("Error loading blocked users: " + result.error)
+      }
+    } catch (error) {
+      console.error("Error loading blocked users:", error)
+      alert("Error loading blocked users")
+    } finally {
+      setIsLoadingBlocked(false)
+    }
+  }
+
+  const handleOpenBlockedUsers = async () => {
+    setShowBlockedUsersDialog(true)
+    await loadBlockedUsers()
+  }
+
+  const handleUnblock = async (userId: string) => {
+    setIsUnblocking(userId)
+    try {
+      const result = await api.browse.unblock(userId)
+      if (result.data?.success) {
+        setBlockedUsers(blockedUsers.filter(u => u.id !== userId))
+      } else if (result.error) {
+        alert("Error unblocking user: " + result.error)
+      }
+    } catch (error) {
+      console.error("Error unblocking user:", error)
+      alert("Error unblocking user")
+    } finally {
+      setIsUnblocking(null)
+    }
   }
 
   return (
@@ -447,6 +503,29 @@ export default function SettingsPage() {
                 onCheckedChange={() => updatePrivacy("selectiveMode")}
               />
             </div>
+          </CardContent>
+        </Card>
+
+        {/* Blocked Users */}
+        <Card className="mb-6">
+          <CardHeader>
+            <CardTitle className="text-lg flex items-center gap-2">
+              <Shield className="h-5 w-5" />
+              Blocked Users
+            </CardTitle>
+            <CardDescription>
+              Manage your blocked users list
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Button
+              onClick={handleOpenBlockedUsers}
+              variant="outline"
+              className="w-full"
+            >
+              <Users className="h-4 w-4 mr-2" />
+              View Blocked Users
+            </Button>
           </CardContent>
         </Card>
 
@@ -731,6 +810,84 @@ export default function SettingsPage() {
                 </Button>
               </div>
             </div>
+          </DialogContent>
+        </Dialog>
+
+        {/* Blocked Users Dialog */}
+        <Dialog open={showBlockedUsersDialog} onOpenChange={setShowBlockedUsersDialog}>
+          <DialogContent className="sm:max-w-[600px] max-h-[80vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <Users className="h-5 w-5" />
+                Blocked Users
+              </DialogTitle>
+              <DialogDescription>
+                {blockedUsers.length === 0
+                  ? "You haven't blocked anyone yet"
+                  : `You have blocked ${blockedUsers.length} user${blockedUsers.length === 1 ? "" : "s"}`}
+              </DialogDescription>
+            </DialogHeader>
+
+            {isLoadingBlocked ? (
+              <div className="flex items-center justify-center py-8">
+                <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+              </div>
+            ) : blockedUsers.length === 0 ? (
+              <div className="py-8 text-center">
+                <Users className="h-12 w-12 mx-auto text-muted-foreground/50 mb-3" />
+                <p className="text-muted-foreground">No blocked users</p>
+              </div>
+            ) : (
+              <div className="space-y-3 max-h-[50vh] overflow-y-auto">
+                {blockedUsers.map((user) => (
+                  <div
+                    key={user.id}
+                    className="flex items-center justify-between p-3 rounded-lg border border-border hover:bg-muted/50 transition-colors"
+                  >
+                    <div className="flex items-center gap-3 flex-1">
+                      {user.profile_picture_url ? (
+                        <img
+                          src={user.profile_picture_url}
+                          alt={`${user.first_name} ${user.last_name}`}
+                          className="h-10 w-10 rounded-full object-cover"
+                        />
+                      ) : (
+                        <div className="h-10 w-10 rounded-full bg-gradient-to-br from-blue-400 to-blue-600 flex items-center justify-center text-white font-bold text-sm">
+                          {user.first_name[0]}
+                        </div>
+                      )}
+                      <div className="flex-1 min-w-0">
+                        <p className="font-medium text-foreground truncate">
+                          {user.first_name} {user.last_name}
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                          Blocked on {new Date(user.blocked_at).toLocaleDateString()}
+                        </p>
+                      </div>
+                    </div>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleUnblock(user.id)}
+                      disabled={isUnblocking === user.id}
+                      className="ml-2 whitespace-nowrap"
+                    >
+                      {isUnblocking === user.id ? (
+                        <>
+                          <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+                          Unblocking...
+                        </>
+                      ) : (
+                        <>
+                          <X className="h-3 w-3 mr-1" />
+                          Unblock
+                        </>
+                      )}
+                    </Button>
+                  </div>
+                ))}
+              </div>
+            )}
           </DialogContent>
         </Dialog>
         </div>

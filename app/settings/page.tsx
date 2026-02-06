@@ -819,7 +819,6 @@ export default function SettingsPage() {
                   : `You have blocked ${blockedUsers.length} user${blockedUsers.length === 1 ? "" : "s"}`}
               </DialogDescription>
             </DialogHeader>
-            </DialogHeader>
 
             {isLoadingBlocked ? (
               <div className="flex items-center justify-center py-8">

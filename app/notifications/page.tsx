@@ -34,6 +34,14 @@ export default function NotificationsPage() {
     loadNotifications()
   }, [])
 
+  useEffect(() => {
+    // Mark all unread notifications as read when visiting this page
+    const unreadNotifications = notifications.filter((n) => !n.read)
+    if (unreadNotifications.length > 0) {
+      handleMarkAllAsRead()
+    }
+  }, [])
+
   const loadNotifications = async () => {
     setIsLoading(true)
     const result = await api.notifications.getAll()

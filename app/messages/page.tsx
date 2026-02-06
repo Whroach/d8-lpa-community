@@ -620,9 +620,12 @@ export default function MessagesPage() {
 
               {/* Messages */}
               <div className="flex-1 overflow-y-auto p-4 space-y-6">
-                {isLoadingMessages ? (
-                  <div className="flex items-center justify-center py-12">
-                    <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                {messages.length === 0 && !isLoadingMessages ? (
+                  <div className="flex items-center justify-center h-full">
+                    <div className="text-center">
+                      <MessageCircle className="h-12 w-12 text-muted-foreground mx-auto mb-4 opacity-50" />
+                      <p className="text-muted-foreground">No messages yet. Start the conversation!</p>
+                    </div>
                   </div>
                 ) : messages.length > 0 ? (
                   groupedMessages.map((group) => (

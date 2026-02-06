@@ -13,7 +13,7 @@ export default function HomePage() {
     // Small delay to allow hydration
     const timer = setTimeout(() => {
       if (isAuthenticated) {
-        router.push("/dashboard")
+        router.push("/browse")
       } else {
         router.push("/login")
       }

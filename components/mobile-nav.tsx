@@ -12,7 +12,7 @@ import {
 import { cn } from "@/lib/utils"
 
 const navItems = [
-  { href: "/dashboard", label: "Home", icon: LayoutDashboard },
+  { href: "/browse", label: "Home", icon: LayoutDashboard },
   { href: "/browse", label: "Browse", icon: Compass },
   { href: "/matches", label: "Matches", icon: Users },
   { href: "/messages", label: "Chat", icon: MessageCircle },

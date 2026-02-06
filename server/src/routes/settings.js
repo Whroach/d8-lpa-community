@@ -2,16 +2,18 @@ import express from 'express';
 import bcrypt from 'bcryptjs';
 import { auth } from '../middleware/auth.js';
 import User from '../models/User.js';
+import Profile from '../models/Profile.js';
 import UserNotificationSettings from '../models/UserNotificationSettings.js';
 import UserPrivacySettings from '../models/UserPrivacySettings.js';
+import logger from '../utils/logger.js';
 
 const router = express.Router();
 
 // GET /api/settings - Get user settings
 router.get('/', auth, async (req, res) => {
   try {
-    // Get user to retrieve looking_for
-    const user = await User.findById(req.userId);
+    // Get profile to retrieve looking_for_gender
+    const profile = await Profile.findOne({ user_id: req.userId });
 
     // Get or create notification settings
     let notificationSettings = await UserNotificationSettings.findOne({ user_id: req.userId });
@@ -26,7 +28,7 @@ router.get('/', auth, async (req, res) => {
     }
 
     res.json({
-      lookingFor: user?.looking_for || [],
+      lookingFor: profile?.looking_for_gender || [],
       notifications: {
         matches: notificationSettings.matches,
         messages: notificationSettings.messages,
@@ -40,7 +42,7 @@ router.get('/', auth, async (req, res) => {
       },
     });
   } catch (error) {
-    console.error('Get settings error:', error);
+    logger.error('Get settings error:', error.message);
     res.status(500).json({ message: 'Error fetching settings' });
   }
 });
@@ -50,13 +52,15 @@ router.put('/', auth, async (req, res) => {
   try {
     const { lookingFor, notifications, privacy } = req.body;
 
-    // Update looking_for on User model
+    // Update looking_for_gender on Profile model
     if (Array.isArray(lookingFor)) {
-      await User.findByIdAndUpdate(
-        req.userId,
-        { looking_for: lookingFor },
-        { new: true }
-      );
+      let profile = await Profile.findOne({ user_id: req.userId });
+      if (!profile) {
+        profile = new Profile({ user_id: req.userId });
+      }
+      profile.looking_for_gender = lookingFor;
+      await profile.save();
+      logger.log('[SETTINGS] Updated looking_for_gender:', lookingFor);
     }
 
     // Update notification settings
@@ -84,13 +88,15 @@ router.put('/', auth, async (req, res) => {
       { upsert: true, new: true }
     );
 
+    logger.log('[SETTINGS] Updated settings for user:', req.userId);
+
     res.json({
       lookingFor,
       notifications,
       privacy,
     });
   } catch (error) {
-    console.error('Update settings error:', error);
+    logger.error('Update settings error:', error.message);
     res.status(500).json({ message: 'Error updating settings' });
   }
 });

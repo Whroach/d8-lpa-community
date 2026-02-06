@@ -29,18 +29,22 @@ export default function NotificationsPage() {
   const [notifications, setNotifications] = useState<Notification[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [filter, setFilter] = useState<'all' | 'unread'>('all')
+  const [hasMarkedAsRead, setHasMarkedAsRead] = useState(false)
 
   useEffect(() => {
     loadNotifications()
   }, [])
 
   useEffect(() => {
-    // Mark all unread notifications as read when visiting this page
-    const unreadNotifications = notifications.filter((n) => !n.read)
-    if (unreadNotifications.length > 0) {
-      handleMarkAllAsRead()
+    // Mark all unread notifications as read when visiting this page (after loading)
+    if (!isLoading && !hasMarkedAsRead && notifications.length > 0) {
+      const unreadNotifications = notifications.filter((n) => !n.read)
+      if (unreadNotifications.length > 0) {
+        handleMarkAllAsRead()
+        setHasMarkedAsRead(true)
+      }
     }
-  }, [])
+  }, [isLoading, hasMarkedAsRead, notifications])
 
   const loadNotifications = async () => {
     setIsLoading(true)

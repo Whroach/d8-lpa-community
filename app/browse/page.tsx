@@ -118,7 +118,7 @@ export default function BrowsePage() {
       }
       // Filter by activities/interests
       if (normalizedSelectedActivities.length > 0) {
-        const hasMatchingActivity = profile.interests.some((interest) =>
+        const hasMatchingActivity = (profile.interests || []).some((interest) =>
           normalizedSelectedActivities.includes((interest || "").toLowerCase())
         )
         if (!hasMatchingActivity) return false
@@ -430,7 +430,13 @@ export default function BrowsePage() {
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-5">
             {displayedProfiles.map((profile) => {
+              // Defensive checks for undefined data
+              if (!profile || !profile.id) return null
+              
               const isLiked = likedProfiles.has(profile.id)
+              const photoSrc = (profile.photos && Array.isArray(profile.photos) && profile.photos.length > 0) 
+                ? profile.photos[0] 
+                : "/placeholder.svg"
               
               return (
                 <div
@@ -440,8 +446,8 @@ export default function BrowsePage() {
                   {/* Profile Image - Clickable to view profile */}
                   <Link href={`/profile/${profile.id}`} className="block relative aspect-[4/5] w-full cursor-pointer group">
                     <Image
-                      src={profile.photos[0] || "/placeholder.svg"}
-                      alt={profile.first_name}
+                      src={photoSrc}
+                      alt={profile.first_name || "User"}
                       fill
                       className="object-cover transition-transform group-hover:scale-105"
                     />
@@ -469,7 +475,7 @@ export default function BrowsePage() {
 
                     {/* Interests */}
                     <div className="flex flex-wrap gap-1.5 mb-4">
-                      {profile.interests.slice(0, 4).map((interest) => (
+                      {(profile.interests || []).slice(0, 4).map((interest) => (
                         <Badge
                           key={interest}
                           variant="secondary"
@@ -478,12 +484,12 @@ export default function BrowsePage() {
                           {interest}
                         </Badge>
                       ))}
-                      {profile.interests.length > 4 && (
+                      {(profile.interests || []).length > 4 && (
                         <Badge
                           variant="secondary"
                           className="text-xs px-2 py-0.5 bg-muted text-muted-foreground border-0"
                         >
-                          +{profile.interests.length - 4}
+                          +{(profile.interests || []).length - 4}
                         </Badge>
                       )}
                     </div>

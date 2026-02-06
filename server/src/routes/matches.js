@@ -3,7 +3,9 @@ import { auth } from '../middleware/auth.js';
 import User from '../models/User.js';
 import Profile from '../models/Profile.js';
 import Match from '../models/Match.js';
+import Like from '../models/Like.js';
 import ActionHistory from '../models/ActionHistory.js';
+import logger from '../utils/logger.js';
 
 const router = express.Router();
 
@@ -164,9 +166,25 @@ router.delete('/:matchId', auth, async (req, res) => {
     match.is_active = false;
     await match.save();
 
-    res.json({ success: true });
+    // Remove likes between the two users when unmatching
+    // This removes the unmatcher's like on the other user
+    const deletedLikes = await Like.deleteMany({
+      $or: [
+        { from_user: req.userId, to_user: otherUserId },
+        { from_user: otherUserId, to_user: req.userId }
+      ]
+    });
+
+    logger.log('[UNMATCH] User unmatched with another user:', {
+      matchId: req.params.matchId,
+      userId: req.userId,
+      otherUserId,
+      likesRemoved: deletedLikes.deletedCount
+    });
+
+    res.json({ success: true, likesRemoved: deletedLikes.deletedCount });
   } catch (error) {
-    console.error('Unmatch error:', error);
+    logger.error('Unmatch error:', error.message);
     res.status(500).json({ message: 'Error unmatching' });
   }
 });

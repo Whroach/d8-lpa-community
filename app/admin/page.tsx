@@ -433,8 +433,6 @@ export default function AdminPage() {
         category: eventForm.category,
       }
 
-      console.log('Saving event:', eventData)
-
       if (editingEvent) {
         // Update existing event
         const result = await api.admin.updateEvent(editingEvent.id, eventData)

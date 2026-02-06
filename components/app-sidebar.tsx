@@ -122,7 +122,7 @@ export function AppSidebar() {
           const unreadNotifications = notificationsResult.data.filter(
             (n: { read: boolean }) => !n.read
           ).length
-          console.log('Unread notifications after mark all read:', unreadNotifications)
+          // Unread notifications count updated
           setBadgeCounts((prev) => ({ ...prev, notifications: unreadNotifications }))
         }
       }, 300)

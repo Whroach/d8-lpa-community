@@ -133,22 +133,17 @@ export default function MessagesPage() {
 
     // Listen for new messages
     socket.on('new-message', (message: Message) => {
-      console.log('[MESSAGES] Received new-message event:', message);
-      
       // Don't add our own sent messages (they're already added optimistically)
       const currentUserId = user?.id || user?._id
       if (message.sender_id === currentUserId) {
-        console.log('[MESSAGES] Ignoring own message');
         return
       }
       
       setMessages((prev) => {
         // Check if message already exists (avoid duplicates)
         if (prev.some(m => m.id === message.id || m._id === message._id)) {
-          console.log('[MESSAGES] Message already exists, skipping');
           return prev
         }
-        console.log('[MESSAGES] Adding new message to list');
         return [...prev, message]
       })
 

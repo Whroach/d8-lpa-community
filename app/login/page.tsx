@@ -41,7 +41,6 @@ export default function LoginPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    console.log('[LOGIN PAGE] Form submitted with email:', email)
     setError(null)
     setLoading(true)
 
@@ -73,7 +72,6 @@ export default function LoginPage() {
       if (!result.data.user.onboarding_completed) {
         router.push("/onboarding")
       } else {
-        console.log('[LOGIN PAGE] Redirecting to profile')
         router.push("/profile")
       }
     }

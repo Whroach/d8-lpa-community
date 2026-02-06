@@ -30,7 +30,6 @@ async function apiRequest<T>(
   endpoint: string,
   options: RequestInit = {}
 ): Promise<ApiResponse<T>> {
-  console.log('[API] Request to:', `${API_BASE_URL}${endpoint}`, { method: options.method || 'GET' })
   const token =
     typeof window !== "undefined"
       ? JSON.parse(localStorage.getItem("spark-auth") || "{}")?.state?.token
@@ -43,15 +42,11 @@ async function apiRequest<T>(
   }
 
   try {
-    console.log('[API] Fetching...')
     const response = await fetch(`${API_BASE_URL}${endpoint}`, {
       ...options,
       headers,
     })
-    console.log('[API] Response status:', response.status, response.statusText)
-
     const data = await response.json()
-    console.log('[API] Response data:', data)
 
     if (!response.ok) {
       if (response.status === 401) {
@@ -106,9 +101,6 @@ async function apiRequestFormData<T>(
 export const api = {
   auth: {
     login: async (email: string, password: string) => {
-      console.log('[API.AUTH.LOGIN] Called with email:', email)
-      console.log('[API.AUTH.LOGIN] USE_MOCK_DATA:', USE_MOCK_DATA)
-      console.log('[API.AUTH.LOGIN] API_BASE_URL:', API_BASE_URL)
       if (USE_MOCK_DATA) {
         await delay(500)
         return {

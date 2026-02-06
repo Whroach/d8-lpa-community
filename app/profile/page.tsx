@@ -247,7 +247,6 @@ function ProfilePage() {
       
       if (response.ok) {
         const data = await response.json()
-        console.log('Profile data loaded:', data)
         setUser(data.user)
         setProfile(data.profile)
         if (data.user?.photos) {
@@ -411,14 +410,11 @@ function ProfilePage() {
         prompt_message_if: formData.prompt_message_if.trim(),
       }
 
-      console.log('[PROFILE] Saving profile with data:', dataToSave)
       const result = await api.users.updateProfile(dataToSave)
       
       if (result.error) {
-        console.error('[PROFILE] Save error:', result.error)
         alert('Failed to save profile: ' + result.error)
       } else {
-        console.log('[PROFILE] Profile saved successfully:', result.data)
         // Reload profile to ensure we have latest data
         await loadProfile()
         // Reset custom input states

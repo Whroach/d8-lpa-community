@@ -576,7 +576,7 @@ function ProfilePage() {
             </p>
           </div>
           <div className="flex gap-2">
-            <Button variant="outline" onClick={() => setShowPreview(true)} className="bg-transparent">
+            <Button variant="outline" onClick={() => setShowPreview(true)} className="bg-white border-2 border-black dark:bg-slate-950 dark:border-white hover:bg-slate-50 dark:hover:bg-slate-900">
               <Eye className="h-4 w-4 mr-2" />
               Preview
             </Button>
@@ -587,7 +587,7 @@ function ProfilePage() {
               </Button>
             ) : (
               <>
-                <Button variant="outline" onClick={handleCancel} disabled={isSaving} className="bg-transparent">
+                <Button variant="outline" onClick={handleCancel} disabled={isSaving} className="bg-white border-2 border-black dark:bg-slate-950 dark:border-white hover:bg-slate-50 dark:hover:bg-slate-900">
                   Cancel
                 </Button>
                 <Button onClick={handleSave} disabled={isSaving}>

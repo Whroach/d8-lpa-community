@@ -204,8 +204,8 @@ export function AppSidebar() {
                 className={cn(
                   "flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-colors relative",
                   isActive
-                    ? "bg-sidebar-accent text-primary"
-                    : "text-sidebar-foreground hover:bg-sidebar-accent/50",
+                    ? "bg-primary text-white shadow-md"
+                    : "text-sidebar-foreground hover:bg-primary/10",
                   isCollapsed && "justify-center px-3"
                 )}
               >
@@ -260,8 +260,8 @@ export function AppSidebar() {
                       className={cn(
                         "flex items-center justify-center px-3 py-3 rounded-lg text-sm font-medium transition-colors",
                         pathname === item.href
-                          ? "bg-sidebar-accent text-primary"
-                          : "text-sidebar-foreground hover:bg-sidebar-accent/50"
+                          ? "bg-primary text-white shadow-md"
+                          : "text-sidebar-foreground hover:bg-primary/10"
                       )}
                     >
                       <item.icon className="h-5 w-5" />
@@ -279,8 +279,8 @@ export function AppSidebar() {
                     className={cn(
                       "flex items-center justify-center px-3 py-3 rounded-lg text-sm font-medium transition-colors",
                       pathname === "/settings"
-                        ? "bg-sidebar-accent text-primary"
-                        : "text-sidebar-foreground hover:bg-sidebar-accent/50"
+                        ? "bg-primary text-white shadow-md"
+                        : "text-sidebar-foreground hover:bg-primary/10"
                     )}
                   >
                     <Settings className="h-5 w-5" />
@@ -297,7 +297,7 @@ export function AppSidebar() {
                       logout()
                       router.push("/login")
                     }}
-                    className="w-full flex items-center justify-center px-3 py-3 rounded-lg text-sm font-medium transition-colors text-destructive hover:bg-destructive/10"
+                    className="w-full flex items-center justify-center px-3 py-3 rounded-lg text-sm font-medium transition-colors text-white bg-destructive hover:bg-destructive/90 shadow-md"
                   >
                     <LogOut className="h-5 w-5" />
                   </button>
@@ -317,8 +317,8 @@ export function AppSidebar() {
                   className={cn(
                     "flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-colors",
                     pathname === item.href
-                      ? "bg-sidebar-accent text-primary"
-                      : "text-sidebar-foreground hover:bg-sidebar-accent/50"
+                      ? "bg-primary text-white shadow-md"
+                      : "text-sidebar-foreground hover:bg-primary/10"
                   )}
                 >
                   <item.icon className="h-5 w-5" />
@@ -330,10 +330,11 @@ export function AppSidebar() {
                 className={cn(
                   "flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-colors",
                   pathname === "/settings"
-                    ? "bg-sidebar-accent text-primary"
-                    : "text-sidebar-foreground hover:bg-sidebar-accent/50"
+                    ? "bg-primary text-white shadow-md"
+                    : "text-sidebar-foreground hover:bg-primary/10"
                 )}
               >
+                <Settings className="h-4 w-4" />
                 Settings
               </Link>
               <button
@@ -341,8 +342,9 @@ export function AppSidebar() {
                   logout()
                   router.push("/login")
                 }}
-                className="w-full flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-colors text-destructive hover:bg-destructive/10"
+                className="w-full flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-colors text-white bg-destructive hover:bg-destructive/90 shadow-md"
               >
+                <LogOut className="h-4 w-4" />
                 Logout
               </button>
             </>

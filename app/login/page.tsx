@@ -45,20 +45,15 @@ export default function LoginPage() {
     setError(null)
     setLoading(true)
 
-    console.log('[LOGIN PAGE] Calling api.auth.login...')
     const result = await api.auth.login(email, password)
-    console.log('[LOGIN PAGE] Login result:', { hasError: !!result.error, hasData: !!result.data })
     
     if (result.error) {
-      console.log('[LOGIN PAGE] Login error:', result.error)
       setError(result.error)
       setLoading(false)
       return
     }
 
     if (result.data) {
-      console.log('[LOGIN PAGE] Login successful, user:', result.data.user?.email)
-      
       // Save credentials to localStorage if "Remember Me" is checked
       if (rememberMe) {
         localStorage.setItem(
@@ -76,7 +71,6 @@ export default function LoginPage() {
       setLoading(false)
       // Redirect to onboarding if not completed, otherwise profile
       if (!result.data.user.onboarding_completed) {
-        console.log('[LOGIN PAGE] Redirecting to onboarding')
         router.push("/onboarding")
       } else {
         console.log('[LOGIN PAGE] Redirecting to profile')
@@ -166,10 +160,6 @@ export default function LoginPage() {
               type="submit"
               className="w-full h-12 text-base font-semibold"
               disabled={isLoading}
-              onClick={(e) => {
-                console.log('[LOGIN PAGE] Button clicked')
-                console.log('[LOGIN PAGE] Button type:', e.currentTarget.type)
-              }}
             >
               {isLoading ? (
                 <>

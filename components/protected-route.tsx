@@ -13,7 +13,7 @@ interface ProtectedRouteProps {
 
 export function ProtectedRoute({ children }: ProtectedRouteProps) {
   const router = useRouter()
-  const { isAuthenticated, isLoading } = useAuthStore()
+  const { isAuthenticated, isLoading, checkSession, logout, token } = useAuthStore()
   const [isMounted, setIsMounted] = useState(false)
 
   useEffect(() => {
@@ -23,12 +23,19 @@ export function ProtectedRoute({ children }: ProtectedRouteProps) {
   useEffect(() => {
     if (!isMounted || isLoading) return
 
-    // If user is not authenticated, redirect to login
-    if (!isAuthenticated) {
+    // Check if session is still valid
+    const isSessionValid = checkSession()
+    
+    // If user is not authenticated or session expired, redirect to login
+    if (!isAuthenticated || !isSessionValid || !token) {
+      if (isAuthenticated && !isSessionValid) {
+        // Session expired, log out
+        logout()
+      }
       router.push('/login')
       return
     }
-  }, [isAuthenticated, isLoading, isMounted, router])
+  }, [isAuthenticated, isLoading, isMounted, router, checkSession, logout, token])
 
   // Show loading spinner while checking authentication
   if (!isMounted || isLoading) {

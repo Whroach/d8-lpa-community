@@ -381,7 +381,7 @@ export const api = {
         await delay(300)
         return { data: { success: true } }
       }
-      return apiRequest<any>(`/matches/${matchId}/unmatch`, { method: "DELETE" })
+      return apiRequest<any>(`/matches/${matchId}`, { method: "DELETE" })
     },
   },
   messages: {

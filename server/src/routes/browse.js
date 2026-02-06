@@ -497,6 +497,8 @@ router.delete('/liked/:likeId', auth, async (req, res) => {
       return res.status(403).json({ message: 'Unauthorized' });
     }
 
+    const likedUserId = like.to_user.toString();
+
     // Archive the like in ActionHistory
     await ActionHistory.create({
       action_type: 'unlike',
@@ -512,9 +514,31 @@ router.delete('/liked/:likeId', auth, async (req, res) => {
     // Delete the like
     await Like.findByIdAndDelete(req.params.likeId);
 
+    // If there's an active match between these users, unmatch them
+    const match = await Match.findOne({
+      users: { $all: [req.userId, likedUserId] },
+      is_active: true
+    });
+
+    if (match) {
+      match.is_active = false;
+      await match.save();
+      logger.log('[UNLIKE] Unmatched when unlike action performed:', {
+        userId: req.userId,
+        likedUserId,
+        matchId: match._id
+      });
+    }
+
+    logger.log('[UNLIKE] User unliked profile:', {
+      userId: req.userId,
+      likedUserId,
+      likeId: req.params.likeId
+    });
+
     res.json({ success: true });
   } catch (error) {
-    console.error('Unlike error:', error);
+    logger.error('Unlike error:', error.message);
     res.status(500).json({ message: 'Error unliking profile' });
   }
 });

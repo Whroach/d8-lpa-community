@@ -237,7 +237,7 @@ function ProfilePage() {
         return
       }
       
-      const response = await fetch('http://localhost:5001/api/users/profile', {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/users/profile`, {
         credentials: 'include',
         headers: {
           'Content-Type': 'application/json',

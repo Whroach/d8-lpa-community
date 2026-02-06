@@ -511,4 +511,64 @@ router.post('/reset-password', [
   }
 });
 
+// POST /api/auth/signup-admin - Create new admin account
+router.post('/signup-admin', [
+  body('email').isEmail().normalizeEmail(),
+  body('password').isLength({ min: 8 }).trim()
+], async (req, res, next) => {
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      logger.warn('[SIGNUP-ADMIN] Validation error:', errors.array()[0].msg);
+      return res.status(400).json({ message: errors.array()[0].msg });
+    }
+
+    const { email, password } = req.body;
+
+    // Validate password strength
+    const passwordValidation = validatePasswordStrength(password);
+    if (!passwordValidation.isValid) {
+      logger.warn('[SIGNUP-ADMIN] Weak password attempt for email:', email);
+      return res.status(400).json({ message: 'Password does not meet security requirements', errors: passwordValidation.errors });
+    }
+
+    // Check if user exists
+    const existingUser = await User.findOne({ email });
+    if (existingUser) {
+      logger.warn('[SIGNUP-ADMIN] Duplicate email registration attempt:', email);
+      return res.status(400).json({ message: 'Email already registered' });
+    }
+
+    // Create admin user
+    const user = new User({
+      email,
+      password,
+      role: 'admin',  // Set role to admin
+      email_verified: true,  // Admin accounts auto-verified
+      onboarding_completed: false
+    });
+
+    await user.save();
+
+    // Create empty profile
+    const profile = new Profile({ user_id: user._id });
+    await profile.save();
+
+    const token = generateToken(user._id);
+
+    logger.info(`[SIGNUP-ADMIN] Admin account created successfully: ${email}`);
+
+    res.status(201).json({
+      user_id: user._id,
+      email: user.email,
+      token,
+      requiresVerification: false
+    });
+  } catch (error) {
+    logger.error('[SIGNUP-ADMIN] Error creating admin account:', error.message);
+    logger.error('[SIGNUP-ADMIN] Error stack:', error.stack);
+    res.status(500).json({ message: 'Error creating admin account', error: error.message });
+  }
+});
+
 export default router;

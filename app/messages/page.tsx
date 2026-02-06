@@ -392,19 +392,26 @@ export default function MessagesPage() {
   const handleUnmatch = async () => {
     if (!selectedConversation) return
     
-    if (confirm(`Are you sure you want to unmatch with ${selectedConversation.user.first_name}? This will delete your conversation.`)) {
+    if (confirm(`Are you sure you want to unmatch with ${selectedConversation.user.first_name}? You can view past messages but won't be able to send new ones.`)) {
       const result = await api.matches.unmatch(selectedConversation.match_id)
       if (result.data) {
-        // Remove from conversations
-        setConversations(prev => prev.filter(c => c.id !== selectedConversation.id))
-        setFilteredConversations(prev => prev.filter(c => c.id !== selectedConversation.id))
+        // Mark conversation as inactive instead of deleting
+        setConversations(prev => 
+          prev.map(c => c.id === selectedConversation.id 
+            ? { ...c, is_active: false } 
+            : c
+          )
+        )
+        setFilteredConversations(prev => 
+          prev.map(c => c.id === selectedConversation.id 
+            ? { ...c, is_active: false } 
+            : c
+          )
+        )
         
-        // Select next conversation
-        const remainingConversations = conversations.filter(c => c.id !== selectedConversation.id)
-        if (remainingConversations.length > 0) {
-          setSelectedConversation(remainingConversations[0])
-        } else {
-          setSelectedConversation(null)
+        // Update selected conversation
+        if (selectedConversation) {
+          setSelectedConversation({ ...selectedConversation, is_active: false })
         }
       }
     }
@@ -598,14 +605,16 @@ export default function MessagesPage() {
                     <DropdownMenuItem onClick={handleViewProfile}>
                       View Profile
                     </DropdownMenuItem>
+                    {selectedConversation?.is_active !== false && (
+                      <DropdownMenuItem onClick={handleUnmatch}>
+                        Unmatch
+                      </DropdownMenuItem>
+                    )}
                     <DropdownMenuItem 
                       onClick={() => setShowDeleteDialog(true)}
                     >
                       <Trash2 className="h-4 w-4 mr-2" />
                       Delete Conversation
-                    </DropdownMenuItem>
-                    <DropdownMenuItem onClick={handleUnmatch}>
-                      Unmatch
                     </DropdownMenuItem>
                     <DropdownMenuItem 
                       className="text-destructive"

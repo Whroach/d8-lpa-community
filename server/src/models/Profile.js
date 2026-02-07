@@ -181,6 +181,33 @@ const profileSchema = new mongoose.Schema({
     default: ''
   },
   
+  // Open-ended questions
+  hoping_to_find: {
+    type: String,
+    maxlength: 500,
+    default: ''
+  },
+  great_day: {
+    type: String,
+    maxlength: 500,
+    default: ''
+  },
+  relationship_values: {
+    type: String,
+    maxlength: 500,
+    default: ''
+  },
+  show_affection: {
+    type: String,
+    maxlength: 500,
+    default: ''
+  },
+  build_with_person: {
+    type: String,
+    maxlength: 500,
+    default: ''
+  },
+  
   // Preferences
   distance_preference: {
     type: Number,

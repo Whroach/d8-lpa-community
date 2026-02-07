@@ -128,7 +128,15 @@ router.put('/profile', auth, async (req, res) => {
       animals,
       custom_animal,
       pet_peeves,
-      custom_peeve
+      custom_peeve,
+      prompt_good_at,
+      prompt_perfect_weekend,
+      prompt_message_if,
+      hoping_to_find,
+      great_day,
+      relationship_values,
+      show_affection,
+      build_with_person
     } = req.body;
 
     // Update user - only basic user info
@@ -184,6 +192,16 @@ router.put('/profile', auth, async (req, res) => {
     if (pet_peeves !== undefined) profile.pet_peeves = pet_peeves;
     if (custom_peeve !== undefined) profile.custom_peeve = custom_peeve;
     if (photos !== undefined) profile.photos = photos;
+    
+    // Prompts and open-ended questions
+    if (prompt_good_at !== undefined) profile.prompt_good_at = prompt_good_at;
+    if (prompt_perfect_weekend !== undefined) profile.prompt_perfect_weekend = prompt_perfect_weekend;
+    if (prompt_message_if !== undefined) profile.prompt_message_if = prompt_message_if;
+    if (hoping_to_find !== undefined) profile.hoping_to_find = hoping_to_find;
+    if (great_day !== undefined) profile.great_day = great_day;
+    if (relationship_values !== undefined) profile.relationship_values = relationship_values;
+    if (show_affection !== undefined) profile.show_affection = show_affection;
+    if (build_with_person !== undefined) profile.build_with_person = build_with_person;
     
     await profile.save();
 
@@ -396,7 +414,12 @@ router.get('/:id', auth, async (req, res) => {
         wants_kids: profile?.wants_kids,
         prompt_good_at: profile?.prompt_good_at,
         prompt_perfect_weekend: profile?.prompt_perfect_weekend,
-        prompt_message_if: profile?.prompt_message_if
+        prompt_message_if: profile?.prompt_message_if,
+        hoping_to_find: profile?.hoping_to_find,
+        great_day: profile?.great_day,
+        relationship_values: profile?.relationship_values,
+        show_affection: profile?.show_affection,
+        build_with_person: profile?.build_with_person
       }
     });
   } catch (error) {

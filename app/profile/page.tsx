@@ -335,6 +335,11 @@ function ProfilePage() {
     prompt_good_at: profile?.prompt_good_at || "",
     prompt_perfect_weekend: profile?.prompt_perfect_weekend || "",
     prompt_message_if: profile?.prompt_message_if || "",
+    hoping_to_find: profile?.hoping_to_find || "",
+    great_day: profile?.great_day || "",
+    relationship_values: profile?.relationship_values || "",
+    show_affection: profile?.show_affection || "",
+    build_with_person: profile?.build_with_person || "",
   })
 
   // Update formData when user/profile data loads
@@ -362,6 +367,11 @@ function ProfilePage() {
         prompt_good_at: profile?.prompt_good_at || "",
         prompt_perfect_weekend: profile?.prompt_perfect_weekend || "",
         prompt_message_if: profile?.prompt_message_if || "",
+        hoping_to_find: profile?.hoping_to_find || "",
+        great_day: profile?.great_day || "",
+        relationship_values: profile?.relationship_values || "",
+        show_affection: profile?.show_affection || "",
+        build_with_person: profile?.build_with_person || "",
       })
     }
   }, [user, profile])
@@ -408,6 +418,11 @@ function ProfilePage() {
         prompt_good_at: formData.prompt_good_at.trim(),
         prompt_perfect_weekend: formData.prompt_perfect_weekend.trim(),
         prompt_message_if: formData.prompt_message_if.trim(),
+        hoping_to_find: formData.hoping_to_find.trim(),
+        great_day: formData.great_day.trim(),
+        relationship_values: formData.relationship_values.trim(),
+        show_affection: formData.show_affection.trim(),
+        build_with_person: formData.build_with_person.trim(),
       }
 
       const result = await api.users.updateProfile(dataToSave)
@@ -1455,6 +1470,101 @@ function ProfilePage() {
               ) : (
                 <p className="text-foreground">{formData.prompt_message_if || "Not answered yet"}</p>
               )}
+            </div>
+
+            <Separator />
+
+            {/* Open-Ended Questions Section */}
+            <div className="pt-2">
+              <h3 className="text-sm font-semibold text-muted-foreground mb-4 uppercase">About You & Your Future</h3>
+
+              {/* What are you hoping to find on this site? */}
+              <div className="mb-6">
+                <Label className="text-base font-bold text-foreground mb-2 block">What are you hoping to find on this site?</Label>
+                {isEditing ? (
+                  <Textarea
+                    value={formData.hoping_to_find}
+                    onChange={(e) => setFormData({ ...formData, hoping_to_find: e.target.value.slice(0, 250) })}
+                    placeholder="Share what you're looking for..."
+                    rows={3}
+                    className="resize-none"
+                  />
+                ) : (
+                  <p className="text-foreground">{formData.hoping_to_find || "Not answered yet"}</p>
+                )}
+              </div>
+
+              <Separator />
+
+              {/* What does a great day look like for you? */}
+              <div className="my-6">
+                <Label className="text-base font-bold text-foreground mb-2 block">What does a great day look like for you?</Label>
+                {isEditing ? (
+                  <Textarea
+                    value={formData.great_day}
+                    onChange={(e) => setFormData({ ...formData, great_day: e.target.value.slice(0, 250) })}
+                    placeholder="Describe your ideal day..."
+                    rows={3}
+                    className="resize-none"
+                  />
+                ) : (
+                  <p className="text-foreground">{formData.great_day || "Not answered yet"}</p>
+                )}
+              </div>
+
+              <Separator />
+
+              {/* What values matter most to you in a relationship? */}
+              <div className="my-6">
+                <Label className="text-base font-bold text-foreground mb-2 block">What values matter most to you in a relationship?</Label>
+                {isEditing ? (
+                  <Textarea
+                    value={formData.relationship_values}
+                    onChange={(e) => setFormData({ ...formData, relationship_values: e.target.value.slice(0, 250) })}
+                    placeholder="Share the values that are important to you..."
+                    rows={3}
+                    className="resize-none"
+                  />
+                ) : (
+                  <p className="text-foreground">{formData.relationship_values || "Not answered yet"}</p>
+                )}
+              </div>
+
+              <Separator />
+
+              {/* How do you like to show appreciation or affection? */}
+              <div className="my-6">
+                <Label className="text-base font-bold text-foreground mb-2 block">How do you like to show appreciation or affection?</Label>
+                {isEditing ? (
+                  <Textarea
+                    value={formData.show_affection}
+                    onChange={(e) => setFormData({ ...formData, show_affection: e.target.value.slice(0, 250) })}
+                    placeholder="Describe how you express care and appreciation..."
+                    rows={3}
+                    className="resize-none"
+                  />
+                ) : (
+                  <p className="text-foreground">{formData.show_affection || "Not answered yet"}</p>
+                )}
+              </div>
+
+              <Separator />
+
+              {/* What kind of life do you want to build with the right person? */}
+              <div className="mt-6">
+                <Label className="text-base font-bold text-foreground mb-2 block">What kind of life do you want to build with the right person?</Label>
+                {isEditing ? (
+                  <Textarea
+                    value={formData.build_with_person}
+                    onChange={(e) => setFormData({ ...formData, build_with_person: e.target.value.slice(0, 250) })}
+                    placeholder="Share your vision for the future..."
+                    rows={3}
+                    className="resize-none"
+                  />
+                ) : (
+                  <p className="text-foreground">{formData.build_with_person || "Not answered yet"}</p>
+                )}
+              </div>
             </div>
           </CardContent>
         </Card>

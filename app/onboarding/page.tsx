@@ -159,6 +159,12 @@ interface OnboardingData {
   prompt_good_at: string
   prompt_perfect_weekend: string
   prompt_message_if: string
+  // Open-ended questions
+  hoping_to_find: string
+  great_day: string
+  relationship_values: string
+  show_affection: string
+  build_with_person: string
 }
 
 const initialOnboardingData: OnboardingData = {
@@ -192,6 +198,11 @@ const initialOnboardingData: OnboardingData = {
   prompt_good_at: "",
   prompt_perfect_weekend: "",
   prompt_message_if: "",
+  hoping_to_find: "",
+  great_day: "",
+  relationship_values: "",
+  show_affection: "",
+  build_with_person: "",
 }
 
 export default function OnboardingPage() {
@@ -1156,6 +1167,81 @@ export default function OnboardingPage() {
                   onChange={(e) => updateData({ prompt_message_if: e.target.value.slice(0, 500) })}
                   className="min-h-[80px] resize-none"
                 />
+              </div>
+
+              {/* New Open-Ended Questions */}
+              <div className="border-t border-border pt-6 mt-6">
+                <h4 className="text-sm font-semibold text-foreground mb-4">Open-Ended Questions</h4>
+
+                <div className="space-y-2">
+                  <div className="flex justify-between items-center">
+                    <Label htmlFor="hoping_to_find">What are you hoping to find on this site?</Label>
+                    <span className="text-xs text-muted-foreground">{data.hoping_to_find.length}/500</span>
+                  </div>
+                  <Textarea
+                    id="hoping_to_find"
+                    placeholder="Share what you're looking for..."
+                    value={data.hoping_to_find}
+                    onChange={(e) => updateData({ hoping_to_find: e.target.value.slice(0, 500) })}
+                    className="min-h-[80px] resize-none"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <div className="flex justify-between items-center">
+                    <Label htmlFor="great_day">What does a great day look like for you?</Label>
+                    <span className="text-xs text-muted-foreground">{data.great_day.length}/500</span>
+                  </div>
+                  <Textarea
+                    id="great_day"
+                    placeholder="Describe your ideal day..."
+                    value={data.great_day}
+                    onChange={(e) => updateData({ great_day: e.target.value.slice(0, 500) })}
+                    className="min-h-[80px] resize-none"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <div className="flex justify-between items-center">
+                    <Label htmlFor="relationship_values">What values matter most to you in a relationship?</Label>
+                    <span className="text-xs text-muted-foreground">{data.relationship_values.length}/500</span>
+                  </div>
+                  <Textarea
+                    id="relationship_values"
+                    placeholder="Share the values that are important to you..."
+                    value={data.relationship_values}
+                    onChange={(e) => updateData({ relationship_values: e.target.value.slice(0, 500) })}
+                    className="min-h-[80px] resize-none"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <div className="flex justify-between items-center">
+                    <Label htmlFor="show_affection">How do you like to show appreciation or affection?</Label>
+                    <span className="text-xs text-muted-foreground">{data.show_affection.length}/500</span>
+                  </div>
+                  <Textarea
+                    id="show_affection"
+                    placeholder="Describe how you express care and appreciation..."
+                    value={data.show_affection}
+                    onChange={(e) => updateData({ show_affection: e.target.value.slice(0, 500) })}
+                    className="min-h-[80px] resize-none"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <div className="flex justify-between items-center">
+                    <Label htmlFor="build_with_person">What kind of life do you want to build with the right person?</Label>
+                    <span className="text-xs text-muted-foreground">{data.build_with_person.length}/500</span>
+                  </div>
+                  <Textarea
+                    id="build_with_person"
+                    placeholder="Share your vision for the future..."
+                    value={data.build_with_person}
+                    onChange={(e) => updateData({ build_with_person: e.target.value.slice(0, 500) })}
+                    className="min-h-[80px] resize-none"
+                  />
+                </div>
               </div>
             </div>
           )}

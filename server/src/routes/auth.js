@@ -344,6 +344,11 @@ router.put('/complete-onboarding', auth, async (req, res) => {
       prompt_good_at,
       prompt_perfect_weekend,
       prompt_message_if,
+      hoping_to_find,
+      great_day,
+      relationship_values,
+      show_affection,
+      build_with_person,
       agreed_to_guidelines
     } = req.body;
 
@@ -409,6 +414,13 @@ router.put('/complete-onboarding', auth, async (req, res) => {
     profile.prompt_good_at = prompt_good_at || profile.prompt_good_at;
     profile.prompt_perfect_weekend = prompt_perfect_weekend || profile.prompt_perfect_weekend;
     profile.prompt_message_if = prompt_message_if || profile.prompt_message_if;
+    
+    // Open-ended questions
+    profile.hoping_to_find = hoping_to_find || profile.hoping_to_find;
+    profile.great_day = great_day || profile.great_day;
+    profile.relationship_values = relationship_values || profile.relationship_values;
+    profile.show_affection = show_affection || profile.show_affection;
+    profile.build_with_person = build_with_person || profile.build_with_person;
     
     await profile.save();
 

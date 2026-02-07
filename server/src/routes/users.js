@@ -369,6 +369,11 @@ router.get('/:id', auth, async (req, res) => {
       return res.status(404).json({ message: 'User not found' });
     }
 
+    // Hide deleted users
+    if (user.is_deleted) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
     const profile = await Profile.findOne({ user_id: user._id });
 
     // Calculate age

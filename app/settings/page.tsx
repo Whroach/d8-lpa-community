@@ -628,6 +628,16 @@ export default function SettingsPage() {
               </div>
               <ChevronRight className="h-5 w-5 text-muted-foreground" />
             </button>
+            <button 
+              onClick={() => setShowDeleteDialog(true)}
+              className="w-full flex items-center justify-between p-3 rounded-lg hover:bg-red-50 dark:hover:bg-red-950 transition-colors"
+            >
+              <div className="flex items-center gap-3">
+                <Trash2 className="h-5 w-5 text-red-600 dark:text-red-400" />
+                <span className="text-red-600 dark:text-red-400 font-medium">Delete Account</span>
+              </div>
+              <ChevronRight className="h-5 w-5 text-red-600 dark:text-red-400" />
+            </button>
           </CardContent>
         </Card>
 

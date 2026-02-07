@@ -42,6 +42,9 @@ router.get('/', auth, async (req, res) => {
 
       if (!otherUser) return null;
 
+      // Hide conversations with deleted users
+      if (otherUser.is_deleted) return null;
+
       // Fetch profile to get photos
       const otherProfile = await Profile.findOne({ user_id: otherUserId });
 

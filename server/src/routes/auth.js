@@ -267,6 +267,11 @@ router.post('/login', [
       return res.status(403).json({ message: 'Your account has been suspended or banned. Please contact d8lpa.community@gmail.com for more info.' });
     }
 
+    if (user.is_deleted) {
+      logger.warn(`[LOGIN] Login attempt on deleted account: ${email}`);
+      return res.status(403).json({ message: 'Your account has been deleted. Please contact d8lpa.community@gmail.com if you believe this is an error.' });
+    }
+
     const profile = await Profile.findOne({ user_id: user._id });
     const token = generateToken(user._id);
 

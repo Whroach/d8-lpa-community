@@ -28,6 +28,9 @@ router.get('/', auth, async (req, res) => {
 
       if (!otherUser || otherUser.role === 'admin') return null;
 
+      // Hide deleted users from matches
+      if (otherUser.is_deleted) return null;
+
       // Calculate age
       const birthDate = new Date(otherUser.birthdate);
       const today = new Date();

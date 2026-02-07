@@ -229,8 +229,6 @@ export default function AdminPage() {
       setNewsItems(result.data)
     }
   }
-    }
-  }
 
   useEffect(() => {
     let filtered = users

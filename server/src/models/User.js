@@ -29,7 +29,7 @@ const userSchema = new mongoose.Schema({
   },
   gender: {
     type: String,
-    enum: ['male', 'female', 'non-binary', 'other', '']
+    enum: ['male', 'female', 'non_binary', 'prefer_not_to_say', '']
   },
   onboarding_completed: {
     type: Boolean,

@@ -52,12 +52,11 @@ export default function MatchesPage() {
   const [filteredMatches, setFilteredMatches] = useState<Match[]>([])
   const [inactiveMatches, setInactiveMatches] = useState<Match[]>([])
   const [filteredInactiveMatches, setFilteredInactiveMatches] = useState<Match[]>([])
+  const [likedProfiles, setLikedProfiles] = useState<any[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState("")
   const [sortBy, setSortBy] = useState("recent")
-  const [showLikedProfiles, setShowLikedProfiles] = useState(false)
-  const [likedProfiles, setLikedProfiles] = useState<any[]>([])
-  const [isLoadingLikes, setIsLoadingLikes] = useState(false)
+  const [mainTab, setMainTab] = useState<"matches" | "liked">("matches")
   const [activeTab, setActiveTab] = useState("active")
 
   useEffect(() => {
@@ -70,12 +69,12 @@ export default function MatchesPage() {
   }, [])
 
   const loadLikedProfiles = async () => {
-    setIsLoadingLikes(true)
+    setIsLoading(true)
     const result = await api.browse.getLikedProfiles()
     if (result.data) {
       setLikedProfiles(result.data)
     }
-    setIsLoadingLikes(false)
+    setIsLoading(false)
   }
 
   const handleUnlikeProfile = async (likeId: string, e: React.MouseEvent) => {
@@ -381,7 +380,7 @@ export default function MatchesPage() {
         <AppLayout>
           <div className="p-6 md:p-8 max-w-6xl mx-auto">
         {/* Header */}
-        <div className="mb-8">
+        <div className="mb-6">
           <div className="flex items-center gap-3 mb-2">
             <div className="bg-primary/10 p-3 rounded-lg">
               <Heart className="h-6 w-6 text-primary fill-primary" />
@@ -395,178 +394,176 @@ export default function MatchesPage() {
           </div>
         </div>
 
-        {/* Search and Filter */}
-        <div className="flex flex-col sm:flex-row gap-3 mb-8 bg-card p-4 rounded-lg border border-border">
-          <div className="relative flex-1">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input
-              placeholder="Search matches..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-10 bg-background border-border"
-            />
-          </div>
-          <Select value={sortBy} onValueChange={setSortBy}>
-            <SelectTrigger className="w-full sm:w-[180px] bg-background border-border">
-              <Filter className="h-4 w-4 mr-2" />
-              <SelectValue placeholder="Sort by" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="recent">Most Recent</SelectItem>
-              <SelectItem value="alphabetical">Alphabetical</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-
-        {/* Tabs for Active Matches and History */}
-        <div className="mb-8">
-          <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-            <TabsList className="grid w-full grid-cols-2 mb-6 bg-card border border-border p-1">
-              <TabsTrigger value="active" className="flex items-center gap-2 rounded-md data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
+        {/* Main Tab Switcher - Matches vs Profiles You Liked */}
+        <div className="mb-6">
+          <Tabs value={mainTab} onValueChange={(val) => setMainTab(val as "matches" | "liked")} className="w-full">
+            <TabsList className="grid w-full grid-cols-2 bg-card border border-border p-1">
+              <TabsTrigger value="matches" className="flex items-center gap-2 rounded-md data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
                 <Heart className="h-4 w-4" />
-                Active Matches ({matches.length})
+                Matches
               </TabsTrigger>
-              <TabsTrigger value="history" className="flex items-center gap-2 rounded-md data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
-                <History className="h-4 w-4" />
-                History ({inactiveMatches.length})
+              <TabsTrigger value="liked" className="flex items-center gap-2 rounded-md data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
+                <Heart className="h-4 w-4 fill-current" />
+                Profiles You Liked
               </TabsTrigger>
             </TabsList>
-
-            <TabsContent value="active" className="mt-0">{renderMatchList(filteredMatches, false)}</TabsContent>
-            <TabsContent value="history" className="mt-0">{renderMatchList(filteredInactiveMatches, true)}</TabsContent>
           </Tabs>
         </div>
 
-        {/* Liked Profiles Section */}
-        <div className="bg-gradient-to-r from-primary/5 to-transparent border border-border/50 rounded-xl p-6">
-          <Button
-            variant="ghost"
-            className="w-full justify-between px-0 py-0 h-auto hover:bg-transparent"
-            onClick={() => setShowLikedProfiles(!showLikedProfiles)}
-          >
-            <span className="flex items-center gap-3 text-lg">
-              <div className="bg-primary/20 p-2 rounded-lg">
-                <Heart className="h-5 w-5 text-primary fill-primary" />
-              </div>
-              <div className="text-left">
-                <p className="font-semibold text-foreground">Profiles You Liked</p>
-                <p className="text-xs text-muted-foreground">{likedProfiles.length} profiles</p>
-              </div>
-            </span>
-            {showLikedProfiles ? (
-              <ChevronUp className="h-5 w-5 text-muted-foreground" />
-            ) : (
-              <ChevronDown className="h-5 w-5 text-muted-foreground" />
-            )}
-          </Button>
-
-          {showLikedProfiles && (
-            <div className="mt-6 pt-6 border-t border-border">
-              {isLoadingLikes ? (
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {[1, 2, 3].map((i) => (
-                    <div key={i} className="bg-card rounded-lg overflow-hidden border border-border">
-                      <Skeleton className="aspect-[4/5] w-full" />
-                      <div className="p-4">
-                        <Skeleton className="h-4 w-full mb-2" />
-                        <Skeleton className="h-3 w-24 mb-3" />
-                        <Skeleton className="h-9 w-full" />
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              ) : likedProfiles.length > 0 ? (
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {likedProfiles.map((profile) => (
-                    <div
-                      key={profile.id}
-                      className="bg-card rounded-lg overflow-hidden border border-border shadow-sm hover:shadow-lg hover:border-primary/30 transition-all"
-                    >
-                      {/* Profile Image */}
-                      <Link href={`/profile/${profile.id}`} className="block">
-                        <div className="relative aspect-[4/5] w-full">
-                          <Image
-                            src={profile.photos?.[0] || "/placeholder.svg"}
-                            alt={profile.first_name}
-                            fill
-                            className="object-cover"
-                          />
-                          {/* Gradient overlay */}
-                          <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/30 to-transparent" />
-                          
-                          {/* Liked badge */}
-                          <div className="absolute top-3 right-3">
-                            <div className="bg-primary/90 backdrop-blur text-primary-foreground px-3 py-1.5 rounded-full text-xs font-semibold flex items-center gap-1">
-                              <Heart className="h-3 w-3 fill-current" />
-                              {profile.type === 'superlike' ? 'Super Liked' : 'Liked'}
-                            </div>
-                          </div>
-                          
-                          {/* Name and info overlay */}
-                          <div className="absolute bottom-0 left-0 right-0 p-4">
-                            <h3 className="text-lg font-bold text-white">
-                              {profile.first_name}{profile.age ? `, ${profile.age}` : ''}
-                            </h3>
-                            {profile.location_city && (
-                              <div className="flex items-center gap-1 text-white/90 text-xs mt-2">
-                                <MapPin className="h-3.5 w-3.5" />
-                                <span>{profile.location_city}</span>
-                              </div>
-                            )}
-                          </div>
-                        </div>
-                      </Link>
-
-                      {/* Profile Details */}
-                      <div className="p-4">
-                        {profile.bio && (
-                          <p className="text-sm text-muted-foreground line-clamp-2 mb-3">
-                            {profile.bio}
-                          </p>
-                        )}
-                        <p className="text-xs text-muted-foreground mb-3">
-                          Liked {formatTimestamp(profile.liked_at)}
-                        </p>
-                        <div className="flex gap-2">
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            className="flex-1 bg-transparent hover:bg-primary/10"
-                            asChild
-                          >
-                            <Link href={`/profile/${profile.id}`}>
-                              <User className="h-4 w-4 mr-2" />
-                              Profile
-                            </Link>
-                          </Button>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            className="bg-transparent text-destructive hover:text-destructive hover:bg-destructive/10"
-                            onClick={(e) => handleUnlikeProfile(profile.like_id, e)}
-                          >
-                            <HeartOff className="h-4 w-4" />
-                          </Button>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <div className="text-center py-12">
-                  <Heart className="h-12 w-12 text-muted-foreground/30 mx-auto mb-3" />
-                  <h3 className="font-medium text-foreground mb-1">No likes yet</h3>
-                  <p className="text-muted-foreground mb-4">Start browsing to like profiles</p>
-                  <Button asChild>
-                    <Link href="/browse">Browse Profiles</Link>
-                  </Button>
-                </div>
-              )}
+        {/* Search and Filter - Only show for Matches tab */}
+        {mainTab === "matches" && (
+          <div className="flex flex-col sm:flex-row gap-3 mb-8 bg-card p-4 rounded-lg border border-border">
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Search matches..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-10 bg-background border-border"
+              />
             </div>
-          )}
-        </div>
-        </div>
-      </AppLayout>
+            <Select value={sortBy} onValueChange={setSortBy}>
+              <SelectTrigger className="w-full sm:w-[180px] bg-background border-border">
+                <Filter className="h-4 w-4 mr-2" />
+                <SelectValue placeholder="Sort by" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="recent">Most Recent</SelectItem>
+                <SelectItem value="alphabetical">Alphabetical</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        )}
+
+        {/* Content based on main tab */}
+        {mainTab === "matches" ? (
+          <>
+            {/* Tabs for Active Matches and History */}
+            <div className="mb-8">
+              <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+                <TabsList className="grid w-full grid-cols-2 mb-6 bg-card border border-border p-1">
+                  <TabsTrigger value="active" className="flex items-center gap-2 rounded-md data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
+                    <Heart className="h-4 w-4" />
+                    Active Matches ({matches.length})
+                  </TabsTrigger>
+                  <TabsTrigger value="history" className="flex items-center gap-2 rounded-md data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
+                    <History className="h-4 w-4" />
+                    History ({inactiveMatches.length})
+                  </TabsTrigger>
+                </TabsList>
+
+                <TabsContent value="active" className="mt-0">{renderMatchList(filteredMatches, false)}</TabsContent>
+                <TabsContent value="history" className="mt-0">{renderMatchList(filteredInactiveMatches, true)}</TabsContent>
+              </Tabs>
+            </div>
+          </>
+        ) : (
+          <>
+            {/* Profiles You Liked Content */}
+            {isLoading ? (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                {[1, 2, 3].map((i) => (
+                  <div key={i} className="bg-card rounded-lg overflow-hidden border border-border">
+                    <Skeleton className="aspect-[4/5] w-full" />
+                    <div className="p-4">
+                      <Skeleton className="h-4 w-full mb-2" />
+                      <Skeleton className="h-3 w-24 mb-3" />
+                      <Skeleton className="h-9 w-full" />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : likedProfiles.length > 0 ? (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                {likedProfiles.map((profile) => (
+                  <div
+                    key={profile.id}
+                    className="bg-card rounded-lg overflow-hidden border border-border shadow-sm hover:shadow-lg hover:border-primary/30 transition-all"
+                  >
+                    {/* Profile Image */}
+                    <Link href={`/profile/${profile.id}`} className="block">
+                      <div className="relative aspect-[4/5] w-full">
+                        <Image
+                          src={profile.photos?.[0] || "/placeholder.svg"}
+                          alt={profile.first_name}
+                          fill
+                          className="object-cover"
+                        />
+                        {/* Gradient overlay */}
+                        <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/30 to-transparent" />
+                        
+                        {/* Liked badge */}
+                        <div className="absolute top-3 right-3">
+                          <div className="bg-primary/90 backdrop-blur text-primary-foreground px-3 py-1.5 rounded-full text-xs font-semibold flex items-center gap-1">
+                            <Heart className="h-3 w-3 fill-current" />
+                            {profile.type === 'superlike' ? 'Super Liked' : 'Liked'}
+                          </div>
+                        </div>
+                        
+                        {/* Name and info overlay */}
+                        <div className="absolute bottom-0 left-0 right-0 p-4">
+                          <h3 className="text-lg font-bold text-white">
+                            {profile.first_name}{profile.age ? `, ${profile.age}` : ''}
+                          </h3>
+                          {profile.location_city && (
+                            <div className="flex items-center gap-1 text-white/90 text-xs mt-2">
+                              <MapPin className="h-3.5 w-3.5" />
+                              <span>{profile.location_city}</span>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </Link>
+
+                    {/* Profile Details */}
+                    <div className="p-4">
+                      {profile.bio && (
+                        <p className="text-sm text-muted-foreground line-clamp-2 mb-3">
+                          {profile.bio}
+                        </p>
+                      )}
+                      <p className="text-xs text-muted-foreground mb-3">
+                        Liked {formatTimestamp(profile.liked_at)}
+                      </p>
+                      <div className="flex gap-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="flex-1 bg-transparent hover:bg-primary/10"
+                          asChild
+                        >
+                          <Link href={`/profile/${profile.id}`}>
+                            <User className="h-4 w-4 mr-2" />
+                            Profile
+                          </Link>
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="bg-transparent text-destructive hover:text-destructive hover:bg-destructive/10"
+                          onClick={(e) => handleUnlikeProfile(profile.like_id, e)}
+                        >
+                          <HeartOff className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="text-center py-12">
+                <Heart className="h-12 w-12 text-muted-foreground/30 mx-auto mb-3" />
+                <h3 className="font-medium text-foreground mb-1">No likes yet</h3>
+                <p className="text-muted-foreground mb-4">Start browsing to like profiles</p>
+                <Button asChild>
+                  <Link href="/browse">Browse Profiles</Link>
+                </Button>
+              </div>
+            )}
+          </>
+        )}
+          </div>
+        </AppLayout>
       </ProtectedRoute>
     )
   }

@@ -367,11 +367,16 @@ export default function SettingsPage() {
                   Get notified when you match with someone
                 </p>
               </div>
-              <Switch
-                id="matches"
-                checked={settings.notifications.matches}
-                onCheckedChange={() => updateNotification("matches")}
-              />
+              <div className="flex items-center gap-2">
+                <span className="text-sm font-medium text-muted-foreground w-8 text-right">
+                  {settings.notifications.matches ? "On" : "Off"}
+                </span>
+                <Switch
+                  id="matches"
+                  checked={settings.notifications.matches}
+                  onCheckedChange={() => updateNotification("matches")}
+                />
+              </div>
             </div>
             <Separator />
             <div className="flex items-center justify-between">
@@ -381,11 +386,16 @@ export default function SettingsPage() {
                   Get notified when you receive a message
                 </p>
               </div>
-              <Switch
-                id="messages"
-                checked={settings.notifications.messages}
-                onCheckedChange={() => updateNotification("messages")}
-              />
+              <div className="flex items-center gap-2">
+                <span className="text-sm font-medium text-muted-foreground w-8 text-right">
+                  {settings.notifications.messages ? "On" : "Off"}
+                </span>
+                <Switch
+                  id="messages"
+                  checked={settings.notifications.messages}
+                  onCheckedChange={() => updateNotification("messages")}
+                />
+              </div>
             </div>
             <Separator />
             <div className="flex items-center justify-between">
@@ -395,11 +405,16 @@ export default function SettingsPage() {
                   Get notified when someone likes your profile
                 </p>
               </div>
-              <Switch
-                id="likes"
-                checked={settings.notifications.likes}
-                onCheckedChange={() => updateNotification("likes")}
-              />
+              <div className="flex items-center gap-2">
+                <span className="text-sm font-medium text-muted-foreground w-8 text-right">
+                  {settings.notifications.likes ? "On" : "Off"}
+                </span>
+                <Switch
+                  id="likes"
+                  checked={settings.notifications.likes}
+                  onCheckedChange={() => updateNotification("likes")}
+                />
+              </div>
             </div>
             <Separator />
             <div className="flex items-center justify-between">
@@ -409,11 +424,16 @@ export default function SettingsPage() {
                   Get notified about event updates
                 </p>
               </div>
-              <Switch
-                id="events"
-                checked={settings.notifications.events}
-                onCheckedChange={() => updateNotification("events")}
-              />
+              <div className="flex items-center gap-2">
+                <span className="text-sm font-medium text-muted-foreground w-8 text-right">
+                  {settings.notifications.events ? "On" : "Off"}
+                </span>
+                <Switch
+                  id="events"
+                  checked={settings.notifications.events}
+                  onCheckedChange={() => updateNotification("events")}
+                />
+              </div>
             </div>
             <Separator />
             <div className="flex items-center justify-between">
@@ -423,11 +443,16 @@ export default function SettingsPage() {
                   Get notified about admin news and announcements
                 </p>
               </div>
-              <Switch
-                id="admin_news"
-                checked={settings.notifications.admin_news}
-                onCheckedChange={() => updateNotification("admin_news")}
-              />
+              <div className="flex items-center gap-2">
+                <span className="text-sm font-medium text-muted-foreground w-8 text-right">
+                  {settings.notifications.admin_news ? "On" : "Off"}
+                </span>
+                <Switch
+                  id="admin_news"
+                  checked={settings.notifications.admin_news}
+                  onCheckedChange={() => updateNotification("admin_news")}
+                />
+              </div>
             </div>
           </CardContent>
         </Card>
@@ -450,16 +475,32 @@ export default function SettingsPage() {
                 { value: "male", label: "Men" },
                 { value: "non-binary", label: "Non-binary" },
                 { value: "everyone", label: "Everyone" },
-              ].map((option) => (
-                <div key={option.value} className="flex items-center justify-between">
-                  <Label htmlFor={`lookingFor-${option.value}`}>{option.label}</Label>
-                  <Checkbox
-                    id={`lookingFor-${option.value}`}
-                    checked={Array.isArray(settings.lookingFor) && settings.lookingFor.includes(option.value)}
-                    onCheckedChange={() => toggleLookingFor(option.value)}
-                  />
-                </div>
-              ))}
+              ].map((option) => {
+                const isSelected = Array.isArray(settings.lookingFor) && settings.lookingFor.includes(option.value);
+                return (
+                  <div
+                    key={option.value}
+                    className={`flex items-center justify-between p-3 rounded-lg border transition-all cursor-pointer ${
+                      isSelected
+                        ? "bg-primary/10 border-primary"
+                        : "bg-background border-border hover:border-primary/50"
+                    }`}
+                    onClick={() => toggleLookingFor(option.value)}
+                  >
+                    <Label
+                      htmlFor={`lookingFor-${option.value}`}
+                      className="cursor-pointer font-medium"
+                    >
+                      {option.label}
+                    </Label>
+                    <Checkbox
+                      id={`lookingFor-${option.value}`}
+                      checked={isSelected}
+                      onCheckedChange={() => toggleLookingFor(option.value)}
+                    />
+                  </div>
+                );
+              })}
             </div>
             <p className="text-xs text-muted-foreground">
               Selecting "Everyone" will clear other selections.
@@ -486,11 +527,16 @@ export default function SettingsPage() {
                   Make your profile visible in Browse. If disabled, your profile will be hidden from all users.
                 </p>
               </div>
-              <Switch
-                id="profileVisible"
-                checked={settings.privacy.profileVisible}
-                onCheckedChange={() => updatePrivacy("profileVisible")}
-              />
+              <div className="flex items-center gap-2">
+                <span className="text-sm font-medium text-muted-foreground w-8 text-right">
+                  {settings.privacy.profileVisible ? "On" : "Off"}
+                </span>
+                <Switch
+                  id="profileVisible"
+                  checked={settings.privacy.profileVisible}
+                  onCheckedChange={() => updatePrivacy("profileVisible")}
+                />
+              </div>
             </div>
             <Separator />
             <div className="flex items-center justify-between">
@@ -500,11 +546,16 @@ export default function SettingsPage() {
                   Only show your profile to users you have liked. Hidden from users you have not liked.
                 </p>
               </div>
-              <Switch
-                id="selectiveMode"
-                checked={settings.privacy.selectiveMode}
-                onCheckedChange={() => updatePrivacy("selectiveMode")}
-              />
+              <div className="flex items-center gap-2">
+                <span className="text-sm font-medium text-muted-foreground w-8 text-right">
+                  {settings.privacy.selectiveMode ? "On" : "Off"}
+                </span>
+                <Switch
+                  id="selectiveMode"
+                  checked={settings.privacy.selectiveMode}
+                  onCheckedChange={() => updatePrivacy("selectiveMode")}
+                />
+              </div>
             </div>
           </CardContent>
         </Card>

@@ -247,13 +247,13 @@ router.post('/login', [
     const user = await User.findOne({ email });
     if (!user) {
       logger.warn(`[LOGIN] User not found: ${email}`);
-      return res.status(401).json({ message: 'Invalid email or password' });
+      return res.status(401).json({ message: 'Invalid email' });
     }
 
     const isMatch = await user.comparePassword(password);
     if (!isMatch) {
       logger.warn(`[LOGIN] Invalid password for user: ${email}`);
-      return res.status(401).json({ message: 'Invalid email or password' });
+      return res.status(401).json({ message: 'Invalid password' });
     }
 
     if (user.is_banned) {

@@ -258,12 +258,12 @@ router.post('/login', [
 
     if (user.is_banned) {
       logger.warn(`[LOGIN] Login attempt on banned account: ${email}`);
-      return res.status(403).json({ message: 'Account has been banned' });
+      return res.status(403).json({ message: 'Your account has been suspended or banned. Please contact d8lpa.community@gmail.com for more info.' });
     }
 
     if (user.is_suspended) {
       logger.warn(`[LOGIN] Login attempt on suspended account: ${email}`);
-      return res.status(403).json({ message: 'Account is suspended' });
+      return res.status(403).json({ message: 'Your account has been suspended or banned. Please contact d8lpa.community@gmail.com for more info.' });
     }
 
     const profile = await Profile.findOne({ user_id: user._id });
@@ -294,13 +294,20 @@ router.post('/login', [
 // GET /api/auth/me
 router.get('/me', auth, async (req, res) => {
   try {
+    // Check if user has been banned or suspended since login
+    const currentUser = await User.findById(req.userId);
+    if (!currentUser || currentUser.is_banned || currentUser.is_suspended) {
+      logger.warn(`[AUTH/ME] Unauthorized access attempt on banned/suspended account: ${req.userId}`);
+      return res.status(403).json({ message: 'Your account has been suspended or banned. Please contact d8lpa.community@gmail.com for more info.' });
+    }
+
     const profile = await Profile.findOne({ user_id: req.userId });
-    const userJson = req.user.toJSON();
+    const userJson = currentUser.toJSON();
     res.json({
       user: {
         ...userJson,
         id: userJson._id,
-        role: req.user.role  // Explicitly include role
+        role: currentUser.role  // Explicitly include role
       },
       profile
     });

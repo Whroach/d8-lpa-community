@@ -6,6 +6,15 @@ import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import { Loader2 } from "lucide-react"
 import { useAuthStore } from "@/lib/store/auth-store"
+import { api } from "@/lib/api"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
 
 interface ProtectedRouteProps {
   children: React.ReactNode
@@ -15,6 +24,7 @@ export function ProtectedRoute({ children }: ProtectedRouteProps) {
   const router = useRouter()
   const { isAuthenticated, isLoading, checkSession, logout, token } = useAuthStore()
   const [isMounted, setIsMounted] = useState(false)
+  const [showBanModal, setShowBanModal] = useState(false)
 
   useEffect(() => {
     setIsMounted(true)
@@ -35,6 +45,18 @@ export function ProtectedRoute({ children }: ProtectedRouteProps) {
       router.push('/login')
       return
     }
+
+    // Verify user status with backend
+    const verifyUserStatus = async () => {
+      const result = await api.auth.me()
+      if (result.error && result.error.includes("suspended or banned")) {
+        // User has been banned/suspended, show modal and logout
+        setShowBanModal(true)
+        logout()
+      }
+    }
+
+    verifyUserStatus()
   }, [isAuthenticated, isLoading, isMounted, router, checkSession, logout, token])
 
   // Show loading spinner while checking authentication
@@ -51,5 +73,22 @@ export function ProtectedRoute({ children }: ProtectedRouteProps) {
     return null
   }
 
-  return <>{children}</>
+  return (
+    <>
+      <AlertDialog open={showBanModal}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Account Suspended or Banned</AlertDialogTitle>
+            <AlertDialogDescription>
+              Your account has been suspended or banned. Please contact d8lpa.community@gmail.com for more info.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogAction onClick={() => router.push('/login')}>
+            Go to Login
+          </AlertDialogAction>
+        </AlertDialogContent>
+      </AlertDialog>
+      {!showBanModal && children}
+    </>
+  )
 }

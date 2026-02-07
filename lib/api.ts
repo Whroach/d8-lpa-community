@@ -55,6 +55,13 @@ async function apiRequest<T>(
           window.location.href = "/login"
         }
       }
+      // Handle 403 (banned/suspended) - show message but stay on current page
+      if (response.status === 403 && data.message?.includes("suspended or banned")) {
+        if (typeof window !== "undefined") {
+          localStorage.removeItem("spark-auth")
+          // Don't redirect, let the component show the error
+        }
+      }
       return { error: data.message || "An error occurred" }
     }
 

@@ -2,8 +2,7 @@ import mongoose from 'mongoose';
 
 const notificationSchema = new mongoose.Schema({
   user_id: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'User',
+    type: String,
     required: true
   },
   type: {
@@ -23,16 +22,13 @@ const notificationSchema = new mongoose.Schema({
     type: String // URL to avatar image
   },
   related_user: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'User'
+    type: String
   },
   related_match: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'Match'
+    type: String
   },
   related_event: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'Event'
+    type: String
   },
   read: {
     type: Boolean,

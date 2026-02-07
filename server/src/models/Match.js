@@ -2,8 +2,7 @@ import mongoose from 'mongoose';
 
 const matchSchema = new mongoose.Schema({
   users: [{
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'User',
+    type: String,
     required: true
   }],
   matched_at: {
@@ -19,8 +18,7 @@ const matchSchema = new mongoose.Schema({
     default: null
   },
   last_message_sender: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'User'
+    type: String
   },
   // Track unread messages per user
   unread_counts: {

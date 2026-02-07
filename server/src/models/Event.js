@@ -44,12 +44,10 @@ const eventSchema = new mongoose.Schema({
     type: Number
   },
   attendees: [{
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'User'
+    type: String
   }],
   created_by: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'User',
+    type: String,
     required: true
   },
   is_cancelled: {

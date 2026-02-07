@@ -2,13 +2,11 @@ import mongoose from 'mongoose';
 
 const reportSchema = new mongoose.Schema({
   reporter: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'User',
+    type: String,
     required: true
   },
   reported_user: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'User',
+    type: String,
     required: true
   },
   reason: {
@@ -21,8 +19,7 @@ const reportSchema = new mongoose.Schema({
     default: 'pending'
   },
   reviewed_by: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'User'
+    type: String
   },
   reviewed_at: {
     type: Date

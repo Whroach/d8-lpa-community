@@ -2,13 +2,11 @@ import mongoose from 'mongoose';
 
 const messageSchema = new mongoose.Schema({
   match_id: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'Match',
+    type: String,
     required: true
   },
   sender_id: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'User',
+    type: String,
     required: true
   },
   content: {
@@ -25,8 +23,7 @@ const messageSchema = new mongoose.Schema({
   },
   // For soft delete (user deleted conversation on their end)
   deleted_by: [{
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'User'
+    type: String
   }]
 }, {
   timestamps: { createdAt: 'created_at', updatedAt: 'updated_at' }

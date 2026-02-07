@@ -2,13 +2,11 @@ import mongoose from 'mongoose';
 
 const blockSchema = new mongoose.Schema({
   blocker: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'User',
+    type: String,
     required: true
   },
   blocked: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'User',
+    type: String,
     required: true
   }
 }, {

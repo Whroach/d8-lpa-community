@@ -128,6 +128,7 @@ interface OnboardingData {
   birthdate: string
   gender: string
   location_state: string
+  location_city: string
   district_number: string
   lpa_membership_id: string
   agreed_to_guidelines: boolean
@@ -173,6 +174,7 @@ const initialOnboardingData: OnboardingData = {
   birthdate: "",
   gender: "",
   location_state: "",
+  location_city: "",
   district_number: "",
   lpa_membership_id: "",
   agreed_to_guidelines: false,

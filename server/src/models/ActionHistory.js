@@ -7,13 +7,11 @@ const actionHistorySchema = new mongoose.Schema({
     required: true
   },
   user_id: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'User',
+    type: String,
     required: true
   },
   target_user_id: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'User',
+    type: String,
     required: true
   },
   // Store the original data for reference

@@ -2,13 +2,11 @@ import mongoose from 'mongoose';
 
 const likeSchema = new mongoose.Schema({
   from_user: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'User',
+    type: String,
     required: true
   },
   to_user: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'User',
+    type: String,
     required: true
   },
   type: {

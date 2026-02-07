@@ -326,13 +326,13 @@ router.put('/complete-onboarding', auth, async (req, res) => {
       birthdate,
       gender,
       location_state,
+      location_city,
       lpa_membership_id,
       district_number,
       bio,
       occupation,
       education,
       interests,
-      location_city,
       favorite_music,
       custom_music,
       animals,
@@ -362,8 +362,13 @@ router.put('/complete-onboarding', auth, async (req, res) => {
     logger.log('[ONBOARDING] Updating profile for user:', req.userId);
     logger.log('[ONBOARDING] Received payload keys:', Object.keys(req.body));
 
+    // Get fresh user object from database
+    const user = await User.findById(req.userId);
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
     // Update user with only basic info
-    const user = req.user;
     user.first_name = first_name || user.first_name;
     user.last_name = last_name || user.last_name;
     user.birthdate = birthdate || user.birthdate;
@@ -431,21 +436,16 @@ router.put('/complete-onboarding', auth, async (req, res) => {
     
     await profile.save();
 
-    logger.log('[ONBOARDING] Profile saved with:', { 
-      animals: profile.animals, 
-      favorite_music: profile.favorite_music,
-      custom_animal: profile.custom_animal,
-      pet_peeves: profile.pet_peeves 
-    });
+    logger.log('[ONBOARDING] Profile saved successfully');
 
     res.json({
       user: user.toJSON(),
-      profile
+      profile: profile.toJSON()
     });
   } catch (error) {
     logger.error('[ONBOARDING] Error completing onboarding:', error.message);
     logger.error('[ONBOARDING] Error stack:', error.stack);
-    res.status(500).json({ message: 'Error completing onboarding' });
+    res.status(500).json({ message: 'Error completing onboarding', error: error.message });
   }
 });
 

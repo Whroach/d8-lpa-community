@@ -580,52 +580,6 @@ export default function SettingsPage() {
           </CardContent>
         </Card>
 
-        {/* Danger Zone - Account Management */}
-        <Card className="mb-6 border-red-200 bg-red-50 dark:bg-red-950 dark:border-red-800">
-          <CardHeader>
-            <CardTitle className="text-lg flex items-center gap-2 text-red-600 dark:text-red-400">
-              <AlertTriangle className="h-5 w-5" />
-              Danger Zone
-            </CardTitle>
-            <CardDescription className="text-red-700 dark:text-red-300">
-              Irreversible actions - proceed with caution
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            <div className="flex items-center justify-between p-3 rounded-lg bg-white dark:bg-slate-950 border border-red-200 dark:border-red-800">
-              <div>
-                <Label className="text-base font-semibold text-red-600 dark:text-red-400">Disable Account</Label>
-                <p className="text-sm text-muted-foreground mt-1">
-                  Your profile will be hidden from all users. You can re-enable it later by logging in.
-                </p>
-              </div>
-              <Button
-                variant="destructive"
-                onClick={() => setShowDisableDialog(true)}
-                className="whitespace-nowrap ml-4"
-              >
-                Disable
-              </Button>
-            </div>
-            <div className="flex items-center justify-between p-3 rounded-lg bg-white dark:bg-slate-950 border border-red-200 dark:border-red-800">
-              <div>
-                <Label className="text-base font-semibold text-red-600 dark:text-red-400">Delete Account</Label>
-                <p className="text-sm text-muted-foreground mt-1">
-                  Permanently delete your account and all associated data. This action cannot be undone.
-                </p>
-              </div>
-              <Button
-                variant="destructive"
-                onClick={() => setShowDeleteDialog(true)}
-                className="whitespace-nowrap ml-4"
-              >
-                <Trash2 className="h-4 w-4 mr-2" />
-                Delete
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
-
         {/* Version info */}
         <p className="text-center text-xs text-muted-foreground mt-6">
           D8-LPA v1.0.0

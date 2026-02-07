@@ -692,6 +692,15 @@ export const api = {
         body: JSON.stringify(eventData),
       })
     },
+    uploadEventPhoto: async (file: File) => {
+      if (USE_MOCK_DATA) {
+        await delay(200)
+        return { data: { url: "/placeholder.svg" } }
+      }
+      const formData = new FormData();
+      formData.append('photo', file);
+      return apiRequestFormData<any>("/events/photo", formData);
+    },
     // Update event
     updateEvent: async (eventId: string, eventData: any) => {
       if (USE_MOCK_DATA) {

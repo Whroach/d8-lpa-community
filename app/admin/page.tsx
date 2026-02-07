@@ -180,6 +180,7 @@ export default function AdminPage() {
   const [showAttendeesDialog, setShowAttendeesDialog] = useState(false)
   const [selectedEvent, setSelectedEvent] = useState<AdminEvent | null>(null)
   const [editingEvent, setEditingEvent] = useState<AdminEvent | null>(null)
+  const [isUploadingPhoto, setIsUploadingPhoto] = useState(false)
   const [eventForm, setEventForm] = useState({
     title: "",
     description: "",
@@ -481,6 +482,27 @@ export default function AdminPage() {
       category: event.category || "dating",
     })
     setShowEventDialog(true)
+  }
+
+  const handleEventPhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    setIsUploadingPhoto(true)
+    try {
+      const result = await api.admin.uploadEventPhoto(file)
+      if (!result.error && result.data?.url) {
+        setEventForm({ ...eventForm, image: result.data.url })
+      } else {
+        console.error('Upload failed:', result.error)
+      }
+    } catch (error) {
+      console.error('Upload error:', error)
+    } finally {
+      setIsUploadingPhoto(false)
+      // Reset the input
+      e.target.value = ''
+    }
   }
 
   const saveEvent = async () => {
@@ -1510,17 +1532,24 @@ export default function AdminPage() {
                 </div>
               </div>
 
-              {/* Image URL */}
+              {/* Event Photo Upload */}
               <div className="space-y-2">
-                <Label htmlFor="event-image">Image URL (optional)</Label>
-                <Input
-                  id="event-image"
-                  placeholder="https://example.com/image.jpg"
-                  value={eventForm.image}
-                  onChange={(e) => setEventForm({ ...eventForm, image: e.target.value })}
-                />
+                <Label htmlFor="event-photo">Upload Event Photo (optional)</Label>
+                <div className="flex items-center gap-2">
+                  <Input
+                    id="event-photo"
+                    type="file"
+                    accept="image/*"
+                    onChange={(e) => handleEventPhotoUpload(e)}
+                    disabled={isUploadingPhoto}
+                    className="flex-1"
+                  />
+                  {isUploadingPhoto && (
+                    <span className="text-xs text-muted-foreground">Uploading...</span>
+                  )}
+                </div>
                 {eventForm.image && (
-                  <div className="mt-2 h-32 rounded-lg overflow-hidden bg-muted">
+                  <div className="mt-2 h-32 rounded-lg overflow-hidden bg-muted relative">
                     <Image
                       src={eventForm.image || "/placeholder.svg"}
                       alt="Event preview"
@@ -1528,6 +1557,14 @@ export default function AdminPage() {
                       height={128}
                       className="h-full w-full object-cover"
                     />
+                    <Button
+                      variant="destructive"
+                      size="sm"
+                      className="absolute top-2 right-2 h-8 w-8 p-0"
+                      onClick={() => setEventForm({ ...eventForm, image: "" })}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
                   </div>
                 )}
               </div>

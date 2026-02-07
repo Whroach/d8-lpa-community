@@ -441,13 +441,13 @@ export default function MatchesPage() {
             {/* Tabs for Active Matches and History */}
             <div className="mb-8">
               <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-                <TabsList className="grid w-full grid-cols-2 mb-6 bg-card border border-border p-1">
-                  <TabsTrigger value="active" className="flex items-center gap-2 rounded-md data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
-                    <Heart className="h-4 w-4" />
+                <TabsList className="grid w-full grid-cols-2 mb-6 bg-transparent border-b border-border p-0 h-auto">
+                  <TabsTrigger value="active" className="flex items-center gap-2 rounded-none px-0 py-2 text-sm font-medium text-muted-foreground border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:text-foreground data-[state=active]:bg-transparent">
+                    <Heart className="h-3 w-3" />
                     Active Matches ({matches.length})
                   </TabsTrigger>
-                  <TabsTrigger value="history" className="flex items-center gap-2 rounded-md data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
-                    <History className="h-4 w-4" />
+                  <TabsTrigger value="history" className="flex items-center gap-2 rounded-none px-0 py-2 text-sm font-medium text-muted-foreground border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:text-foreground data-[state=active]:bg-transparent">
+                    <History className="h-3 w-3" />
                     History ({inactiveMatches.length})
                   </TabsTrigger>
                 </TabsList>

@@ -20,6 +20,7 @@ import {
 import { api } from "@/lib/api"
 import Image from "next/image"
 import { Skeleton } from "@/components/ui/skeleton"
+import { cn } from "@/lib/utils"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -440,21 +441,34 @@ export default function MatchesPage() {
           <>
             {/* Tabs for Active Matches and History */}
             <div className="mb-8">
-              <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-                <TabsList className="grid w-full grid-cols-2 mb-6 bg-transparent border-b border-border p-0 h-auto">
-                  <TabsTrigger value="active" className="flex items-center gap-2 rounded-none px-0 py-2 text-sm font-medium text-muted-foreground border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:text-foreground data-[state=active]:bg-transparent">
-                    <Heart className="h-3 w-3" />
-                    Active Matches ({matches.length})
-                  </TabsTrigger>
-                  <TabsTrigger value="history" className="flex items-center gap-2 rounded-none px-0 py-2 text-sm font-medium text-muted-foreground border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:text-foreground data-[state=active]:bg-transparent">
-                    <History className="h-3 w-3" />
-                    History ({inactiveMatches.length})
-                  </TabsTrigger>
-                </TabsList>
+              <div className="flex gap-3 mb-6">
+                <button
+                  onClick={() => setActiveTab("active")}
+                  className={cn(
+                    "flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium transition-all",
+                    activeTab === "active"
+                      ? "bg-primary text-primary-foreground"
+                      : "bg-muted text-muted-foreground hover:bg-muted/80"
+                  )}
+                >
+                  <Heart className="h-4 w-4" />
+                  Active Matches ({matches.length})
+                </button>
+                <button
+                  onClick={() => setActiveTab("history")}
+                  className={cn(
+                    "flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium transition-all",
+                    activeTab === "history"
+                      ? "bg-primary text-primary-foreground"
+                      : "bg-muted text-muted-foreground hover:bg-muted/80"
+                  )}
+                >
+                  <History className="h-4 w-4" />
+                  History ({inactiveMatches.length})
+                </button>
+              </div>
 
-                <TabsContent value="active" className="mt-0">{renderMatchList(filteredMatches, false)}</TabsContent>
-                <TabsContent value="history" className="mt-0">{renderMatchList(filteredInactiveMatches, true)}</TabsContent>
-              </Tabs>
+              {activeTab === "active" ? renderMatchList(filteredMatches, false) : renderMatchList(filteredInactiveMatches, true)}
             </div>
           </>
         ) : (

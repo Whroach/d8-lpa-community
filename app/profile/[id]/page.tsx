@@ -205,22 +205,24 @@ export default function UserProfilePage() {
           </div>
 
           {/* Profile Info */}
-          <div className="space-y-4">
+          <div className="space-y-6">
             <div>
-              <h1 className="text-3xl font-bold text-foreground">
-                {user.first_name} {user.last_name && user.last_name[0] + "."}
-                {age && `, ${age}`}
+              <h1 className="text-4xl md:text-5xl font-bold text-foreground mb-2">
+                {user.first_name}
               </h1>
-              {location && (
-                <div className="flex items-center gap-1 text-muted-foreground mt-2">
-                  <MapPin className="h-4 w-4" />
-                  <span>{location}</span>
-                </div>
-              )}
+              <div className="flex items-baseline gap-2">
+                {age && <span className="text-2xl font-semibold text-primary">{age}</span>}
+                {location && (
+                  <div className="flex items-center gap-1 text-lg text-muted-foreground">
+                    <MapPin className="h-5 w-5" />
+                    <span>{location}</span>
+                  </div>
+                )}
+              </div>
             </div>
 
             {/* Action Buttons */}
-            <div className="flex gap-3 pt-4">
+            <div className="flex gap-3 pt-2">
               {hasMatched && (
                 <Button className="flex-1" onClick={handleMessage}>
                   <MessageCircle className="h-4 w-4 mr-2" />
@@ -228,18 +230,23 @@ export default function UserProfilePage() {
                 </Button>
               )}
               <Button
-                variant="outline"
-                size="icon"
-                className="bg-transparent"
+                size="lg"
+                className={cn(
+                  "flex-1 font-semibold",
+                  isLiked
+                    ? "bg-red-500 hover:bg-red-600 text-white"
+                    : "bg-primary hover:bg-primary/90 text-primary-foreground"
+                )}
                 onClick={handleToggleLike}
                 disabled={isLiking}
               >
                 <Heart
                   className={cn(
-                    "h-4 w-4",
-                    isLiked ? "fill-red-500 text-red-500" : "text-foreground"
+                    "h-5 w-5 mr-2",
+                    isLiked && "fill-white"
                   )}
                 />
+                {isLiked ? "Liked" : "Like"}
               </Button>
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>

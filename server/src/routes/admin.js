@@ -312,6 +312,21 @@ router.post('/events', auth, checkAdmin, async (req, res) => {
       created_by: req.userId
     });
 
+    // Create notifications for all users about the new event
+    const allUsers = await User.find({ _id: { $ne: req.userId }, is_banned: false }).select('_id');
+    const notifications = allUsers.map(user => ({
+      user_id: user._id,
+      type: 'event',
+      title: 'New Event!',
+      message: `Check out the new event: ${event.title}`,
+      avatar: event.image || '',
+      related_event: event._id
+    }));
+
+    if (notifications.length > 0) {
+      await Notification.insertMany(notifications);
+    }
+
     res.status(201).json({
       id: event._id,
       ...event.toObject()

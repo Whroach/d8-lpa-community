@@ -324,45 +324,61 @@ export default function AdminPage() {
     }))
   }
 
-  const submitAction = () => {
+  const submitAction = async () => {
     if (!selectedUser || !actionType || !actionReason.trim()) return
 
-    const newAction: ActionHistory = {
-      id: `action-${Date.now()}`,
-      action: actionType,
-      reason: actionReason,
-      admin: "Admin User",
-      created_at: new Date().toISOString(),
+    try {
+      // Convert action type to match backend API
+      const apiAction = actionType === "warning" ? "warn" : actionType
+      
+      // Call backend API to save the action
+      const result = await api.admin.userAction(selectedUser.id, apiAction, actionReason)
+      
+      if (result.error) {
+        alert("Error performing action: " + result.error)
+        return
+      }
+
+      const newAction: ActionHistory = {
+        id: `action-${Date.now()}`,
+        action: actionType,
+        reason: actionReason,
+        admin: "Admin User",
+        created_at: new Date().toISOString(),
+      }
+
+      // Update action history
+      setActionHistory((prev) => ({
+        ...prev,
+        [selectedUser.id]: [...(prev[selectedUser.id] || []), newAction],
+      }))
+
+      // Update user status
+      setUsers((prev) =>
+        prev.map((user) => {
+          if (user.id === selectedUser.id) {
+            if (actionType === "warning") {
+              return { ...user, warnings: user.warnings + 1 }
+            }
+            if (actionType === "suspend") {
+              return { ...user, is_suspended: true, is_banned: false }
+            }
+            if (actionType === "ban") {
+              return { ...user, is_banned: true, is_suspended: false }
+            }
+          }
+          return user
+        })
+      )
+
+      setShowActionDialog(false)
+      setActionType(null)
+      setActionReason("")
+      setSelectedUser(null)
+    } catch (error) {
+      console.error("Error performing action:", error)
+      alert("Failed to perform action")
     }
-
-    // Update action history
-    setActionHistory((prev) => ({
-      ...prev,
-      [selectedUser.id]: [...(prev[selectedUser.id] || []), newAction],
-    }))
-
-    // Update user status
-    setUsers((prev) =>
-      prev.map((user) => {
-        if (user.id === selectedUser.id) {
-          if (actionType === "warning") {
-            return { ...user, warnings: user.warnings + 1 }
-          }
-          if (actionType === "suspend") {
-            return { ...user, is_suspended: true, is_banned: false }
-          }
-          if (actionType === "ban") {
-            return { ...user, is_banned: true, is_suspended: false }
-          }
-        }
-        return user
-      })
-    )
-
-    setShowActionDialog(false)
-    setActionType(null)
-    setActionReason("")
-    setSelectedUser(null)
   }
 
   const removeAction = (user: AdminUser, action: "warning" | "suspend" | "ban") => {

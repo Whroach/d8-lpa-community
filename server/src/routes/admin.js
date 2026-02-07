@@ -206,6 +206,85 @@ router.put('/users/:userId/unban', auth, checkAdmin, async (req, res) => {
   }
 });
 
+// POST /api/admin/users/:userId/action - Generic action endpoint
+router.post('/users/:userId/action', auth, checkAdmin, async (req, res) => {
+  try {
+    const { action, message } = req.body;
+    const user = await User.findById(req.params.userId);
+
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    switch(action) {
+      case 'warn':
+        user.warnings = (user.warnings || 0) + 1;
+        user.status = 'warned';
+        await user.save();
+        
+        await Notification.create({
+          user_id: user._id,
+          type: 'system',
+          title: 'Account Warning',
+          message: message || 'Your account has received a warning for violating our community guidelines.'
+        });
+        break;
+
+      case 'suspend':
+        user.is_suspended = true;
+        user.status = 'suspended';
+        await user.save();
+        
+        await Notification.create({
+          user_id: user._id,
+          type: 'system',
+          title: 'Account Suspended',
+          message: message || 'Your account has been suspended for violating our community guidelines.'
+        });
+        break;
+
+      case 'unsuspend':
+        user.is_suspended = false;
+        user.status = user.warnings > 0 ? 'warned' : 'active';
+        await user.save();
+        break;
+
+      case 'ban':
+        user.is_banned = true;
+        user.status = 'banned';
+        await user.save();
+        
+        await Notification.create({
+          user_id: user._id,
+          type: 'system',
+          title: 'Account Banned',
+          message: message || 'Your account has been permanently banned.'
+        });
+        break;
+
+      case 'unban':
+        user.is_banned = false;
+        user.status = user.warnings > 0 ? 'warned' : 'active';
+        await user.save();
+        break;
+
+      case 'remove_warning':
+        user.warnings = Math.max(0, (user.warnings || 1) - 1);
+        user.status = user.warnings > 0 ? 'warned' : (user.is_suspended ? 'suspended' : (user.is_banned ? 'banned' : 'active'));
+        await user.save();
+        break;
+
+      default:
+        return res.status(400).json({ message: 'Invalid action' });
+    }
+
+    res.json({ success: true });
+  } catch (error) {
+    console.error('User action error:', error);
+    res.status(500).json({ message: 'Error performing user action' });
+  }
+});
+
 // Events management
 // POST /api/admin/events
 router.post('/events', auth, checkAdmin, async (req, res) => {

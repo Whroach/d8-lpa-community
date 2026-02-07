@@ -709,8 +709,8 @@ export default function AdminPage() {
                       className="flex items-center gap-4 p-4 rounded-lg border border-border bg-card hover:bg-muted/30 transition-colors"
                     >
                       <Avatar className="h-12 w-12">
-                        <AvatarImage src={user.photos[0] || "/placeholder.svg"} alt={user.first_name} />
-                        <AvatarFallback>{user.first_name[0]}</AvatarFallback>
+                        <AvatarImage src={user.photos?.[0] || "/placeholder.svg"} alt={user.first_name || "User"} />
+                        <AvatarFallback>{user.first_name?.[0] || "U"}</AvatarFallback>
                       </Avatar>
 
                       <div className="flex-1 min-w-0">
@@ -1158,8 +1158,8 @@ export default function AdminPage() {
               {selectedUser && (
                 <div className="flex items-center gap-3 p-3 bg-muted/50 rounded-lg">
                   <Avatar className="h-10 w-10">
-                    <AvatarImage src={selectedUser.photos[0] || "/placeholder.svg"} alt={selectedUser.first_name} />
-                    <AvatarFallback>{selectedUser.first_name[0]}</AvatarFallback>
+                    <AvatarImage src={selectedUser.photos?.[0] || "/placeholder.svg"} alt={selectedUser.first_name || "User"} />
+                    <AvatarFallback>{selectedUser.first_name?.[0] || "U"}</AvatarFallback>
                   </Avatar>
                   <div>
                     <p className="font-medium">{selectedUser.first_name} {selectedUser.last_name}</p>
@@ -1208,8 +1208,8 @@ export default function AdminPage() {
               <div className="space-y-4">
                 <div className="flex items-center gap-3 p-3 bg-muted/50 rounded-lg">
                   <Avatar className="h-10 w-10">
-                    <AvatarImage src={selectedUser.photos[0] || "/placeholder.svg"} alt={selectedUser.first_name} />
-                    <AvatarFallback>{selectedUser.first_name[0]}</AvatarFallback>
+                    <AvatarImage src={selectedUser.photos?.[0] || "/placeholder.svg"} alt={selectedUser.first_name || "User"} />
+                    <AvatarFallback>{selectedUser.first_name?.[0] || "U"}</AvatarFallback>
                   </Avatar>
                   <div>
                     <p className="font-medium">{selectedUser.first_name} {selectedUser.last_name}</p>
@@ -1292,8 +1292,8 @@ export default function AdminPage() {
               <div className="space-y-4">
                 <div className="flex items-center gap-3 p-3 bg-muted/50 rounded-lg">
                   <Avatar className="h-10 w-10">
-                    <AvatarImage src={selectedUser.photos[0] || "/placeholder.svg"} alt={selectedUser.first_name} />
-                    <AvatarFallback>{selectedUser.first_name[0]}</AvatarFallback>
+                    <AvatarImage src={selectedUser.photos?.[0] || "/placeholder.svg"} alt={selectedUser.first_name || "User"} />
+                    <AvatarFallback>{selectedUser.first_name?.[0] || "U"}</AvatarFallback>
                   </Avatar>
                   <div>
                     <p className="font-medium">{selectedUser.first_name} {selectedUser.last_name}</p>
@@ -1539,8 +1539,8 @@ export default function AdminPage() {
                         className="flex items-center gap-3 p-3 rounded-lg border border-border bg-card hover:bg-muted/30 transition-colors"
                       >
                         <Avatar className="h-10 w-10">
-                          <AvatarImage src={attendee.photo || "/placeholder.svg"} alt={attendee.first_name} />
-                          <AvatarFallback>{attendee.first_name[0]}</AvatarFallback>
+                          <AvatarImage src={attendee.photo || "/placeholder.svg"} alt={attendee.first_name || "Attendee"} />
+                          <AvatarFallback>{attendee.first_name?.[0] || "A"}</AvatarFallback>
                         </Avatar>
                         <div className="flex-1 min-w-0">
                           <p className="font-medium text-foreground">

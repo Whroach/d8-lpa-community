@@ -216,6 +216,8 @@ export default function OnboardingPage() {
   const [photoUploading, setPhotoUploading] = useState(false)
   const [showGuidelines, setShowGuidelines] = useState(false)
   const [page1Completed, setPage1Completed] = useState(false)
+  const [membershipIdError, setMembershipIdError] = useState<string | null>(null)
+  const [checkingMembership, setCheckingMembership] = useState(false)
 
   const updateData = (updates: Partial<OnboardingData>) => {
     setData((prev) => ({ ...prev, ...updates }))
@@ -232,6 +234,42 @@ export default function OnboardingPage() {
     return age
   }
 
+  const checkMembershipId = async (membershipId: string) => {
+    if (!membershipId || membershipId.trim() === '') {
+      setMembershipIdError("Membership ID is required")
+      return false
+    }
+
+    setCheckingMembership(true)
+    setMembershipIdError(null)
+
+    try {
+      const response = await fetch('/api/auth/check-membership-id', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ lpa_membership_id: membershipId }),
+      })
+
+      const result = await response.json()
+
+      if (result.exists) {
+        setMembershipIdError('This LPA Membership ID already exists')
+        return false
+      }
+
+      setMembershipIdError(null)
+      return true
+    } catch (error) {
+      console.error('Error checking membership ID:', error)
+      setMembershipIdError('Error validating membership ID')
+      return false
+    } finally {
+      setCheckingMembership(false)
+    }
+  }
+
   const isPage1Valid = () => {
     if (!data.first_name || !data.last_name || !data.birthdate || !data.gender) {
       return false
@@ -240,6 +278,7 @@ export default function OnboardingPage() {
     if (!data.district_number) return false
     if (!data.lpa_membership_id) return false
     if (!data.agreed_to_guidelines) return false
+    if (membershipIdError) return false
     const age = calculateAge(data.birthdate)
     return age >= 18
   }
@@ -564,9 +603,30 @@ export default function OnboardingPage() {
                   id="lpa_id"
                   placeholder="Enter your LPA membership ID"
                   value={data.lpa_membership_id}
-                  onChange={(e) => updateData({ lpa_membership_id: e.target.value })}
+                  onChange={(e) => {
+                    updateData({ lpa_membership_id: e.target.value })
+                    setMembershipIdError(null)
+                  }}
+                  onBlur={() => {
+                    if (data.lpa_membership_id) {
+                      checkMembershipId(data.lpa_membership_id)
+                    }
+                  }}
+                  disabled={checkingMembership}
                   className="h-12"
                 />
+                {checkingMembership && (
+                  <p className="text-sm text-muted-foreground flex items-center gap-2">
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    Validating membership ID...
+                  </p>
+                )}
+                {membershipIdError && (
+                  <p className="text-sm text-destructive flex items-center gap-2">
+                    <AlertCircle className="w-4 h-4" />
+                    {membershipIdError}
+                  </p>
+                )}
               </div>
 
               <div className="space-y-4 pt-4 border-t border-border">

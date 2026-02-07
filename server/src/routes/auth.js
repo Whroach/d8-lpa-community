@@ -4,6 +4,7 @@ import crypto from 'crypto';
 import { body, validationResult } from 'express-validator';
 import User from '../models/User.js';
 import Profile from '../models/Profile.js';
+import LPAMembership from '../models/LPAMembership.js';
 import { auth } from '../middleware/auth.js';
 import { sendVerificationEmail, sendPasswordResetEmail } from '../utils/email.js';
 import logger from '../utils/logger.js';
@@ -438,6 +439,33 @@ router.put('/complete-onboarding', auth, async (req, res) => {
 
     logger.log('[ONBOARDING] Profile saved successfully');
 
+    // Save LPA Membership
+    if (lpa_membership_id) {
+      try {
+        const normalizedId = lpa_membership_id.trim().toUpperCase();
+        
+        // Check if membership already exists and update, or create new
+        let membership = await LPAMembership.findOne({ user_id: req.userId });
+        
+        if (membership) {
+          membership.lpa_membership_id = normalizedId;
+          membership.is_active = true;
+        } else {
+          membership = new LPAMembership({
+            user_id: req.userId,
+            lpa_membership_id: normalizedId,
+            is_active: true
+          });
+        }
+        
+        await membership.save();
+        logger.log('[ONBOARDING] LPA Membership saved for user:', req.userId);
+      } catch (error) {
+        logger.error('[ONBOARDING] Error saving LPA Membership:', error.message);
+        // Don't fail the onboarding if membership save fails
+      }
+    }
+
     res.json({
       user: user.toJSON(),
       profile: profile.toJSON()
@@ -537,6 +565,46 @@ router.post('/reset-password', [
     logger.error('[RESET-PASSWORD] Reset password error:', error.message);
     logger.error('[RESET-PASSWORD] Error stack:', error.stack);
     res.status(500).json({ message: 'Error resetting password' });
+  }
+});
+
+// POST /api/auth/check-membership-id - Check if LPA membership ID exists
+router.post('/check-membership-id', async (req, res) => {
+  try {
+    const { lpa_membership_id } = req.body;
+
+    if (!lpa_membership_id || lpa_membership_id.trim() === '') {
+      return res.status(400).json({ 
+        exists: false,
+        message: 'Membership ID is required' 
+      });
+    }
+
+    const normalizedId = lpa_membership_id.trim().toUpperCase();
+
+    // Check if membership ID already exists
+    const existingMembership = await LPAMembership.findOne({ 
+      lpa_membership_id: normalizedId,
+      is_active: true
+    });
+
+    if (existingMembership) {
+      return res.json({ 
+        exists: true,
+        message: 'This LPA Membership ID already exists' 
+      });
+    }
+
+    res.json({ 
+      exists: false,
+      message: 'Membership ID is available' 
+    });
+  } catch (error) {
+    logger.error('[CHECK-MEMBERSHIP-ID] Error:', error.message);
+    res.status(500).json({ 
+      exists: false,
+      message: 'Error checking membership ID' 
+    });
   }
 });
 

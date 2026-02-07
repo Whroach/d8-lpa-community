@@ -32,7 +32,6 @@ import {
   XCircle,
   MoreVertical,
   Undo2,
-  Loader2,
 } from "lucide-react"
 import {
   DropdownMenu,
@@ -138,100 +137,29 @@ export default function AdminPage() {
   const router = useRouter()
   const { user } = useAuthStore()
 
-  // Code verification state for non-admin users
-  const [adminCode, setAdminCode] = useState("")
-  const [codeError, setCodeError] = useState("")
-  const [codeLoading, setCodeLoading] = useState(false)
-  const [isCodeVerified, setIsCodeVerified] = useState(false)
-
-  // Check if user is admin on mount
-  useEffect(() => {
-    if (user && user.role === "admin") {
-      setIsCodeVerified(true)
-    }
-  }, [user])
-
-  const handleCodeSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setCodeError("")
-    setCodeLoading(true)
-
-    const result = await api.admin.verifyCode(adminCode)
-
-    if (result.error) {
-      setCodeError(result.error)
-      setCodeLoading(false)
-      return
-    }
-
-    if (result.data) {
-      setIsCodeVerified(true)
-      setCodeLoading(false)
-      setAdminCode("")
-    }
-  }
-
-  // If not admin and code not verified, show code verification overlay
-  if (user && user.role !== "admin" && !isCodeVerified) {
-    return (
-      <div className="min-h-screen flex items-center justify-center p-4 bg-background">
-        <div className="absolute inset-0 bg-background/80 backdrop-blur-md" />
-        <div className="relative w-full max-w-md z-10">
-          <div className="text-center mb-8">
-            <h2 className="text-2xl font-bold text-foreground">Admin Access Required</h2>
-            <p className="text-muted-foreground mt-2">
-              Enter the admin code to access this page
-            </p>
-          </div>
-
-          <form onSubmit={handleCodeSubmit} className="space-y-6 bg-card p-6 rounded-lg border border-border">
-            {codeError && (
-              <div className="p-3 bg-destructive/10 border border-destructive/20 rounded-lg text-destructive text-sm">
-                {codeError}
-              </div>
-            )}
-
-            <div className="space-y-2">
-              <Label htmlFor="admin-code">Admin Code</Label>
-              <Input
-                id="admin-code"
-                type="password"
-                placeholder="Enter admin code"
-                value={adminCode}
-                onChange={(e) => setAdminCode(e.target.value)}
-                required
-                className="h-12"
-                autoFocus
-              />
-            </div>
-
-            <Button
-              type="submit"
-              className="w-full h-12 text-base font-semibold"
-              disabled={codeLoading || !adminCode.trim()}
-            >
-              {codeLoading ? (
-                <>
-                  <Loader2 className="mr-2 h-5 w-5 animate-spin" />
-                  Verifying...
-                </>
-              ) : (
-                "Verify Code"
-              )}
-            </Button>
-          </form>
-        </div>
-      </div>
-    )
-  }
-
   // If not authenticated at all, redirect to login
   if (!user) {
     router.push("/login")
     return null
   }
 
-  // Regular admin/verified user code continues below
+  // If not admin, show access denied
+  if (user.role !== "admin") {
+    return (
+      <div className="min-h-screen flex items-center justify-center p-4 bg-background">
+        <div className="text-center">
+          <Shield className="h-16 w-16 text-muted-foreground/30 mx-auto mb-4" />
+          <h2 className="text-2xl font-bold text-foreground mb-2">Access Denied</h2>
+          <p className="text-muted-foreground mb-6">You don't have admin privileges.</p>
+          <Button onClick={() => router.push("/browse")}>
+            Return to Browse
+          </Button>
+        </div>
+      </div>
+    )
+  }
+
+  // Admin user code continues below
   const [users, setUsers] = useState<AdminUser[]>([])
   const [searchQuery, setSearchQuery] = useState("")
   const [filteredUsers, setFilteredUsers] = useState<AdminUser[]>([])
@@ -280,8 +208,9 @@ export default function AdminPage() {
   const loadUsers = async () => {
     const result = await api.admin.getUsers()
     if (result.data) {
-      setUsers(result.data as AdminUser[])
-      setFilteredUsers(result.data as AdminUser[])
+      const usersData = result.data.users || result.data
+      setUsers(usersData as AdminUser[])
+      setFilteredUsers(usersData as AdminUser[])
     }
   }
 

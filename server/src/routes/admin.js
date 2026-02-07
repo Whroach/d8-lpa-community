@@ -9,9 +9,6 @@ import UserNotificationSettings from '../models/UserNotificationSettings.js';
 
 const router = express.Router();
 
-// Admin code - Set this to your desired code
-const ADMIN_CODE = process.env.ADMIN_CODE || "ljTQDzGP3477UeNrlQrdRjhG7";
-
 // Helper function to check if user wants this type of notification
 async function shouldCreateNotification(userId, notificationType) {
   const settings = await UserNotificationSettings.findOne({ user_id: userId });
@@ -37,26 +34,6 @@ const checkAdmin = async (req, res, next) => {
   }
   next();
 };
-
-// POST /api/admin/verify-code - Verify admin code (no auth required)
-router.post('/verify-code', async (req, res) => {
-  try {
-    const { code } = req.body;
-
-    if (!code) {
-      return res.status(400).json({ message: 'Admin code is required' });
-    }
-
-    if (code !== ADMIN_CODE) {
-      return res.status(401).json({ message: 'Invalid admin code' });
-    }
-
-    res.json({ verified: true });
-  } catch (error) {
-    console.error('[ADMIN-VERIFY] Error verifying code:', error);
-    res.status(500).json({ message: 'Error verifying code' });
-  }
-});
 
 // GET /api/admin/users
 router.get('/users', auth, checkAdmin, async (req, res) => {

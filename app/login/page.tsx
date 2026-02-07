@@ -86,14 +86,7 @@ export default function LoginPage() {
           <span className="text-3xl font-bold text-foreground">D8-LPA</span>
         </div>
 
-        <div className="text-center mb-8">
-            <h2 className="text-2xl font-bold text-foreground">Welcome back</h2>
-            <p className="text-muted-foreground mt-2">
-              Sign in to continue finding your match
-            </p>
-          </div>
-
-          <form onSubmit={handleSubmit} className="space-y-6">
+        <form onSubmit={handleSubmit} className="space-y-6">
             {error && (
               <div className="p-3 bg-destructive/10 border border-destructive/20 rounded-lg text-destructive text-sm">
                 {error}

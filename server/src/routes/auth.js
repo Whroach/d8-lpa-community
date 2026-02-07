@@ -89,22 +89,22 @@ router.post('/signup', [
     const profile = new Profile({ user_id: user._id });
     await profile.save();
 
-    // Send verification email only in production
-    if (isProduction) {
-      try {
-        await sendVerificationEmail(email, verificationCode);
-        logger.info(`[SIGNUP] Verification email sent to: ${email}`);
-      } catch (emailError) {
-        logger.error(`[SIGNUP] Failed to send verification email to ${email}:`, emailError.message);
-        // Don't fail the signup if email fails, but user won't be verified
-      }
-    } else {
-      logger.log(`[DEV] Auto-verifying user: ${email} (verification code: ${verificationCode})`);
-    }
-
     const token = generateToken(user._id);
 
     logger.info(`[SIGNUP] Account created successfully: ${email}, requiresVerification: ${isProduction}`);
+
+    // Send verification email in background (don't await, don't block response)
+    if (isProduction) {
+      sendVerificationEmail(email, verificationCode)
+        .then(() => {
+          logger.info(`[SIGNUP] Verification email sent to: ${email}`);
+        })
+        .catch((emailError) => {
+          logger.error(`[SIGNUP] Failed to send verification email to ${email}:`, emailError.message);
+        });
+    } else {
+      logger.log(`[DEV] Auto-verifying user: ${email} (verification code: ${verificationCode})`);
+    }
 
     res.status(201).json({
       user_id: user._id,
@@ -274,8 +274,13 @@ router.post('/login', [
 
     logger.info(`[LOGIN] Successful login for user: ${email}, User ID: ${user._id}`);
 
+    const userJson = user.toJSON();
     res.json({
-      user: user.toJSON(),
+      user: {
+        ...userJson,
+        id: userJson._id,
+        role: user.role  // Explicitly include role
+      },
       profile,
       token
     });
@@ -290,8 +295,13 @@ router.post('/login', [
 router.get('/me', auth, async (req, res) => {
   try {
     const profile = await Profile.findOne({ user_id: req.userId });
+    const userJson = req.user.toJSON();
     res.json({
-      user: req.user.toJSON(),
+      user: {
+        ...userJson,
+        id: userJson._id,
+        role: req.user.role  // Explicitly include role
+      },
       profile
     });
   } catch (error) {
@@ -508,66 +518,6 @@ router.post('/reset-password', [
     logger.error('[RESET-PASSWORD] Reset password error:', error.message);
     logger.error('[RESET-PASSWORD] Error stack:', error.stack);
     res.status(500).json({ message: 'Error resetting password' });
-  }
-});
-
-// POST /api/auth/signup-admin - Create new admin account
-router.post('/signup-admin', [
-  body('email').isEmail().normalizeEmail(),
-  body('password').isLength({ min: 8 }).trim()
-], async (req, res, next) => {
-  try {
-    const errors = validationResult(req);
-    if (!errors.isEmpty()) {
-      logger.warn('[SIGNUP-ADMIN] Validation error:', errors.array()[0].msg);
-      return res.status(400).json({ message: errors.array()[0].msg });
-    }
-
-    const { email, password } = req.body;
-
-    // Validate password strength
-    const passwordValidation = validatePasswordStrength(password);
-    if (!passwordValidation.isValid) {
-      logger.warn('[SIGNUP-ADMIN] Weak password attempt for email:', email);
-      return res.status(400).json({ message: 'Password does not meet security requirements', errors: passwordValidation.errors });
-    }
-
-    // Check if user exists
-    const existingUser = await User.findOne({ email });
-    if (existingUser) {
-      logger.warn('[SIGNUP-ADMIN] Duplicate email registration attempt:', email);
-      return res.status(400).json({ message: 'Email already registered' });
-    }
-
-    // Create admin user
-    const user = new User({
-      email,
-      password,
-      role: 'admin',  // Set role to admin
-      email_verified: true,  // Admin accounts auto-verified
-      onboarding_completed: false
-    });
-
-    await user.save();
-
-    // Create empty profile
-    const profile = new Profile({ user_id: user._id });
-    await profile.save();
-
-    const token = generateToken(user._id);
-
-    logger.info(`[SIGNUP-ADMIN] Admin account created successfully: ${email}`);
-
-    res.status(201).json({
-      user_id: user._id,
-      email: user.email,
-      token,
-      requiresVerification: false
-    });
-  } catch (error) {
-    logger.error('[SIGNUP-ADMIN] Error creating admin account:', error.message);
-    logger.error('[SIGNUP-ADMIN] Error stack:', error.stack);
-    res.status(500).json({ message: 'Error creating admin account', error: error.message });
   }
 });
 

@@ -224,7 +224,7 @@ export default function MatchesPage() {
           {matchList.map((match) => (
             <div
               key={match.id}
-              className="group relative p-4 rounded-xl border border-border bg-card hover:shadow-lg hover:border-primary/30 transition-all block"
+              className="group relative p-4 rounded-lg border border-border bg-card hover:shadow-lg hover:border-primary/40 transition-all duration-200"
             >
               {/* Three-dot menu */}
               <div className="absolute top-3 right-3 z-10">
@@ -233,7 +233,7 @@ export default function MatchesPage() {
                     <Button
                       variant="ghost"
                       size="icon"
-                      className="h-8 w-8"
+                      className="h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity"
                       onClick={(e) => e.stopPropagation()}
                     >
                       <MoreVertical className="h-4 w-4" />
@@ -379,29 +379,35 @@ export default function MatchesPage() {
     return (
       <ProtectedRoute>
         <AppLayout>
-          <div className="p-6 md:p-8 max-w-4xl mx-auto">
+          <div className="p-6 md:p-8 max-w-6xl mx-auto">
         {/* Header */}
-        <div className="mb-6">
-          <h1 className="text-2xl md:text-3xl font-bold text-foreground">Matches</h1>
-          <p className="text-muted-foreground mt-1">
-            {matches.length} active {matches.length === 1 ? "match" : "matches"}
-            {inactiveMatches.length > 0 && ` • ${inactiveMatches.length} in history`}
-          </p>
+        <div className="mb-8">
+          <div className="flex items-center gap-3 mb-2">
+            <div className="bg-primary/10 p-3 rounded-lg">
+              <Heart className="h-6 w-6 text-primary fill-primary" />
+            </div>
+            <div>
+              <h1 className="text-3xl md:text-4xl font-bold text-foreground">Matches & Likes</h1>
+              <p className="text-muted-foreground mt-1 text-sm">
+                {matches.length} active {matches.length === 1 ? "match" : "matches"} • {likedProfiles.length} profiles you liked
+              </p>
+            </div>
+          </div>
         </div>
 
         {/* Search and Filter */}
-        <div className="flex flex-col sm:flex-row gap-4 mb-6">
+        <div className="flex flex-col sm:flex-row gap-3 mb-8 bg-card p-4 rounded-lg border border-border">
           <div className="relative flex-1">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
               placeholder="Search matches..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-10"
+              className="pl-10 bg-background border-border"
             />
           </div>
           <Select value={sortBy} onValueChange={setSortBy}>
-            <SelectTrigger className="w-full sm:w-[180px]">
+            <SelectTrigger className="w-full sm:w-[180px] bg-background border-border">
               <Filter className="h-4 w-4 mr-2" />
               <SelectValue placeholder="Sort by" />
             </SelectTrigger>
@@ -413,46 +419,53 @@ export default function MatchesPage() {
         </div>
 
         {/* Tabs for Active Matches and History */}
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="grid w-full grid-cols-2 mb-6">
-            <TabsTrigger value="active" className="flex items-center gap-2">
-              <Heart className="h-4 w-4" />
-              Active Matches ({matches.length})
-            </TabsTrigger>
-            <TabsTrigger value="history" className="flex items-center gap-2">
-              <History className="h-4 w-4" />
-              Match History ({inactiveMatches.length})
-            </TabsTrigger>
-          </TabsList>
+        <div className="mb-8">
+          <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+            <TabsList className="grid w-full grid-cols-2 mb-6 bg-card border border-border p-1">
+              <TabsTrigger value="active" className="flex items-center gap-2 rounded-md data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
+                <Heart className="h-4 w-4" />
+                Active Matches ({matches.length})
+              </TabsTrigger>
+              <TabsTrigger value="history" className="flex items-center gap-2 rounded-md data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
+                <History className="h-4 w-4" />
+                History ({inactiveMatches.length})
+              </TabsTrigger>
+            </TabsList>
 
-          <TabsContent value="active" className="mt-0">{renderMatchList(filteredMatches, false)}</TabsContent>
-          <TabsContent value="history" className="mt-0">{renderMatchList(filteredInactiveMatches, true)}</TabsContent>
-        </Tabs>
+            <TabsContent value="active" className="mt-0">{renderMatchList(filteredMatches, false)}</TabsContent>
+            <TabsContent value="history" className="mt-0">{renderMatchList(filteredInactiveMatches, true)}</TabsContent>
+          </Tabs>
+        </div>
 
-        {/* Liked Profiles Toggle Section */}
-        <div className="mt-8 border-t border-border pt-6">
+        {/* Liked Profiles Section */}
+        <div className="bg-gradient-to-r from-primary/5 to-transparent border border-border/50 rounded-xl p-6">
           <Button
-            variant="outline"
-            className="w-full justify-between bg-transparent"
+            variant="ghost"
+            className="w-full justify-between px-0 py-0 h-auto hover:bg-transparent"
             onClick={() => setShowLikedProfiles(!showLikedProfiles)}
           >
-            <span className="flex items-center gap-2">
-              <Heart className="h-4 w-4 text-primary" />
-              Profiles You Liked ({likedProfiles.length})
+            <span className="flex items-center gap-3 text-lg">
+              <div className="bg-primary/20 p-2 rounded-lg">
+                <Heart className="h-5 w-5 text-primary fill-primary" />
+              </div>
+              <div className="text-left">
+                <p className="font-semibold text-foreground">Profiles You Liked</p>
+                <p className="text-xs text-muted-foreground">{likedProfiles.length} profiles</p>
+              </div>
             </span>
             {showLikedProfiles ? (
-              <ChevronUp className="h-4 w-4" />
+              <ChevronUp className="h-5 w-5 text-muted-foreground" />
             ) : (
-              <ChevronDown className="h-4 w-4" />
+              <ChevronDown className="h-5 w-5 text-muted-foreground" />
             )}
           </Button>
 
           {showLikedProfiles && (
-            <div className="mt-6">
+            <div className="mt-6 pt-6 border-t border-border">
               {isLoadingLikes ? (
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                   {[1, 2, 3].map((i) => (
-                    <div key={i} className="bg-card rounded-xl overflow-hidden border border-border">
+                    <div key={i} className="bg-card rounded-lg overflow-hidden border border-border">
                       <Skeleton className="aspect-[4/5] w-full" />
                       <div className="p-4">
                         <Skeleton className="h-4 w-full mb-2" />
@@ -467,7 +480,7 @@ export default function MatchesPage() {
                   {likedProfiles.map((profile) => (
                     <div
                       key={profile.id}
-                      className="bg-card rounded-xl overflow-hidden border border-border shadow-sm hover:shadow-md transition-shadow"
+                      className="bg-card rounded-lg overflow-hidden border border-border shadow-sm hover:shadow-lg hover:border-primary/30 transition-all"
                     >
                       {/* Profile Image */}
                       <Link href={`/profile/${profile.id}`} className="block">
@@ -479,11 +492,11 @@ export default function MatchesPage() {
                             className="object-cover"
                           />
                           {/* Gradient overlay */}
-                          <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent" />
+                          <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/30 to-transparent" />
                           
                           {/* Liked badge */}
                           <div className="absolute top-3 right-3">
-                            <div className="bg-primary/90 text-primary-foreground px-2 py-1 rounded-full text-xs font-medium flex items-center gap-1">
+                            <div className="bg-primary/90 backdrop-blur text-primary-foreground px-3 py-1.5 rounded-full text-xs font-semibold flex items-center gap-1">
                               <Heart className="h-3 w-3 fill-current" />
                               {profile.type === 'superlike' ? 'Super Liked' : 'Liked'}
                             </div>
@@ -491,11 +504,11 @@ export default function MatchesPage() {
                           
                           {/* Name and info overlay */}
                           <div className="absolute bottom-0 left-0 right-0 p-4">
-                            <h3 className="text-xl font-bold text-white">
+                            <h3 className="text-lg font-bold text-white">
                               {profile.first_name}{profile.age ? `, ${profile.age}` : ''}
                             </h3>
                             {profile.location_city && (
-                              <div className="flex items-center gap-1 text-white/80 text-sm mt-1">
+                              <div className="flex items-center gap-1 text-white/90 text-xs mt-2">
                                 <MapPin className="h-3.5 w-3.5" />
                                 <span>{profile.location_city}</span>
                               </div>
@@ -518,7 +531,7 @@ export default function MatchesPage() {
                           <Button
                             variant="outline"
                             size="sm"
-                            className="flex-1 bg-transparent"
+                            className="flex-1 bg-transparent hover:bg-primary/10"
                             asChild
                           >
                             <Link href={`/profile/${profile.id}`}>
@@ -540,17 +553,18 @@ export default function MatchesPage() {
                   ))}
                 </div>
               ) : (
-                <div className="text-center py-8">
-                  <Heart className="h-10 w-10 text-muted-foreground/50 mx-auto mb-3" />
-                  <p className="text-muted-foreground">You have not liked any profiles yet</p>
-                  <Button asChild className="mt-4">
-                    <Link href="/browse">Start Browsing</Link>
+                <div className="text-center py-12">
+                  <Heart className="h-12 w-12 text-muted-foreground/30 mx-auto mb-3" />
+                  <h3 className="font-medium text-foreground mb-1">No likes yet</h3>
+                  <p className="text-muted-foreground mb-4">Start browsing to like profiles</p>
+                  <Button asChild>
+                    <Link href="/browse">Browse Profiles</Link>
                   </Button>
                 </div>
               )}
             </div>
           )}
-          </div>
+        </div>
         </div>
       </AppLayout>
       </ProtectedRoute>

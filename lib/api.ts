@@ -195,22 +195,6 @@ export const api = {
         body: JSON.stringify(data),
       })
     },
-    signupAdmin: async (data: { email: string; password: string }) => {
-      if (USE_MOCK_DATA) {
-        await delay(500)
-        return {
-          data: {
-            user_id: "new-admin-id",
-            email: data.email,
-            token: "mock-token-12345",
-          },
-        }
-      }
-      return apiRequest<{ user_id: string; email: string; token: string }>("/auth/signup-admin", {
-        method: "POST",
-        body: JSON.stringify(data),
-      })
-    },
   },
   users: {
     getProfile: async () => {
@@ -588,20 +572,6 @@ export const api = {
     },
   },
   admin: {
-    // Verify admin code
-    verifyCode: async (code: string) => {
-      if (USE_MOCK_DATA) {
-        await delay(300)
-        if (code === "ljTQDzGP3477UeNrlQrdRjhG7") {
-          return { data: { verified: true } }
-        }
-        return { error: "Invalid admin code" }
-      }
-      return apiRequest<{ verified: boolean }>("/admin/verify-code", {
-        method: "POST",
-        body: JSON.stringify({ code }),
-      })
-    },
     // Get all users
     getUsers: async () => {
       if (USE_MOCK_DATA) {

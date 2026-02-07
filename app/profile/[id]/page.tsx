@@ -542,28 +542,69 @@ export default function UserProfilePage() {
         </Card>
 
         {/* Get to Know Me Prompts */}
-        <Card>
+        <Card className="mb-6 border-border">
           <CardContent className="p-6 space-y-4">
-            <h2 className="text-xl font-semibold">Get to Know Me</h2>
+            <h2 className="text-2xl font-bold">Get to Know Me</h2>
             <Separator />
 
             <div>
-              <p className="text-sm text-muted-foreground mb-1">I'm weirdly good at...</p>
+              <p className="text-sm text-muted-foreground mb-2 font-semibold">I'm weirdly good at...</p>
               <p className="font-medium">{profile.prompt_good_at || "Not answered yet"}</p>
             </div>
 
             <Separator />
 
             <div>
-              <p className="text-sm text-muted-foreground mb-1">My perfect weekend...</p>
+              <p className="text-sm text-muted-foreground mb-2 font-semibold">My perfect weekend...</p>
               <p className="font-medium">{profile.prompt_perfect_weekend || "Not answered yet"}</p>
             </div>
 
             <Separator />
 
             <div>
-              <p className="text-sm text-muted-foreground mb-1">Message me if...</p>
+              <p className="text-sm text-muted-foreground mb-2 font-semibold">Message me if...</p>
               <p className="font-medium">{profile.prompt_message_if || "Not answered yet"}</p>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* About You & Your Future */}
+        <Card className="border-border">
+          <CardContent className="p-6 space-y-6">
+            <h2 className="text-2xl font-bold">About You & Your Future</h2>
+            <Separator />
+
+            <div>
+              <h3 className="text-lg font-semibold mb-2">What are you hoping to find on this site?</h3>
+              <p className="text-foreground leading-relaxed">{profile.hoping_to_find || "Not answered yet"}</p>
+            </div>
+
+            <Separator />
+
+            <div>
+              <h3 className="text-lg font-semibold mb-2">What does a great day look like for you?</h3>
+              <p className="text-foreground leading-relaxed">{profile.great_day || "Not answered yet"}</p>
+            </div>
+
+            <Separator />
+
+            <div>
+              <h3 className="text-lg font-semibold mb-2">What values matter most to you in a relationship?</h3>
+              <p className="text-foreground leading-relaxed">{profile.relationship_values || "Not answered yet"}</p>
+            </div>
+
+            <Separator />
+
+            <div>
+              <h3 className="text-lg font-semibold mb-2">How do you like to show appreciation or affection?</h3>
+              <p className="text-foreground leading-relaxed">{profile.show_affection || "Not answered yet"}</p>
+            </div>
+
+            <Separator />
+
+            <div>
+              <h3 className="text-lg font-semibold mb-2">What kind of life do you want to build with the right person?</h3>
+              <p className="text-foreground leading-relaxed">{profile.build_with_person || "Not answered yet"}</p>
             </div>
           </CardContent>
         </Card>

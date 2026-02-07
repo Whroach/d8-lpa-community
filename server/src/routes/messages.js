@@ -1,6 +1,7 @@
 import express from 'express';
 import { auth } from '../middleware/auth.js';
 import User from '../models/User.js';
+import Profile from '../models/Profile.js';
 import Match from '../models/Match.js';
 import Message from '../models/Message.js';
 import Notification from '../models/Notification.js';
@@ -41,6 +42,9 @@ router.get('/', auth, async (req, res) => {
 
       if (!otherUser) return null;
 
+      // Fetch profile to get photos
+      const otherProfile = await Profile.findOne({ user_id: otherUserId });
+
       const unreadCount = match.unread_counts?.get(req.userId.toString()) || 0;
 
       // Get the last few messages for preview
@@ -59,7 +63,7 @@ router.get('/', auth, async (req, res) => {
           id: otherUser._id,
           first_name: otherUser.first_name,
           last_name: otherUser.last_name,
-          photos: otherUser.photos
+          photos: otherProfile?.photos || []
         },
         last_message: match.last_message,
         last_message_at: match.last_message_at,

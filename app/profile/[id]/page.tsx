@@ -185,10 +185,10 @@ export default function UserProfilePage() {
           Back
         </Button>
 
-        <div className="grid md:grid-cols-2 gap-6 mb-6">
+        <div className="grid md:grid-cols-2 gap-8 mb-8">
           {/* Photo Gallery - Main Photo Only (No Swipe) */}
           <div className="space-y-4">
-            <div className="relative aspect-[4/5] rounded-xl overflow-hidden bg-muted">
+            <div className="relative aspect-[4/5] rounded-2xl overflow-hidden bg-gradient-to-br from-muted to-muted/50 shadow-lg">
               {photos.length > 0 ? (
                 <Image
                   src={photos[0]}
@@ -205,20 +205,26 @@ export default function UserProfilePage() {
           </div>
 
           {/* Profile Info */}
-          <div className="space-y-6">
-            <div>
-              <h1 className="text-4xl md:text-5xl font-bold text-foreground mb-2">
+          <div className="space-y-8">
+            <div className="space-y-3">
+              <h1 className="text-5xl md:text-6xl font-bold text-foreground">
                 {user.first_name}
               </h1>
-              <div className="flex items-baseline gap-2">
-                {age && <span className="text-2xl font-semibold text-primary">{age}</span>}
+              <div className="flex items-baseline gap-3">
+                {age && <span className="text-3xl font-semibold text-primary">{age}</span>}
                 {location && (
-                  <div className="flex items-center gap-1 text-lg text-muted-foreground">
-                    <MapPin className="h-5 w-5" />
-                    <span>{location}</span>
+                  <div className="flex items-center gap-2 text-lg text-muted-foreground">
+                    <MapPin className="h-6 w-6 text-primary flex-shrink-0" />
+                    <span className="font-medium">{location}</span>
                   </div>
                 )}
               </div>
+              {profile.district_number && (
+                <div className="flex items-center gap-2 text-base text-muted-foreground pt-2">
+                  <Compass className="h-5 w-5 text-primary flex-shrink-0" />
+                  <span className="font-medium">{profile.district_number}</span>
+                </div>
+              )}
             </div>
 
             {/* Action Buttons */}
@@ -266,18 +272,18 @@ export default function UserProfilePage() {
         </div>
 
         {/* About Me Section */}
-        <Card className="mb-6">
+        <Card className="mb-6 border-border bg-gradient-to-br from-muted/20 to-muted/10">
           <CardContent className="p-6">
-            <h2 className="text-xl font-semibold mb-4">About</h2>
-            <p className="text-muted-foreground leading-relaxed">{profile.bio || "No bio added yet"}</p>
+            <h2 className="text-2xl font-bold mb-4">About</h2>
+            <p className="text-foreground leading-relaxed text-base whitespace-pre-wrap">{profile.bio || "No bio added yet"}</p>
           </CardContent>
         </Card>
 
         {/* Photo Grid - Centered */}
         {photos.length > 1 && (
-          <Card className="mb-6">
+          <Card className="mb-6 border-border">
             <CardContent className="p-6">
-              <h2 className="text-xl font-semibold mb-4">Photos</h2>
+              <h2 className="text-2xl font-bold mb-4">Photo Gallery</h2>
               <div className="max-w-3xl mx-auto">
                 <div className="grid grid-cols-3 gap-3">
                   {photos.map((photo: string, idx: number) => (
@@ -301,30 +307,61 @@ export default function UserProfilePage() {
         )}
 
         {/* Details Section */}
-        <Card className="mb-6">
-          <CardContent className="p-6 space-y-4">
-            <h2 className="text-xl font-semibold">Details</h2>
+        <Card className="mb-6 border-border">
+          <CardContent className="p-6 space-y-6">
+            <h2 className="text-2xl font-bold">Details</h2>
 
-            <div className="grid gap-3">
-              <div className="flex items-center gap-2 text-foreground">
-                <span className="text-sm font-medium text-muted-foreground">Occupation:</span>
-                <span>{profile.occupation || "Not specified"}</span>
-              </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {profile.occupation && (
+                <div className="flex items-start gap-3 p-3 rounded-lg bg-muted/30">
+                  <Briefcase className="h-5 w-5 text-primary flex-shrink-0 mt-0.5" />
+                  <div>
+                    <p className="text-sm font-medium text-muted-foreground">Occupation</p>
+                    <p className="text-base font-medium">{profile.occupation}</p>
+                  </div>
+                </div>
+              )}
 
-              <div className="flex items-center gap-2 text-foreground">
-                <span className="text-sm font-medium text-muted-foreground">Education:</span>
-                <span className="capitalize">
-                  {profile.education ? profile.education.replace(/-/g, " ") : "Not specified"}
-                </span>
-              </div>
+              {profile.education && (
+                <div className="flex items-start gap-3 p-3 rounded-lg bg-muted/30">
+                  <GraduationCap className="h-5 w-5 text-primary flex-shrink-0 mt-0.5" />
+                  <div>
+                    <p className="text-sm font-medium text-muted-foreground">Education</p>
+                    <p className="text-base font-medium capitalize">{profile.education.replace(/-/g, " ")}</p>
+                  </div>
+                </div>
+              )}
+
+              {profile.lpa_membership_id && (
+                <div className="flex items-start gap-3 p-3 rounded-lg bg-muted/30">
+                  <UserIcon className="h-5 w-5 text-primary flex-shrink-0 mt-0.5" />
+                  <div>
+                    <p className="text-sm font-medium text-muted-foreground">LPA Member ID</p>
+                    <p className="text-base font-medium">{profile.lpa_membership_id}</p>
+                  </div>
+                </div>
+              )}
+
+              {profile.location_state && (
+                <div className="flex items-start gap-3 p-3 rounded-lg bg-muted/30">
+                  <Globe className="h-5 w-5 text-primary flex-shrink-0 mt-0.5" />
+                  <div>
+                    <p className="text-sm font-medium text-muted-foreground">State</p>
+                    <p className="text-base font-medium">{profile.location_state}</p>
+                  </div>
+                </div>
+              )}
             </div>
 
             <div>
-              <h3 className="font-semibold mb-2">Interests</h3>
+              <h3 className="font-bold text-lg mb-3 flex items-center gap-2">
+                <Target className="h-5 w-5 text-primary" />
+                Interests
+              </h3>
               {profile.interests && profile.interests.length > 0 ? (
                 <div className="flex flex-wrap gap-2">
                   {profile.interests.map((interest: string, idx: number) => (
-                    <Badge key={idx} variant="secondary" className="capitalize">
+                    <Badge key={idx} variant="secondary" className="capitalize text-sm py-1.5">
                       {interest}
                     </Badge>
                   ))}
@@ -397,17 +434,17 @@ export default function UserProfilePage() {
         </Dialog>
 
         {/* Favorites */}
-        <Card className="mb-6">
-          <CardContent className="p-6 space-y-4">
-            <h2 className="text-xl font-semibold">Favorites</h2>
+        <Card className="mb-6 border-border">
+          <CardContent className="p-6 space-y-6">
+            <h2 className="text-2xl font-bold">Favorites</h2>
             <Separator />
 
             <div>
-              <p className="text-sm text-muted-foreground mb-2">Favorite Music</p>
+              <h3 className="font-bold text-lg mb-3">🎵 Favorite Music</h3>
               {user.favorite_music && Array.isArray(user.favorite_music) && user.favorite_music.filter((item: string) => item && item.length > 0 && item.length < 50).length > 0 ? (
                 <div className="flex flex-wrap gap-2">
                   {user.favorite_music.filter((item: string) => item && item.length > 0 && item.length < 50).map((music: string, idx: number) => (
-                    <Badge key={idx} variant="secondary">{music}</Badge>
+                    <Badge key={idx} variant="secondary" className="text-sm py-1.5">{music}</Badge>
                   ))}
                 </div>
               ) : (
@@ -418,11 +455,11 @@ export default function UserProfilePage() {
             <Separator />
 
             <div>
-              <p className="text-sm text-muted-foreground mb-2">Favorite Animals</p>
+              <h3 className="font-bold text-lg mb-3">🐾 Favorite Animals</h3>
               {user.animals && Array.isArray(user.animals) && user.animals.filter((item: string) => item && item.length > 0 && item.length < 50).length > 0 ? (
                 <div className="flex flex-wrap gap-2">
                   {user.animals.filter((item: string) => item && item.length > 0 && item.length < 50).map((animal: string, idx: number) => (
-                    <Badge key={idx} variant="secondary">{animal}</Badge>
+                    <Badge key={idx} variant="secondary" className="text-sm py-1.5">{animal}</Badge>
                   ))}
                 </div>
               ) : (
@@ -433,11 +470,11 @@ export default function UserProfilePage() {
             <Separator />
 
             <div>
-              <p className="text-sm text-muted-foreground mb-2">Pet Peeves</p>
+              <h3 className="font-bold text-lg mb-3">😤 Pet Peeves</h3>
               {user.pet_peeves && Array.isArray(user.pet_peeves) && user.pet_peeves.filter((item: string) => item && item.length > 0 && item.length < 50).length > 0 ? (
                 <div className="flex flex-wrap gap-2">
                   {user.pet_peeves.filter((item: string) => item && item.length > 0 && item.length < 50).map((peeve: string, idx: number) => (
-                    <Badge key={idx} variant="secondary">{peeve}</Badge>
+                    <Badge key={idx} variant="secondary" className="text-sm py-1.5">{peeve}</Badge>
                   ))}
                 </div>
               ) : (
@@ -448,78 +485,58 @@ export default function UserProfilePage() {
         </Card>
 
         {/* Preferences & Background */}
-        <Card className="mb-6">
+        <Card className="mb-6 border-border">
           <CardContent className="p-6 space-y-6">
-            <h2 className="text-xl font-semibold">Preferences & Background</h2>
+            <h2 className="text-2xl font-bold">What I'm Looking For</h2>
             <Separator />
 
             <div>
-              <Label className="text-sm text-muted-foreground mb-2 block flex items-center gap-2">
-                <Heart className="h-4 w-4" />
-                What I'm Looking For
-              </Label>
+              <Label className="text-sm text-muted-foreground mb-3 block font-semibold">Connection Type</Label>
               {profile.looking_for_description && Array.isArray(profile.looking_for_description) && profile.looking_for_description.length > 0 ? (
                 <div className="flex flex-wrap gap-2">
                   {profile.looking_for_description.map((item: string, idx: number) => (
-                    <Badge key={idx} variant="secondary">{item}</Badge>
+                    <Badge key={idx} variant="secondary" className="text-sm py-1.5">{item}</Badge>
                   ))}
                 </div>
               ) : (
-                <p className="font-medium">Not specified</p>
+                <p className="text-muted-foreground">Not specified</p>
               )}
             </div>
 
             <Separator />
 
             <div>
-              <Label className="text-sm text-muted-foreground mb-2 block flex items-center gap-2">
+              <Label className="text-sm text-muted-foreground mb-3 block font-semibold flex items-center gap-2">
                 <Target className="h-4 w-4" />
                 Life Goals
               </Label>
               {profile.life_goals && Array.isArray(profile.life_goals) && profile.life_goals.length > 0 ? (
                 <div className="flex flex-wrap gap-2">
                   {profile.life_goals.map((goal: string, idx: number) => (
-                    <Badge key={idx} variant="secondary">{goal}</Badge>
+                    <Badge key={idx} variant="secondary" className="text-sm py-1.5">{goal}</Badge>
                   ))}
                 </div>
               ) : (
-                <p className="font-medium">Not specified</p>
+                <p className="text-muted-foreground">Not specified</p>
               )}
             </div>
 
             <Separator />
 
             <div>
-              <Label className="text-sm text-muted-foreground mb-2 block flex items-center gap-2">
+              <Label className="text-sm text-muted-foreground mb-3 block font-semibold flex items-center gap-2">
                 <Globe className="h-4 w-4" />
                 Languages
               </Label>
               {profile.languages && profile.languages.length > 0 ? (
                 <div className="flex flex-wrap gap-2">
                   {profile.languages.map((lang: string, idx: number) => (
-                    <Badge key={idx} variant="secondary">{lang}</Badge>
+                    <Badge key={idx} variant="secondary" className="text-sm py-1.5">{lang}</Badge>
                   ))}
                 </div>
               ) : (
-                <p className="font-medium">Not specified</p>
+                <p className="text-muted-foreground">Not specified</p>
               )}
-            </div>
-
-            <Separator />
-
-            <div>
-              <Label className="text-sm text-muted-foreground mb-2 block">Cultural Background</Label>
-              <p className="font-medium">{profile.cultural_background || "Not specified"}</p>
-            </div>
-
-            <Separator />
-
-            <div>
-              <Label className="text-sm text-muted-foreground mb-2 block flex items-center gap-2">
-                <MessageCircle className="h-4 w-4" />
-                Personal Preferences
-              </Label>
-              <p className="text-foreground leading-relaxed">{profile.personal_preferences || "Not specified"}</p>
             </div>
           </CardContent>
         </Card>

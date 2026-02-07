@@ -381,23 +381,47 @@ export default function AdminPage() {
     }
   }
 
-  const removeAction = (user: AdminUser, action: "warning" | "suspend" | "ban") => {
-    setUsers((prev) =>
-      prev.map((u) => {
-        if (u.id === user.id) {
-          if (action === "warning" && u.warnings > 0) {
-            return { ...u, warnings: u.warnings - 1 }
+  const removeAction = async (user: AdminUser, action: "warning" | "suspend" | "ban") => {
+    try {
+      // Convert action to API action name
+      let apiAction = action;
+      if (action === "suspend") {
+        apiAction = "unsuspend";
+      } else if (action === "ban") {
+        apiAction = "unban";
+      } else if (action === "warning") {
+        apiAction = "remove_warning";
+      }
+
+      // Call backend API to remove the action
+      const result = await api.admin.userAction(user.id, apiAction, `${action} lifted`);
+      
+      if (result.error) {
+        alert("Error removing action: " + result.error);
+        return;
+      }
+
+      // Update local state
+      setUsers((prev) =>
+        prev.map((u) => {
+          if (u.id === user.id) {
+            if (action === "warning" && u.warnings > 0) {
+              return { ...u, warnings: u.warnings - 1 }
+            }
+            if (action === "suspend") {
+              return { ...u, is_suspended: false }
+            }
+            if (action === "ban") {
+              return { ...u, is_banned: false }
+            }
           }
-          if (action === "suspend") {
-            return { ...u, is_suspended: false }
-          }
-          if (action === "ban") {
-            return { ...u, is_banned: false }
-          }
-        }
-        return u
-      })
-    )
+          return u
+        })
+      )
+    } catch (error) {
+      console.error("Error removing action:", error)
+      alert("Failed to remove action")
+    }
   }
 
   const getActionIcon = (action: string) => {

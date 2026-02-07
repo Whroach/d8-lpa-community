@@ -85,6 +85,27 @@ export default function EventsPage() {
     if (typeof window !== "undefined") {
       localStorage.setItem("lastViewedEvents", new Date().toISOString())
       window.dispatchEvent(new Event("eventsViewed"))
+      
+      // Mark event notifications as read
+      const markEventNotificationsAsRead = async () => {
+        try {
+          const notificationsResult = await api.notifications.getAll()
+          if (notificationsResult.data) {
+            const unreadEventNotifications = notificationsResult.data.filter(
+              (n: { type?: string; read?: boolean }) => n.type === 'event' && !n.read
+            )
+            
+            // Mark each unread event notification as read
+            for (const notification of unreadEventNotifications) {
+              await api.notifications.markAsRead(notification.id || notification._id)
+            }
+          }
+        } catch (error) {
+          console.error('Error marking event notifications as read:', error)
+        }
+      }
+      
+      markEventNotificationsAsRead()
     }
   }, [])
 

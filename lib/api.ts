@@ -634,14 +634,14 @@ export const api = {
         await delay(200)
         return { data: [] }
       }
-      return apiRequest<any[]>("/admin/announcements")
+      return apiRequest<any[]>("/admin/news")
     },
     createAnnouncement: async (title: string, message: string) => {
       if (USE_MOCK_DATA) {
         await delay(200)
         return { data: { id: '1', title, message, created_at: new Date().toISOString() } }
       }
-      return apiRequest<any>("/admin/announcements", {
+      return apiRequest<any>("/admin/news", {
         method: "POST",
         body: JSON.stringify({ title, message }),
       })
@@ -651,7 +651,7 @@ export const api = {
         await delay(200)
         return { data: { success: true } }
       }
-      return apiRequest<any>(`/admin/announcements?id=${announcementId}`, {
+      return apiRequest<any>(`/admin/news?id=${announcementId}`, {
         method: "DELETE",
       })
     },

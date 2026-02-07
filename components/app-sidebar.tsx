@@ -87,19 +87,13 @@ export function AppSidebar() {
         setBadgeCounts((prev) => ({ ...prev, messages: unreadMessages }))
       }
 
-      // Load upcoming events count
-      const eventsResult = await api.events.getAll()
-      if (eventsResult.data) {
-        const now = new Date()
-        const newEvents = eventsResult.data.filter(
-          (e: { created_at?: string; start_date?: string; end_date?: string }) => {
-            if (!e.created_at) return false
-            const createdAt = new Date(e.created_at)
-            const end = new Date(e.end_date || e.start_date || 0)
-            return createdAt > lastViewedEvents && end >= now
-          }
+      // Load unread event notifications count
+      const notificationsResult = await api.notifications.getAll()
+      if (notificationsResult.data) {
+        const unreadEventNotifications = notificationsResult.data.filter(
+          (n: { type?: string; read?: boolean }) => n.type === 'event' && !n.read
         ).length
-        setBadgeCounts((prev) => ({ ...prev, events: newEvents }))
+        setBadgeCounts((prev) => ({ ...prev, events: unreadEventNotifications }))
       }
 
       // Load unread notifications count

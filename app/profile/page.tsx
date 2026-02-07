@@ -203,7 +203,7 @@ function ProfilePage() {
   const [isEditing, setIsEditing] = useState(false)
   const [isSaving, setIsSaving] = useState(false)
   const [showPhotoManager, setShowPhotoManager] = useState(false)
-  const [photos, setPhotos] = useState<string[]>(user?.photos || [])
+  const [photos, setPhotos] = useState<string[]>(profile?.photos || [])
   const [draggedIndex, setDraggedIndex] = useState<number | null>(null)
   const [photoUploading, setPhotoUploading] = useState(false)
   const [uploadError, setUploadError] = useState<string | null>(null)
@@ -249,8 +249,9 @@ function ProfilePage() {
         const data = await response.json()
         setUser(data.user)
         setProfile(data.profile)
-        if (data.user?.photos) {
-          setPhotos(data.user.photos)
+        // Photos are stored in profile, not user
+        if (data.profile?.photos && data.profile.photos.length > 0) {
+          setPhotos(data.profile.photos)
         }
       } else {
         console.error('Failed to load profile:', response.status)

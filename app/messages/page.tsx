@@ -363,8 +363,15 @@ export default function MessagesPage() {
     if (!selectedConversation) return
     
     setIsDeleting(true)
-    // Simulate API call to delete conversation
-    await new Promise(resolve => setTimeout(resolve, 800))
+    
+    // Call API to soft delete conversation
+    const result = await api.messages.deleteConversation(selectedConversation.id)
+    
+    if (result.error) {
+      console.error('Delete failed:', result.error)
+      setIsDeleting(false)
+      return
+    }
     
     // Clear messages and remove from conversations list
     setMessages([])
@@ -379,8 +386,8 @@ export default function MessagesPage() {
       setSelectedConversation(null)
     }
     
-    setIsDeleting(false)
     setShowDeleteDialog(false)
+    setIsDeleting(false)
   }
 
   const handleViewProfile = () => {

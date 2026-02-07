@@ -431,6 +431,15 @@ export const api = {
         body: JSON.stringify({ content }),
       })
     },
+    deleteConversation: async (conversationId: string) => {
+      if (USE_MOCK_DATA) {
+        await delay(200)
+        return { data: { success: true } }
+      }
+      return apiRequest<any>(`/messages/${conversationId}`, {
+        method: "DELETE",
+      })
+    },
   },
   events: {
     getAll: async () => {

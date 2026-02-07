@@ -37,7 +37,7 @@ const eventSchema = new mongoose.Schema({
   },
   category: {
     type: String,
-    enum: ['local-chapter', 'regional', 'national', 'dating'],
+    enum: ['local-chapter', 'regional', 'national', 'dating', 'outdoor', 'food', 'social', 'fitness', 'arts'],
     default: 'local-chapter'
   },
   max_attendees: {

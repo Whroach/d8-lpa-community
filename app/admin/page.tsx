@@ -203,6 +203,7 @@ export default function AdminPage() {
   useEffect(() => {
     loadUsers()
     loadEvents()
+    loadAnnouncements()
   }, [])
 
   const loadUsers = async () => {
@@ -218,6 +219,16 @@ export default function AdminPage() {
     const result = await api.events.getAll()
     if (result.data) {
       setEvents(result.data as AdminEvent[])
+    }
+  }
+
+  const loadAnnouncements = async () => {
+    const result = await api.admin.getAnnouncements()
+    if (result.data) {
+      // Announcements come in descending order (newest first)
+      setNewsItems(result.data)
+    }
+  }
     }
   }
 
@@ -1149,12 +1160,13 @@ export default function AdminPage() {
                         <p className="font-medium text-foreground">{item.title}</p>
                         <p className="text-sm text-muted-foreground mt-1">{item.message}</p>
                         <p className="text-xs text-muted-foreground mt-2">
-                          {new Date(item.created_at).toLocaleDateString("en-US", {
+                          {new Date(item.created_at).toLocaleString("en-US", {
                             month: "short",
                             day: "numeric",
                             year: "numeric",
                             hour: "numeric",
                             minute: "2-digit",
+                            hour12: true,
                           })}
                         </p>
                       </div>

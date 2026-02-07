@@ -116,9 +116,23 @@ export default function NotificationsPage() {
   }
 
   const formatDate = (dateString: string) => {
+    if (!dateString) return 'Recently'
+    
     const date = new Date(dateString)
+    
+    // Check if date is valid
+    if (isNaN(date.getTime())) {
+      return 'Recently'
+    }
+    
     const now = new Date()
     const diffMs = now.getTime() - date.getTime()
+    
+    // Handle negative differences (future dates)
+    if (diffMs < 0) {
+      return 'Recently'
+    }
+    
     const diffMins = Math.floor(diffMs / 60000)
     const diffHours = Math.floor(diffMs / 3600000)
     const diffDays = Math.floor(diffMs / 86400000)
@@ -127,7 +141,12 @@ export default function NotificationsPage() {
     if (diffMins < 60) return `${diffMins}m ago`
     if (diffHours < 24) return `${diffHours}h ago`
     if (diffDays < 7) return `${diffDays}d ago`
-    return date.toLocaleDateString()
+    
+    try {
+      return date.toLocaleDateString()
+    } catch {
+      return 'Recently'
+    }
   }
 
   const unreadCount = notifications.filter((n) => !n.read).length

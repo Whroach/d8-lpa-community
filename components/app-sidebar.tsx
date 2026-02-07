@@ -88,9 +88,9 @@ export function AppSidebar() {
       }
 
       // Load unread event notifications count
-      const notificationsResult = await api.notifications.getAll()
-      if (notificationsResult.data) {
-        const unreadEventNotifications = notificationsResult.data.filter(
+      const eventNotificationsResult = await api.notifications.getAll()
+      if (eventNotificationsResult.data) {
+        const unreadEventNotifications = eventNotificationsResult.data.filter(
           (n: { type?: string; read?: boolean }) => n.type === 'event' && !n.read
         ).length
         setBadgeCounts((prev) => ({ ...prev, events: unreadEventNotifications }))

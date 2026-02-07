@@ -286,20 +286,41 @@ export default function UserProfilePage() {
               <h2 className="text-2xl font-bold mb-4">Photo Gallery</h2>
               <div className="max-w-3xl mx-auto">
                 <div className="grid grid-cols-3 gap-3">
-                  {photos.map((photo: string, idx: number) => (
-                    <div
-                      key={idx}
-                      className="relative aspect-square rounded-lg overflow-hidden cursor-pointer group border-2 border-border hover:border-primary/50 transition-all"
-                      onClick={() => handlePhotoClick(idx)}
-                    >
-                      <Image
-                        src={photo}
-                        alt={`Photo ${idx + 1}`}
-                        fill
-                        className="object-cover transition-transform group-hover:scale-110"
-                      />
-                    </div>
-                  ))}
+                  {photos.slice(0, 6).map((photo: string, idx: number) => {
+                    const isLastPhoto = idx === 5;
+                    const hasMorePhotos = photos.length > 6;
+                    const remainingCount = photos.length - 6;
+                    
+                    return (
+                      <div
+                        key={idx}
+                        className="relative aspect-square rounded-lg overflow-hidden cursor-pointer group border-2 border-border hover:border-primary/50 transition-all"
+                        onClick={() => {
+                          if (isLastPhoto && hasMorePhotos) {
+                            setSelectedPhotoIndex(idx);
+                            setShowPhotoModal(true);
+                          } else {
+                            handlePhotoClick(idx);
+                          }
+                        }}
+                      >
+                        <Image
+                          src={photo}
+                          alt={`Photo ${idx + 1}`}
+                          fill
+                          className={cn(
+                            "object-cover transition-transform group-hover:scale-110",
+                            isLastPhoto && hasMorePhotos && "brightness-50"
+                          )}
+                        />
+                        {isLastPhoto && hasMorePhotos && (
+                          <div className="absolute inset-0 flex items-center justify-center">
+                            <span className="text-white text-4xl font-bold">+{remainingCount}</span>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
             </CardContent>

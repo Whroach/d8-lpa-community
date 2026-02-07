@@ -137,10 +137,17 @@ export default function NotificationsPage() {
     const diffHours = Math.floor(diffMs / 3600000)
     const diffDays = Math.floor(diffMs / 86400000)
 
-    if (diffMins < 1) return 'Just now'
-    if (diffMins < 60) return `${diffMins}m ago`
-    if (diffHours < 24) return `${diffHours}h ago`
-    if (diffDays < 7) return `${diffDays}d ago`
+    // Recently - less than 10 minutes
+    if (diffMins < 10) return 'Recently'
+    
+    // Today - 10 minutes to 23 hours 50 minutes
+    if (diffHours < 23 || (diffHours === 23 && diffMins < 50)) return 'Today'
+    
+    // Yesterday - 24 to 48 hours
+    if (diffDays === 1) return 'Yesterday'
+    
+    // x Days ago - more than 48 hours
+    if (diffDays > 1) return `${diffDays} Days Ago`
     
     try {
       return date.toLocaleDateString()

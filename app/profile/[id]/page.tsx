@@ -73,9 +73,18 @@ export default function UserProfilePage() {
   const loadProfile = async () => {
     setIsLoading(true)
     const result = await api.users.getById(userId)
+    console.log('[PROFILE_LOAD] API result:', result)
+    console.log('[PROFILE_LOAD] result.data:', result.data)
     if (result.data) {
+      console.log('[PROFILE_LOAD] user:', result.data.user)
+      console.log('[PROFILE_LOAD] profile:', result.data.profile)
+      console.log('[PROFILE_LOAD] favorite_music:', result.data.profile?.favorite_music)
+      console.log('[PROFILE_LOAD] animals:', result.data.profile?.animals)
+      console.log('[PROFILE_LOAD] pet_peeves:', result.data.profile?.pet_peeves)
       setUser(result.data.user)
       setProfile(result.data.profile)
+    } else {
+      console.log('[PROFILE_LOAD] No data in result, error:', result.error)
     }
     setIsLoading(false)
   }
@@ -462,10 +471,10 @@ export default function UserProfilePage() {
 
             <div>
               <h3 className="font-bold text-lg mb-3">🎵 Favorite Music</h3>
-              {profile.favorite_music && Array.isArray(profile.favorite_music) && profile.favorite_music.filter((item: string) => item && item.length > 0 && item.length < 50).length > 0 ? (
+              {profile?.favorite_music && Array.isArray(profile.favorite_music) && profile.favorite_music.length > 0 ? (
                 <div className="flex flex-wrap gap-2">
-                  {profile.favorite_music.filter((item: string) => item && item.length > 0 && item.length < 50).map((music: string, idx: number) => (
-                    <Badge key={idx} variant="secondary" className="text-sm py-1.5">{music}</Badge>
+                  {profile.favorite_music.map((music: string, idx: number) => (
+                    music && <Badge key={idx} variant="secondary" className="text-sm py-1.5">{music}</Badge>
                   ))}
                 </div>
               ) : (
@@ -477,10 +486,10 @@ export default function UserProfilePage() {
 
             <div>
               <h3 className="font-bold text-lg mb-3">🐾 Favorite Animals</h3>
-              {profile.animals && Array.isArray(profile.animals) && profile.animals.filter((item: string) => item && item.length > 0 && item.length < 50).length > 0 ? (
+              {profile?.animals && Array.isArray(profile.animals) && profile.animals.length > 0 ? (
                 <div className="flex flex-wrap gap-2">
-                  {profile.animals.filter((item: string) => item && item.length > 0 && item.length < 50).map((animal: string, idx: number) => (
-                    <Badge key={idx} variant="secondary" className="text-sm py-1.5">{animal}</Badge>
+                  {profile.animals.map((animal: string, idx: number) => (
+                    animal && <Badge key={idx} variant="secondary" className="text-sm py-1.5">{animal}</Badge>
                   ))}
                 </div>
               ) : (
@@ -492,10 +501,10 @@ export default function UserProfilePage() {
 
             <div>
               <h3 className="font-bold text-lg mb-3">😤 Pet Peeves</h3>
-              {profile.pet_peeves && Array.isArray(profile.pet_peeves) && profile.pet_peeves.filter((item: string) => item && item.length > 0 && item.length < 50).length > 0 ? (
+              {profile?.pet_peeves && Array.isArray(profile.pet_peeves) && profile.pet_peeves.length > 0 ? (
                 <div className="flex flex-wrap gap-2">
-                  {profile.pet_peeves.filter((item: string) => item && item.length > 0 && item.length < 50).map((peeve: string, idx: number) => (
-                    <Badge key={idx} variant="secondary" className="text-sm py-1.5">{peeve}</Badge>
+                  {profile.pet_peeves.map((peeve: string, idx: number) => (
+                    peeve && <Badge key={idx} variant="secondary" className="text-sm py-1.5">{peeve}</Badge>
                   ))}
                 </div>
               ) : (

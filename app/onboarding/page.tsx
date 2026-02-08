@@ -597,6 +597,8 @@ export default function OnboardingPage() {
                 </Select>
               </div>
 
+              {/* LPA Membership ID - Disabled for now */}
+              {/* 
               <div className="space-y-2">
                 <Label htmlFor="lpa_id">LPA Membership ID <span className="text-destructive">*</span></Label>
                 <Input
@@ -628,6 +630,7 @@ export default function OnboardingPage() {
                   </p>
                 )}
               </div>
+              */}
 
               <div className="space-y-4 pt-4 border-t border-border">
                 <div className="flex items-start gap-3">

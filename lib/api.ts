@@ -704,7 +704,7 @@ export const api = {
       }
       const formData = new FormData();
       formData.append('photo', file);
-      return apiRequestFormData<any>("/events/photo", formData);
+      return apiRequestFormData<any>("/admin/events/photo", formData);
     },
     // Update event
     updateEvent: async (eventId: string, eventData: any) => {

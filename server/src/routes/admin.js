@@ -1,4 +1,9 @@
 import express from 'express';
+import multer from 'multer';
+import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3';
+import dotenv from 'dotenv';
+import path from 'path';
+import { fileURLToPath } from 'url';
 import { auth, adminAuth } from '../middleware/auth.js';
 import User from '../models/User.js';
 import Profile from '../models/Profile.js';
@@ -6,6 +11,34 @@ import Event from '../models/Event.js';
 import Report from '../models/Report.js';
 import Notification from '../models/Notification.js';
 import UserNotificationSettings from '../models/UserNotificationSettings.js';
+import logger from '../utils/logger.js';
+
+// Load environment variables from root .env file
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const rootEnvPath = path.resolve(__dirname, '../../.env');
+dotenv.config({ path: rootEnvPath });
+
+const AWS_REGION = process.env.AWS_REGION;
+const BUCKET_NAME = process.env.AWS_S3_BUCKET_NAME;
+const NODE_ENV = process.env.NODE_ENV || 'production';
+const ENVIRONMENT_FOLDER = NODE_ENV === 'development' ? 'development' : 'production';
+
+const s3Client = new S3Client({
+  region: AWS_REGION,
+  credentials: {
+    accessKeyId: process.env.AWS_ACCESS_KEY_ID,
+    secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
+  },
+});
+
+// Configure multer for memory storage
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: {
+    fileSize: 5 * 1024 * 1024, // 5MB
+  },
+});
 
 const router = express.Router();
 
@@ -286,6 +319,40 @@ router.post('/users/:userId/action', auth, checkAdmin, async (req, res) => {
 });
 
 // Events management
+// POST /api/admin/events/photo - Upload event photo
+router.post('/events/photo', auth, checkAdmin, upload.single('photo'), async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ message: 'No photo provided' });
+    }
+
+    const file = req.file;
+    const fileExtension = file.originalname.split('.').pop();
+    const fileName = `${ENVIRONMENT_FOLDER}/events/${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExtension}`;
+
+    logger.log('[UPLOAD] Starting event photo upload:', { fileName });
+
+    // Upload to S3
+    const uploadParams = {
+      Bucket: BUCKET_NAME,
+      Key: fileName,
+      Body: file.buffer,
+      ContentType: file.mimetype,
+    };
+
+    await s3Client.send(new PutObjectCommand(uploadParams));
+    
+    const photoUrl = `https://${BUCKET_NAME}.s3.${AWS_REGION}.amazonaws.com/${fileName}`;
+    
+    logger.log('[UPLOAD] Event photo uploaded to S3:', { photoUrl });
+
+    res.json({ url: photoUrl });
+  } catch (error) {
+    logger.error('Upload event photo error:', error.message);
+    res.status(500).json({ message: 'Error uploading event photo' });
+  }
+});
+
 // POST /api/admin/events
 router.post('/events', auth, checkAdmin, async (req, res) => {
   try {

@@ -93,15 +93,25 @@ router.post('/signup', [
     const token = generateToken(user._id);
 
     logger.info(`[SIGNUP] Account created successfully: ${email}, requiresVerification: ${isProduction}`);
+    console.log(`[SIGNUP] NODE_ENV check: process.env.NODE_ENV = "${process.env.NODE_ENV}", isProduction = ${isProduction}`);
 
     // Send verification email in background (don't await, don't block response)
     if (isProduction) {
+      console.log(`[SIGNUP] Starting background email send to ${email}`);
       sendVerificationEmail(email, verificationCode)
-        .then(() => {
+        .then((result) => {
+          console.log(`[SIGNUP] Email promise resolved, result: ${result}`);
           logger.info(`[SIGNUP] Verification email sent to: ${email}`);
         })
         .catch((emailError) => {
+          console.error(`[SIGNUP] Email promise rejected with error:`, emailError);
           logger.error(`[SIGNUP] Failed to send verification email to ${email}:`, emailError.message);
+          logger.error(`[SIGNUP] Email error details:`, {
+            code: emailError.code,
+            command: emailError.command,
+            message: emailError.message,
+            stack: emailError.stack
+          });
         });
     } else {
       logger.log(`[DEV] Auto-verifying user: ${email} (verification code: ${verificationCode})`);

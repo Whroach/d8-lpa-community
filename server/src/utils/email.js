@@ -35,6 +35,23 @@ if (isProduction) {
   });
   
   console.log('[EMAIL] SMTP transporter created successfully');
+  console.log('[EMAIL] Transporter config:', {
+    host: transporter.options.host,
+    port: transporter.options.port,
+    secure: transporter.options.secure,
+    user: transporter.options.auth?.user
+  });
+  
+  // Test the connection
+  transporter.verify((error, success) => {
+    if (error) {
+      console.error('[EMAIL] SMTP connection verification failed:', error.message);
+      console.error('[EMAIL] Error code:', error.code);
+      console.error('[EMAIL] Full error:', error);
+    } else {
+      console.log('[EMAIL] SMTP connection verified successfully');
+    }
+  });
 } else {
   console.log('[EMAIL] Development mode - emails will be logged to console');
 }

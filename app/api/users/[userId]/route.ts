@@ -44,6 +44,14 @@ export async function GET(
       age--;
     }
 
+    // Convert profile to plain object to ensure all fields are included
+    const profileData = profile ? profile.toObject() : {};
+
+    console.log('[GET_USER] Profile data from DB:', profileData);
+    console.log('[GET_USER] favorite_music:', profileData.favorite_music);
+    console.log('[GET_USER] animals:', profileData.animals);
+    console.log('[GET_USER] pet_peeves:', profileData.pet_peeves);
+
     return NextResponse.json({
       user: {
         _id: user._id,
@@ -54,37 +62,7 @@ export async function GET(
         photos: user.photos,
         birthdate: user.birthdate,
       },
-      profile: {
-        bio: profile?.bio,
-        occupation: profile?.occupation,
-        education: profile?.education,
-        interests: profile?.interests,
-        location_city: profile?.location_city,
-        location_state: profile?.location_state,
-        favorite_music: profile?.favorite_music,
-        animals: profile?.animals,
-        pet_peeves: profile?.pet_peeves,
-        looking_for_description: profile?.looking_for_description,
-        life_goals: profile?.life_goals,
-        languages: profile?.languages,
-        cultural_background: profile?.cultural_background,
-        religion: profile?.religion,
-        personal_preferences: profile?.personal_preferences,
-        height: profile?.height,
-        body_type: profile?.body_type,
-        ethnicity: profile?.ethnicity,
-        drinking: profile?.drinking,
-        smoking: profile?.smoking,
-        wants_kids: profile?.wants_kids,
-        prompt_good_at: profile?.prompt_good_at,
-        prompt_perfect_weekend: profile?.prompt_perfect_weekend,
-        prompt_message_if: profile?.prompt_message_if,
-        hoping_to_find: profile?.hoping_to_find,
-        great_day: profile?.great_day,
-        relationship_values: profile?.relationship_values,
-        show_affection: profile?.show_affection,
-        build_with_person: profile?.build_with_person,
-      },
+      profile: profileData,
     });
   } catch (error) {
     console.error('Get user error:', error);

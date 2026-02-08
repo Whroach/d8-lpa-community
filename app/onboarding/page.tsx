@@ -136,6 +136,8 @@ interface OnboardingData {
   // Removed: district_number, membership_duration, lpa_positions (not in My Profile)
   // Page 3 - What You're Looking For (Optional)
   looking_for: string[]
+  age_preference_min: number
+  age_preference_max: number
   // Page 4 - Profile Setup (Optional)
   bio: string
   interests: string[]
@@ -179,6 +181,8 @@ const initialOnboardingData: OnboardingData = {
   lpa_membership_id: "",
   agreed_to_guidelines: false,
   looking_for: [],
+  age_preference_min: 18,
+  age_preference_max: 100,
   bio: "",
   interests: [],
   custom_interest: "",
@@ -805,6 +809,37 @@ export default function OnboardingPage() {
                     ))}
                   </SelectContent>
                 </Select>
+              </div>
+
+              <div className="space-y-2">
+                <Label>Age Range You're Looking For</Label>
+                <div className="flex gap-4">
+                  <div className="flex-1">
+                    <Label className="text-xs text-muted-foreground">Min Age</Label>
+                    <Input
+                      type="number"
+                      min="18"
+                      max="120"
+                      value={data.age_preference_min}
+                      onChange={(e) => updateData({ age_preference_min: Math.max(18, parseInt(e.target.value) || 18) })}
+                      className="h-12 mt-1"
+                    />
+                  </div>
+                  <div className="flex-1">
+                    <Label className="text-xs text-muted-foreground">Max Age</Label>
+                    <Input
+                      type="number"
+                      min="18"
+                      max="120"
+                      value={data.age_preference_max}
+                      onChange={(e) => updateData({ age_preference_max: Math.min(120, parseInt(e.target.value) || 100) })}
+                      className="h-12 mt-1"
+                    />
+                  </div>
+                </div>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Age range: {data.age_preference_min} - {data.age_preference_max}
+                </p>
               </div>
 
               <div className="space-y-2">

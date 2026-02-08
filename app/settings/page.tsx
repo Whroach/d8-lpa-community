@@ -93,6 +93,8 @@ export default function SettingsPage() {
   const [settings, setSettings] = useState({
     theme: "light",
     lookingFor: [] as string[],
+    agePreferenceMin: 18,
+    agePreferenceMax: 100,
     notifications: {
       matches: true,
       messages: true,
@@ -122,6 +124,8 @@ export default function SettingsPage() {
       const loadedSettings = {
         theme: result.data.theme || "light",
         lookingFor: Array.isArray(result.data.lookingFor) ? result.data.lookingFor : [],
+        agePreferenceMin: result.data.agePreferenceMin || 18,
+        agePreferenceMax: result.data.agePreferenceMax || 100,
         notifications: {
           matches: result.data.notifications?.matches ?? true,
           messages: result.data.notifications?.messages ?? true,
@@ -579,6 +583,50 @@ export default function SettingsPage() {
             </div>
             <p className="text-xs text-muted-foreground">
               Selecting "Everyone" will clear other selections.
+            </p>
+          </CardContent>
+        </Card>
+
+        {/* Age Range */}
+        <Card className="mb-6">
+          <CardHeader>
+            <CardTitle className="text-lg flex items-center gap-2">
+              <Shield className="h-5 w-5" />
+              Age Range
+            </CardTitle>
+            <CardDescription>
+              Set the age range you're interested in
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="ageMin">Minimum Age</Label>
+                <Input
+                  id="ageMin"
+                  type="number"
+                  min="18"
+                  max="120"
+                  value={settings.agePreferenceMin || 18}
+                  onChange={(e) => updateSettings('agePreferenceMin', Math.max(18, parseInt(e.target.value) || 18))}
+                  className="h-10"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="ageMax">Maximum Age</Label>
+                <Input
+                  id="ageMax"
+                  type="number"
+                  min="18"
+                  max="120"
+                  value={settings.agePreferenceMax || 100}
+                  onChange={(e) => updateSettings('agePreferenceMax', Math.min(120, parseInt(e.target.value) || 100))}
+                  className="h-10"
+                />
+              </div>
+            </div>
+            <p className="text-sm text-muted-foreground">
+              Age range: {settings.agePreferenceMin || 18} - {settings.agePreferenceMax || 100}
             </p>
           </CardContent>
         </Card>

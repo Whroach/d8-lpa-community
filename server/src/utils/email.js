@@ -24,14 +24,18 @@ if (isProduction) {
   console.log('[EMAIL] SMTP_USER:', process.env.SMTP_USER);
   console.log('[EMAIL] SMTP_FROM_EMAIL:', process.env.SMTP_FROM_EMAIL);
   
+  const smtpPort = parseInt(process.env.SMTP_PORT) || 587;
+  
   transporter = nodemailer.createTransport({
     host: process.env.SMTP_HOST,
-    port: parseInt(process.env.SMTP_PORT) || 587,
-    secure: parseInt(process.env.SMTP_PORT) === 465, // true for 465, false for other ports
+    port: smtpPort,
+    secure: smtpPort === 465, // true for 465 (implicit TLS), false for 587 (STARTTLS)
     auth: {
       user: process.env.SMTP_USER,
       pass: process.env.SMTP_PASS,
     },
+    connectionTimeout: 10000, // 10 seconds
+    socketTimeout: 10000,     // 10 seconds
   });
   
   console.log('[EMAIL] SMTP transporter created successfully');
@@ -39,17 +43,25 @@ if (isProduction) {
     host: transporter.options.host,
     port: transporter.options.port,
     secure: transporter.options.secure,
-    user: transporter.options.auth?.user
+    user: transporter.options.auth?.user,
+    connectionTimeout: transporter.options.connectionTimeout,
+    socketTimeout: transporter.options.socketTimeout
   });
   
-  // Test the connection
+  // Test the connection with timeout
+  console.log('[EMAIL] Testing SMTP connection...');
   transporter.verify((error, success) => {
     if (error) {
       console.error('[EMAIL] SMTP connection verification failed:', error.message);
       console.error('[EMAIL] Error code:', error.code);
-      console.error('[EMAIL] Full error:', error);
+      console.error('[EMAIL] This likely means:');
+      if (error.code === 'ETIMEDOUT') {
+        console.error('[EMAIL]   - Network/firewall is blocking SMTP connection');
+        console.error('[EMAIL]   - Try switching SMTP_PORT to 465 (implicit TLS)');
+        console.error('[EMAIL]   - Or switch to a service like SendGrid (smtp.sendgrid.net)');
+      }
     } else {
-      console.log('[EMAIL] SMTP connection verified successfully');
+      console.log('[EMAIL] ✓ SMTP connection verified successfully');
     }
   });
 } else {

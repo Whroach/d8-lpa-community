@@ -133,6 +133,22 @@ const mockEventAttendees: Record<string, { id: string; first_name: string; last_
   ],
 }
 
+// Helper function to get category badge color
+const getCategoryColor = (category?: string): string => {
+  const categoryColorMap: Record<string, string> = {
+    "social": "bg-blue-100 text-blue-800 border-blue-200",
+    "regional": "bg-purple-100 text-purple-800 border-purple-200",
+    "national": "bg-green-100 text-green-800 border-green-200",
+    "local-chapter": "bg-pink-100 text-pink-800 border-pink-200",
+    "workshop": "bg-orange-100 text-orange-800 border-orange-200",
+    "networking": "bg-indigo-100 text-indigo-800 border-indigo-200",
+    "dating": "bg-red-100 text-red-800 border-red-200",
+  };
+  
+  const normalizedCategory = category?.toLowerCase() || "dating";
+  return categoryColorMap[normalizedCategory] || "bg-gray-100 text-gray-800 border-gray-200";
+};
+
 export default function AdminPage() {
   const router = useRouter()
   const { user } = useAuthStore()
@@ -990,7 +1006,7 @@ export default function AdminPage() {
                               {event.title}
                             </p>
                             {event.category && (
-                              <Badge variant="secondary" className="text-xs capitalize">
+                              <Badge className={`text-xs capitalize border ${getCategoryColor(event.category)}`}>
                                 {event.category}
                               </Badge>
                             )}

@@ -203,4 +203,6 @@ export default function LoginPage() {
             </Button>
           </div>
         </DialogContent>
-      </Dialog>
+      </Dialog>    </div>
+  )
+}

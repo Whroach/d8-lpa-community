@@ -15,7 +15,7 @@ import { api } from "@/lib/api"
 
 const IS_PRODUCTION = process.env.NEXT_PUBLIC_ENV === 'production'
 const IS_DEVELOPMENT = process.env.NODE_ENV === 'development'
-const REQUIRE_VERIFICATION = IS_PRODUCTION  // Only require email verification in production
+const REQUIRE_VERIFICATION = true  // Always require email verification before onboarding
 
 export default function SignupPage() {
   const router = useRouter()

@@ -200,23 +200,20 @@ router.post('/resend-verification', [
 
     logger.log('[RESEND] Verification code generated for:', email);
 
-    // Send verification email
+    // Send verification email in background (don't await, don't block response)
     if (isProduction) {
-      try {
-        await sendVerificationEmail(email, verificationCode);
-        logger.info('[RESEND] Verification email sent successfully to:', email);
-      } catch (emailError) {
-        logger.error('[RESEND] Failed to send verification email to', email, ':', emailError.message);
-        logger.error('[RESEND] Email error details:', {
-          code: emailError.code,
-          message: emailError.message,
-          command: emailError.command
+      sendVerificationEmail(email, verificationCode)
+        .then(() => {
+          logger.info('[RESEND] Verification email sent successfully to:', email);
+        })
+        .catch((emailError) => {
+          logger.error('[RESEND] Failed to send verification email to', email, ':', emailError.message);
+          logger.error('[RESEND] Email error details:', {
+            code: emailError.code,
+            message: emailError.message,
+            command: emailError.command
+          });
         });
-        return res.status(500).json({ 
-          message: 'Failed to send verification email. Please try again later.',
-          error: emailError.message 
-        });
-      }
     } else {
       logger.log(`[DEV] New verification code for ${email}: ${verificationCode}`);
     }
@@ -506,16 +503,16 @@ router.post('/forgot-password', [
     logger.log(`[FORGOT-PASSWORD] Reset token generated for: ${email}`);
     logger.log(`[FORGOT-PASSWORD] Reset token expiry: ${user.password_reset_expires}`);
 
-    // Send reset email
+    // Send reset email in background (don't await, don't block response)
     if (isProduction) {
-      try {
-        await sendPasswordResetEmail(email, resetToken);
-        logger.info(`[FORGOT-PASSWORD] Password reset email sent successfully to: ${email}`);
-      } catch (emailError) {
-        logger.error(`[FORGOT-PASSWORD] Failed to send email to ${email}:`, emailError.message);
-        logger.error(`[FORGOT-PASSWORD] Email error details:`, emailError);
-        throw emailError;
-      }
+      sendPasswordResetEmail(email, resetToken)
+        .then(() => {
+          logger.info(`[FORGOT-PASSWORD] Password reset email sent successfully to: ${email}`);
+        })
+        .catch((emailError) => {
+          logger.error(`[FORGOT-PASSWORD] Failed to send email to ${email}:`, emailError.message);
+          logger.error(`[FORGOT-PASSWORD] Email error details:`, emailError);
+        });
     } else {
       logger.log(`[DEV] Password reset token for ${email}: ${resetToken}`);
       logger.log(`[DEV] Reset link: ${process.env.FRONTEND_URL}/reset-password?token=${resetToken}`);

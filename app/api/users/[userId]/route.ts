@@ -33,7 +33,7 @@ export async function GET(
       return NextResponse.json({ message: 'User not found' }, { status: 404 });
     }
 
-    const profile = await Profile.findOne({ user_id: user._id });
+    const profile = await Profile.findOne({ user_id: user._id }).lean();
 
     // Calculate age
     const birthDate = new Date(user.birthdate);
@@ -44,8 +44,7 @@ export async function GET(
       age--;
     }
 
-    console.log('[GET_USER] Full profile object keys:', profile ? Object.keys(profile.toObject ? profile.toObject() : profile) : 'NO PROFILE');
-    console.log('[GET_USER] Profile data from DB:', profile);
+    console.log('[GET_USER] Full profile object:', JSON.stringify(profile, null, 2));
     console.log('[GET_USER] favorite_music:', profile?.favorite_music);
     console.log('[GET_USER] animals:', profile?.animals);
     console.log('[GET_USER] pet_peeves:', profile?.pet_peeves);

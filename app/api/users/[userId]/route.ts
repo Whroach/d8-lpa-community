@@ -33,7 +33,7 @@ export async function GET(
       return NextResponse.json({ message: 'User not found' }, { status: 404 });
     }
 
-    const profile = await Profile.findOne({ user_id: user._id }).lean();
+    const profile = await Profile.findOne({ user_id: user._id });
 
     // Calculate age
     const birthDate = new Date(user.birthdate);
@@ -44,44 +44,7 @@ export async function GET(
       age--;
     }
 
-    console.log('[GET_USER] Profile exists:', !!profile);
-    console.log('[GET_USER] Profile from DB:', profile);
-
-    // Build response with all fields explicitly set
-    const profileData = {
-      bio: profile?.bio || '',
-      occupation: profile?.occupation || '',
-      education: profile?.education || '',
-      interests: Array.isArray(profile?.interests) ? profile.interests : [],
-      location_city: profile?.location_city || '',
-      location_state: profile?.location_state || '',
-      district_number: profile?.district_number || '',
-      favorite_music: Array.isArray(profile?.favorite_music) ? profile.favorite_music : [],
-      animals: Array.isArray(profile?.animals) ? profile.animals : [],
-      pet_peeves: Array.isArray(profile?.pet_peeves) ? profile.pet_peeves : [],
-      looking_for_description: Array.isArray(profile?.looking_for_description) ? profile.looking_for_description : [],
-      life_goals: Array.isArray(profile?.life_goals) ? profile.life_goals : [],
-      languages: Array.isArray(profile?.languages) ? profile.languages : [],
-      cultural_background: profile?.cultural_background || '',
-      religion: profile?.religion || '',
-      personal_preferences: profile?.personal_preferences || '',
-      height: profile?.height || '',
-      body_type: profile?.body_type || '',
-      ethnicity: profile?.ethnicity || '',
-      drinking: profile?.drinking || '',
-      smoking: profile?.smoking || '',
-      wants_kids: profile?.wants_kids || '',
-      prompt_good_at: profile?.prompt_good_at || '',
-      prompt_perfect_weekend: profile?.prompt_perfect_weekend || '',
-      prompt_message_if: profile?.prompt_message_if || '',
-      hoping_to_find: profile?.hoping_to_find || '',
-      great_day: profile?.great_day || '',
-      relationship_values: profile?.relationship_values || '',
-      show_affection: profile?.show_affection || '',
-      build_with_person: profile?.build_with_person || '',
-    };
-
-    console.log('[GET_USER] Response profileData:', profileData);
+    console.log('[GET_USER] Profile found:', !!profile);
 
     return NextResponse.json({
       user: {
@@ -93,7 +56,38 @@ export async function GET(
         photos: user.photos,
         birthdate: user.birthdate,
       },
-      profile: profileData,
+      profile: {
+        bio: profile?.bio || '',
+        occupation: profile?.occupation || '',
+        education: profile?.education || '',
+        interests: profile?.interests || [],
+        location_city: profile?.location_city || '',
+        location_state: profile?.location_state || '',
+        district_number: profile?.district_number || '',
+        favorite_music: profile?.favorite_music || [],
+        animals: profile?.animals || [],
+        pet_peeves: profile?.pet_peeves || [],
+        looking_for_description: profile?.looking_for_description || [],
+        life_goals: profile?.life_goals || [],
+        languages: profile?.languages || [],
+        cultural_background: profile?.cultural_background || '',
+        religion: profile?.religion || '',
+        personal_preferences: profile?.personal_preferences || '',
+        height: profile?.height || '',
+        body_type: profile?.body_type || '',
+        ethnicity: profile?.ethnicity || '',
+        drinking: profile?.drinking || '',
+        smoking: profile?.smoking || '',
+        wants_kids: profile?.wants_kids || '',
+        prompt_good_at: profile?.prompt_good_at || '',
+        prompt_perfect_weekend: profile?.prompt_perfect_weekend || '',
+        prompt_message_if: profile?.prompt_message_if || '',
+        hoping_to_find: profile?.hoping_to_find || '',
+        great_day: profile?.great_day || '',
+        relationship_values: profile?.relationship_values || '',
+        show_affection: profile?.show_affection || '',
+        build_with_person: profile?.build_with_person || '',
+      }
     });
   } catch (error) {
     console.error('Get user error:', error);

@@ -48,14 +48,18 @@ const sendViaMailgun = async (to, subject, html, text) => {
   try {
     const auth = Buffer.from(`api:${MAILGUN_API_KEY}`).toString('base64');
     
+    const fromName = process.env.SMTP_FROM_NAME || 'D8 LPA';
+    const fromEmail = process.env.SMTP_FROM_EMAIL;
+    
     const formData = new URLSearchParams();
-    formData.append('from', `${process.env.SMTP_FROM_NAME} <${process.env.SMTP_FROM_EMAIL}>`);
+    formData.append('from', `${fromName} <${fromEmail}>`);
     formData.append('to', to);
     formData.append('subject', subject);
     formData.append('html', html);
     formData.append('text', text);
 
     console.log(`[EMAIL] Sending email to ${to} via Mailgun API`);
+    console.log(`[EMAIL] From: ${fromName} <${fromEmail}>`);
 
     const response = await fetch(`${MAILGUN_API_URL}/messages`, {
       method: 'POST',

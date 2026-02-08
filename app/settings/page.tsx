@@ -252,11 +252,14 @@ export default function SettingsPage() {
     }
 
     setIsChangingPassword(true)
+    setPasswordError(null)
     try {
+      const token = JSON.parse(localStorage.getItem("spark-auth") || "{}")?.state?.token
       const response = await fetch('/api/auth/change-password', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          ...(token && { Authorization: `Bearer ${token}` }),
         },
         body: JSON.stringify({
           current_password: currentPassword,
@@ -1160,6 +1163,9 @@ export default function SettingsPage() {
                   disabled={isChangingPassword}
                   className="mt-2 h-10"
                 />
+                {newPassword && newPassword.length < 8 && (
+                  <p className="text-xs text-destructive mt-1">Password must be at least 8 characters</p>
+                )}
               </div>
 
               <div>
@@ -1175,6 +1181,17 @@ export default function SettingsPage() {
                   disabled={isChangingPassword}
                   className="mt-2 h-10"
                 />
+                {confirmPassword && (
+                  newPassword === confirmPassword ? (
+                    <p className="text-xs text-green-600 dark:text-green-400 mt-1 flex items-center gap-1">
+                      <Check className="h-3 w-3" /> Passwords match
+                    </p>
+                  ) : (
+                    <p className="text-xs text-destructive mt-1 flex items-center gap-1">
+                      <X className="h-3 w-3" /> Passwords do not match
+                    </p>
+                  )
+                )}
               </div>
             </div>
 

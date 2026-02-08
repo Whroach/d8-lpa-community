@@ -74,6 +74,11 @@ export default function UserProfilePage() {
     setIsLoading(true)
     const result = await api.users.getById(userId)
     if (result.data) {
+      console.log('[PROFILE] Full API response:', result.data)
+      console.log('[PROFILE] Profile object:', result.data.profile)
+      console.log('[PROFILE] favorite_music:', result.data.profile?.favorite_music)
+      console.log('[PROFILE] animals:', result.data.profile?.animals)
+      console.log('[PROFILE] pet_peeves:', result.data.profile?.pet_peeves)
       setUser(result.data.user)
       setProfile(result.data.profile)
     }
@@ -459,6 +464,8 @@ export default function UserProfilePage() {
           <CardContent className="p-6 space-y-6">
             <h2 className="text-2xl font-bold">Favorites</h2>
             <Separator />
+
+            {console.log('[PROFILE_RENDER] Profile in Favorites section:', profile)}
 
             <div>
               <h3 className="font-bold text-lg mb-3">🎵 Favorite Music</h3>

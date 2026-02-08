@@ -44,6 +44,7 @@ export async function GET(
       age--;
     }
 
+    console.log('[GET_USER] Full profile object keys:', profile ? Object.keys(profile.toObject ? profile.toObject() : profile) : 'NO PROFILE');
     console.log('[GET_USER] Profile data from DB:', profile);
     console.log('[GET_USER] favorite_music:', profile?.favorite_music);
     console.log('[GET_USER] animals:', profile?.animals);

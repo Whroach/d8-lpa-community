@@ -50,9 +50,12 @@ async function apiRequest<T>(
 
     if (!response.ok) {
       if (response.status === 401) {
-        if (typeof window !== "undefined") {
-          localStorage.removeItem("spark-auth")
-          window.location.href = "/login"
+        // Don't redirect on login endpoint - let the component handle the error
+        if (endpoint !== "/auth/login" && endpoint !== "/auth/signup") {
+          if (typeof window !== "undefined") {
+            localStorage.removeItem("spark-auth")
+            window.location.href = "/login"
+          }
         }
       }
       // Handle 403 (banned/suspended) - show message but stay on current page

@@ -276,9 +276,7 @@ export default function OnboardingPage() {
     }
     if (!data.location_state) return false
     if (!data.district_number) return false
-    if (!data.lpa_membership_id) return false
     if (!data.agreed_to_guidelines) return false
-    if (membershipIdError) return false
     const age = calculateAge(data.birthdate)
     return age >= 18
   }

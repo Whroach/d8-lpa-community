@@ -462,9 +462,9 @@ export default function UserProfilePage() {
 
             <div>
               <h3 className="font-bold text-lg mb-3">🎵 Favorite Music</h3>
-              {user.favorite_music && Array.isArray(user.favorite_music) && user.favorite_music.filter((item: string) => item && item.length > 0 && item.length < 50).length > 0 ? (
+              {profile.favorite_music && Array.isArray(profile.favorite_music) && profile.favorite_music.filter((item: string) => item && item.length > 0 && item.length < 50).length > 0 ? (
                 <div className="flex flex-wrap gap-2">
-                  {user.favorite_music.filter((item: string) => item && item.length > 0 && item.length < 50).map((music: string, idx: number) => (
+                  {profile.favorite_music.filter((item: string) => item && item.length > 0 && item.length < 50).map((music: string, idx: number) => (
                     <Badge key={idx} variant="secondary" className="text-sm py-1.5">{music}</Badge>
                   ))}
                 </div>
@@ -477,9 +477,9 @@ export default function UserProfilePage() {
 
             <div>
               <h3 className="font-bold text-lg mb-3">🐾 Favorite Animals</h3>
-              {user.animals && Array.isArray(user.animals) && user.animals.filter((item: string) => item && item.length > 0 && item.length < 50).length > 0 ? (
+              {profile.animals && Array.isArray(profile.animals) && profile.animals.filter((item: string) => item && item.length > 0 && item.length < 50).length > 0 ? (
                 <div className="flex flex-wrap gap-2">
-                  {user.animals.filter((item: string) => item && item.length > 0 && item.length < 50).map((animal: string, idx: number) => (
+                  {profile.animals.filter((item: string) => item && item.length > 0 && item.length < 50).map((animal: string, idx: number) => (
                     <Badge key={idx} variant="secondary" className="text-sm py-1.5">{animal}</Badge>
                   ))}
                 </div>
@@ -492,9 +492,9 @@ export default function UserProfilePage() {
 
             <div>
               <h3 className="font-bold text-lg mb-3">😤 Pet Peeves</h3>
-              {user.pet_peeves && Array.isArray(user.pet_peeves) && user.pet_peeves.filter((item: string) => item && item.length > 0 && item.length < 50).length > 0 ? (
+              {profile.pet_peeves && Array.isArray(profile.pet_peeves) && profile.pet_peeves.filter((item: string) => item && item.length > 0 && item.length < 50).length > 0 ? (
                 <div className="flex flex-wrap gap-2">
-                  {user.pet_peeves.filter((item: string) => item && item.length > 0 && item.length < 50).map((peeve: string, idx: number) => (
+                  {profile.pet_peeves.filter((item: string) => item && item.length > 0 && item.length < 50).map((peeve: string, idx: number) => (
                     <Badge key={idx} variant="secondary" className="text-sm py-1.5">{peeve}</Badge>
                   ))}
                 </div>

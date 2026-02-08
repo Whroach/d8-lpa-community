@@ -79,6 +79,11 @@ export async function GET(
         prompt_good_at: profile?.prompt_good_at,
         prompt_perfect_weekend: profile?.prompt_perfect_weekend,
         prompt_message_if: profile?.prompt_message_if,
+        hoping_to_find: profile?.hoping_to_find,
+        great_day: profile?.great_day,
+        relationship_values: profile?.relationship_values,
+        show_affection: profile?.show_affection,
+        build_with_person: profile?.build_with_person,
       },
     });
   } catch (error) {

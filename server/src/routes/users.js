@@ -392,7 +392,7 @@ router.get('/:id', auth, async (req, res) => {
         last_name: user.last_name,
         age,
         gender: user.gender,
-        photos: user.photos || [],
+        photos: profile?.photos || [],
         birthdate: user.birthdate,
       },
       profile: {

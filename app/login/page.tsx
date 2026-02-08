@@ -5,13 +5,16 @@ import React from "react"
 import { useState, useEffect } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
-import { Heart, Eye, EyeOff, Loader2 } from "lucide-react"
+import { Heart, Eye, EyeOff, Loader2, AlertCircle } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Checkbox } from "@/components/ui/checkbox"
 import { useAuthStore } from "@/lib/store/auth-store"
 import { api } from "@/lib/api"
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+
+const DISABLE_EMAIL_VERIFICATION = process.env.NEXT_PUBLIC_DISABLE_EMAIL_VERIFICATION === 'true'
 
 export default function LoginPage() {
   const router = useRouter()
@@ -21,6 +24,7 @@ export default function LoginPage() {
   const [password, setPassword] = useState("")
   const [showPassword, setShowPassword] = useState(false)
   const [rememberMe, setRememberMe] = useState(false)
+  const [showForgotPasswordDialog, setShowForgotPasswordDialog] = useState(false)
 
   // Load saved credentials on component mount
   useEffect(() => {
@@ -139,12 +143,22 @@ export default function LoginPage() {
                   Remember me
                 </Label>
               </div>
-              <Link
-                href="/forgot-password"
-                className="text-sm text-primary hover:underline"
-              >
-                Forgot password?
-              </Link>
+              {DISABLE_EMAIL_VERIFICATION ? (
+                <button
+                  type="button"
+                  onClick={() => setShowForgotPasswordDialog(true)}
+                  className="text-sm text-primary hover:underline"
+                >
+                  Forgot password?
+                </button>
+              ) : (
+                <Link
+                  href="/forgot-password"
+                  className="text-sm text-primary hover:underline"
+                >
+                  Forgot password?
+                </Link>
+              )}
             </div>
 
             <Button
@@ -170,6 +184,23 @@ export default function LoginPage() {
             </Link>
           </p>
       </div>
-    </div>
-  )
-}
+
+      {/* Forgot Password Disabled Dialog */}
+      <Dialog open={showForgotPasswordDialog} onOpenChange={setShowForgotPasswordDialog}>
+        <DialogContent className="sm:max-w-[400px]">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <AlertCircle className="h-5 w-5 text-amber-600" />
+              Feature Disabled
+            </DialogTitle>
+          </DialogHeader>
+          <DialogDescription className="text-base text-foreground">
+            Forgot Password has been disabled for now. Please contact support if you need assistance with your account.
+          </DialogDescription>
+          <div className="flex justify-end gap-2 pt-4">
+            <Button onClick={() => setShowForgotPasswordDialog(false)}>
+              Close
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>

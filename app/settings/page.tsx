@@ -69,6 +69,15 @@ export default function SettingsPage() {
   // Terms & Privacy Policy state
   const [showTermsDialog, setShowTermsDialog] = useState(false)
   
+  // Password change states
+  const [showPasswordDialog, setShowPasswordDialog] = useState(false)
+  const [currentPassword, setCurrentPassword] = useState("")
+  const [newPassword, setNewPassword] = useState("")
+  const [confirmPassword, setConfirmPassword] = useState("")
+  const [isChangingPassword, setIsChangingPassword] = useState(false)
+  const [passwordError, setPasswordError] = useState<string | null>(null)
+  const [passwordSuccess, setPasswordSuccess] = useState(false)
+  
   // Disable/Delete account states
   const [showDisableDialog, setShowDisableDialog] = useState(false)
   const [showDeleteDialog, setShowDeleteDialog] = useState(false)
@@ -213,6 +222,69 @@ export default function SettingsPage() {
       setDeleteReason("")
       setDeletePassword("")
       setDeleteConfirmed(false)
+    }
+  }
+
+  const handleChangePassword = async () => {
+    setPasswordError(null)
+    setPasswordSuccess(false)
+
+    // Validation
+    if (!currentPassword.trim()) {
+      setPasswordError("Current password is required")
+      return
+    }
+    if (!newPassword.trim()) {
+      setPasswordError("New password is required")
+      return
+    }
+    if (newPassword.length < 8) {
+      setPasswordError("New password must be at least 8 characters")
+      return
+    }
+    if (newPassword !== confirmPassword) {
+      setPasswordError("New passwords do not match")
+      return
+    }
+    if (currentPassword === newPassword) {
+      setPasswordError("New password must be different from current password")
+      return
+    }
+
+    setIsChangingPassword(true)
+    try {
+      const response = await fetch('/api/auth/change-password', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          current_password: currentPassword,
+          new_password: newPassword,
+        }),
+      })
+
+      const result = await response.json()
+
+      if (response.ok) {
+        setPasswordSuccess(true)
+        // Clear form
+        setCurrentPassword("")
+        setNewPassword("")
+        setConfirmPassword("")
+        // Close dialog after 2 seconds
+        setTimeout(() => {
+          setShowPasswordDialog(false)
+          setPasswordSuccess(false)
+        }, 2000)
+      } else {
+        setPasswordError(result.error || "Failed to change password")
+      }
+    } catch (error) {
+      setPasswordError("Error changing password. Please try again.")
+      console.error(error)
+    } finally {
+      setIsChangingPassword(false)
     }
   }
 
@@ -629,6 +701,23 @@ export default function SettingsPage() {
               <ChevronRight className="h-5 w-5 text-muted-foreground" />
             </button>
             <button 
+              onClick={() => {
+                setShowPasswordDialog(true)
+                setPasswordError(null)
+                setPasswordSuccess(false)
+                setCurrentPassword("")
+                setNewPassword("")
+                setConfirmPassword("")
+              }}
+              className="w-full flex items-center justify-between p-3 rounded-lg hover:bg-muted transition-colors"
+            >
+              <div className="flex items-center gap-3">
+                <Lock className="h-5 w-5 text-muted-foreground" />
+                <span className="text-foreground">Change Password</span>
+              </div>
+              <ChevronRight className="h-5 w-5 text-muted-foreground" />
+            </button>
+            <button 
               onClick={() => setShowDeleteDialog(true)}
               className="w-full flex items-center justify-between p-3 rounded-lg hover:bg-red-50 dark:hover:bg-red-950 transition-colors"
             >
@@ -1006,6 +1095,109 @@ export default function SettingsPage() {
             <div className="flex justify-end gap-2 pt-4">
               <Button variant="outline" onClick={() => setShowTermsDialog(false)}>
                 Close
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
+
+        {/* Change Password Dialog */}
+        <Dialog open={showPasswordDialog} onOpenChange={setShowPasswordDialog}>
+          <DialogContent className="sm:max-w-[400px]">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <Lock className="h-5 w-5" />
+                Change Your Password
+              </DialogTitle>
+              <DialogDescription>
+                Enter your current password and choose a new password. Password must be at least 8 characters.
+              </DialogDescription>
+            </DialogHeader>
+
+            {passwordSuccess && (
+              <div className="p-3 rounded-lg bg-green-50 dark:bg-green-950 border border-green-200 dark:border-green-800">
+                <p className="text-sm text-green-900 dark:text-green-100 flex items-center gap-2">
+                  <Check className="h-4 w-4" />
+                  Password changed successfully!
+                </p>
+              </div>
+            )}
+
+            {passwordError && (
+              <div className="p-3 rounded-lg bg-red-50 dark:bg-red-950 border border-red-200 dark:border-red-800">
+                <p className="text-sm text-red-900 dark:text-red-100 flex items-center gap-2">
+                  <AlertTriangle className="h-4 w-4" />
+                  {passwordError}
+                </p>
+              </div>
+            )}
+
+            <div className="space-y-4">
+              <div>
+                <Label htmlFor="current-password" className="text-base">
+                  Current Password <span className="text-destructive">*</span>
+                </Label>
+                <Input
+                  id="current-password"
+                  type="password"
+                  placeholder="Enter your current password"
+                  value={currentPassword}
+                  onChange={(e) => setCurrentPassword(e.target.value)}
+                  disabled={isChangingPassword}
+                  className="mt-2 h-10"
+                />
+              </div>
+
+              <div>
+                <Label htmlFor="new-password" className="text-base">
+                  New Password <span className="text-destructive">*</span>
+                </Label>
+                <Input
+                  id="new-password"
+                  type="password"
+                  placeholder="Enter a new password (min 8 characters)"
+                  value={newPassword}
+                  onChange={(e) => setNewPassword(e.target.value)}
+                  disabled={isChangingPassword}
+                  className="mt-2 h-10"
+                />
+              </div>
+
+              <div>
+                <Label htmlFor="confirm-password" className="text-base">
+                  Confirm New Password <span className="text-destructive">*</span>
+                </Label>
+                <Input
+                  id="confirm-password"
+                  type="password"
+                  placeholder="Confirm your new password"
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  disabled={isChangingPassword}
+                  className="mt-2 h-10"
+                />
+              </div>
+            </div>
+
+            <div className="flex justify-end gap-2 pt-4">
+              <Button 
+                variant="outline" 
+                onClick={() => setShowPasswordDialog(false)}
+                disabled={isChangingPassword}
+              >
+                Cancel
+              </Button>
+              <Button 
+                onClick={handleChangePassword}
+                disabled={isChangingPassword}
+              >
+                {isChangingPassword ? (
+                  <>
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    Changing...
+                  </>
+                ) : (
+                  "Change Password"
+                )}
               </Button>
             </div>
           </DialogContent>

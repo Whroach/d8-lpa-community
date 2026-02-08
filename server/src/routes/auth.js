@@ -1,6 +1,7 @@
 import express from 'express';
 import jwt from 'jsonwebtoken';
 import crypto from 'crypto';
+import bcryptjs from 'bcryptjs';
 import { body, validationResult } from 'express-validator';
 import User from '../models/User.js';
 import Profile from '../models/Profile.js';
@@ -616,6 +617,79 @@ router.post('/check-membership-id', async (req, res) => {
     res.status(500).json({ 
       exists: false,
       message: 'Error checking membership ID' 
+    });
+  }
+});
+
+// POST /api/auth/change-password
+// Change user's password
+// Requires: current_password, new_password
+// Authentication: Required (JWT token)
+router.post('/change-password', auth, async (req, res) => {
+  try {
+    const { current_password, new_password } = req.body;
+    const userId = req.user?.id;
+
+    logger.info('[CHANGE-PASSWORD] Request initiated for user:', userId);
+
+    // Validation
+    if (!current_password || !new_password) {
+      logger.warn('[CHANGE-PASSWORD] Missing required fields');
+      return res.status(400).json({
+        error: 'Current password and new password are required'
+      });
+    }
+
+    if (new_password.length < 8) {
+      logger.warn('[CHANGE-PASSWORD] New password too short');
+      return res.status(400).json({
+        error: 'New password must be at least 8 characters'
+      });
+    }
+
+    // Get user from database
+    const user = await User.findById(userId).select('+password');
+    if (!user) {
+      logger.error('[CHANGE-PASSWORD] User not found:', userId);
+      return res.status(404).json({
+        error: 'User not found'
+      });
+    }
+
+    // Verify current password
+    const isPasswordValid = await bcryptjs.compare(current_password, user.password);
+    if (!isPasswordValid) {
+      logger.warn('[CHANGE-PASSWORD] Current password incorrect for user:', userId);
+      return res.status(401).json({
+        error: 'Current password is incorrect'
+      });
+    }
+
+    // Ensure new password is different from current
+    const isSamePassword = await bcryptjs.compare(new_password, user.password);
+    if (isSamePassword) {
+      logger.warn('[CHANGE-PASSWORD] New password same as current for user:', userId);
+      return res.status(400).json({
+        error: 'New password must be different from current password'
+      });
+    }
+
+    // Hash new password
+    const hashedPassword = await bcryptjs.hash(new_password, 10);
+
+    // Update password in database
+    user.password = hashedPassword;
+    await user.save();
+
+    logger.info('[CHANGE-PASSWORD] Password changed successfully for user:', userId);
+
+    return res.status(200).json({
+      message: 'Password changed successfully'
+    });
+  } catch (error) {
+    logger.error('[CHANGE-PASSWORD] Error:', error.message);
+    return res.status(500).json({
+      error: 'Error changing password. Please try again.'
     });
   }
 });

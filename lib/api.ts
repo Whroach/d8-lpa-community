@@ -41,6 +41,8 @@ async function apiRequest<T>(
     ...options.headers,
   }
 
+  console.log(`[API_REQUEST] Endpoint: ${endpoint}, Token present: ${!!token}, Token value: ${token ? token.substring(0, 20) + '...' : 'null'}`)
+
   try {
     const response = await fetch(`${API_BASE_URL}${endpoint}`, {
       ...options,

@@ -5,8 +5,12 @@ import { fileURLToPath } from 'url';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-const rootEnvPath = path.resolve(__dirname, '../../../.env');
-dotenv.config({ path: rootEnvPath });
+
+// Only load .env file in development
+if (process.env.NODE_ENV !== 'production') {
+  const rootEnvPath = path.resolve(__dirname, '../../../.env');
+  dotenv.config({ path: rootEnvPath });
+}
 
 const isProduction = process.env.NODE_ENV === 'production';
 
@@ -14,15 +18,25 @@ const isProduction = process.env.NODE_ENV === 'production';
 let transporter = null;
 
 if (isProduction) {
+  console.log('[EMAIL] Production mode detected, initializing SMTP transporter');
+  console.log('[EMAIL] SMTP_HOST:', process.env.SMTP_HOST);
+  console.log('[EMAIL] SMTP_PORT:', process.env.SMTP_PORT);
+  console.log('[EMAIL] SMTP_USER:', process.env.SMTP_USER);
+  console.log('[EMAIL] SMTP_FROM_EMAIL:', process.env.SMTP_FROM_EMAIL);
+  
   transporter = nodemailer.createTransport({
     host: process.env.SMTP_HOST,
-    port: process.env.SMTP_PORT || 587,
-    secure: process.env.SMTP_PORT === '465', // true for 465, false for other ports
+    port: parseInt(process.env.SMTP_PORT) || 587,
+    secure: parseInt(process.env.SMTP_PORT) === 465, // true for 465, false for other ports
     auth: {
       user: process.env.SMTP_USER,
       pass: process.env.SMTP_PASS,
     },
   });
+  
+  console.log('[EMAIL] SMTP transporter created successfully');
+} else {
+  console.log('[EMAIL] Development mode - emails will be logged to console');
 }
 
 /**
@@ -39,9 +53,12 @@ export const sendVerificationEmail = async (email, code) => {
 
   try {
     if (!transporter) {
-      console.error('Email transporter not configured');
+      console.error('[EMAIL] Email transporter not configured in production!');
+      console.error('[EMAIL] Check SMTP environment variables are set');
       return false;
     }
+
+    console.log(`[EMAIL] Sending verification email to ${email}`);
 
     const mailOptions = {
       from: `${process.env.SMTP_FROM_NAME} <${process.env.SMTP_FROM_EMAIL}>`,
@@ -65,10 +82,12 @@ export const sendVerificationEmail = async (email, code) => {
     };
 
     const info = await transporter.sendMail(mailOptions);
-    console.log(`Verification email sent to ${email}:`, info.response);
+    console.log(`[EMAIL] Verification email sent to ${email}:`, info.response);
     return true;
   } catch (error) {
-    console.error('Error sending verification email:', error);
+    console.error('[EMAIL] Error sending verification email:', error.message);
+    console.error('[EMAIL] Error code:', error.code);
+    console.error('[EMAIL] Full error:', error);
     return false;
   }
 };
@@ -87,11 +106,14 @@ export const sendPasswordResetEmail = async (email, token) => {
 
   try {
     if (!transporter) {
-      console.error('Email transporter not configured');
+      console.error('[EMAIL] Email transporter not configured in production!');
+      console.error('[EMAIL] Check SMTP environment variables are set');
       return false;
     }
 
     const resetLink = `${process.env.FRONTEND_URL}/reset-password?token=${token}`;
+
+    console.log(`[EMAIL] Sending password reset email to ${email}`);
 
     const mailOptions = {
       from: `${process.env.SMTP_FROM_NAME} <${process.env.SMTP_FROM_EMAIL}>`,
@@ -118,10 +140,12 @@ export const sendPasswordResetEmail = async (email, token) => {
     };
 
     const info = await transporter.sendMail(mailOptions);
-    console.log(`Password reset email sent to ${email}:`, info.response);
+    console.log(`[EMAIL] Password reset email sent to ${email}:`, info.response);
     return true;
   } catch (error) {
-    console.error('Error sending password reset email:', error);
+    console.error('[EMAIL] Error sending password reset email:', error.message);
+    console.error('[EMAIL] Error code:', error.code);
+    console.error('[EMAIL] Full error:', error);
     return false;
   }
 };

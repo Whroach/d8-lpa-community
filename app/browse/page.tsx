@@ -478,7 +478,14 @@ export default function BrowsePage() {
                       </h3>
                       <div className="flex items-center gap-1 text-white/80 text-sm mt-1">
                         <MapPin className="h-3.5 w-3.5" />
-                        <span>{profile.location_state || 'California'}, District #{profile.district_number || 5}</span>
+                        <span>
+                          {profile.location_state || 'California'}, 
+                          {profile.district_number ? (
+                            ` District ${profile.district_number.toString().includes('district_') 
+                              ? profile.district_number.replace('district_', '')
+                              : profile.district_number}`
+                          ) : ' District 5'}
+                        </span>
                       </div>
                     </div>
                   </Link>

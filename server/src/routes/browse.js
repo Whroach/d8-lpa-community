@@ -192,6 +192,8 @@ router.get('/', auth, async (req, res) => {
         profile_picture_url: profile?.profile_picture_url || null,
         bio: profile?.bio || '',
         location_city: profile?.location_city || '',
+        location_state: profile?.location_state || '',
+        district_number: profile?.district_number || '',
         distance: Math.floor(Math.random() * 25) + 1, // Placeholder - would calculate from coordinates
         occupation: profile?.occupation || '',
         interests: profile?.interests || [],

@@ -231,7 +231,11 @@ export default function UserProfilePage() {
               {profile.district_number && (
                 <div className="flex items-center gap-2 text-base text-muted-foreground pt-2">
                   <Compass className="h-5 w-5 text-primary flex-shrink-0" />
-                  <span className="font-medium">{profile.district_number}</span>
+                  <span className="font-medium">
+                    {profile.district_number.includes('district_') 
+                      ? `District ${profile.district_number.replace('district_', '')}`
+                      : `District ${profile.district_number}`}
+                  </span>
                 </div>
               )}
             </div>

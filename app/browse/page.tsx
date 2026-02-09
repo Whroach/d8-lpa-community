@@ -117,11 +117,16 @@ export default function BrowsePage() {
         return false
       }
       // Filter by district
-      if (
-        selectedDistricts.length > 0 &&
-        !selectedDistricts.includes(Number(profile.district_number))
-      ) {
-        return false
+      if (selectedDistricts.length > 0) {
+        // Extract district number from string like "district_2" or just use number if it's already a number
+        const districtValue = profile.district_number?.toString() || ""
+        const districtNum = districtValue.includes("district_")
+          ? parseInt(districtValue.replace("district_", ""))
+          : parseInt(districtValue)
+        
+        if (!selectedDistricts.includes(districtNum)) {
+          return false
+        }
       }
       // Filter by activities/interests
       if (normalizedSelectedActivities.length > 0) {

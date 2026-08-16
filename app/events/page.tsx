@@ -15,7 +15,6 @@ import {
   X,
 } from "lucide-react"
 import { AppLayout } from "@/components/app-layout"
-import { ProtectedRoute } from "@/components/protected-route"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
@@ -81,6 +80,9 @@ const getCategoryColor = (category?: string): string => {
   return categoryColorMap[normalizedCategory] || "bg-gray-100 text-gray-800 border-gray-200";
 };
 
+const isPastEvent = (event: Event): boolean =>
+  new Date(event.end_date || event.start_date) < new Date()
+
 export default function EventsPage() {
   const [events, setEvents] = useState<Event[]>([])
   const [filteredEvents, setFilteredEvents] = useState<Event[]>([])
@@ -88,6 +90,7 @@ export default function EventsPage() {
   const [searchQuery, setSearchQuery] = useState("")
   const [selectedEvent, setSelectedEvent] = useState<Event | null>(null)
   const [isActioning, setIsActioning] = useState<string | null>(null)
+  const [actionError, setActionError] = useState<string | null>(null)
   const [activeTab, setActiveTab] = useState<"upcoming" | "past">("upcoming")
   
   // Filter state
@@ -149,17 +152,11 @@ export default function EventsPage() {
       filtered = filtered.filter(event => new Date(event.start_date) <= end)
     }
 
-    const now = new Date()
-    const upcoming = filtered.filter((event) => {
-      const end = new Date(event.end_date || event.start_date)
-      return end >= now
-    })
-    const past = filtered.filter((event) => {
-      const end = new Date(event.end_date || event.start_date)
-      return end < now
-    })
-
-    setFilteredEvents(activeTab === "past" ? past : upcoming)
+    setFilteredEvents(
+      filtered.filter((event) =>
+        activeTab === "past" ? isPastEvent(event) : !isPastEvent(event)
+      )
+    )
   }, [events, searchQuery, eventType, startDate, endDate, activeTab])
 
   const clearFilters = () => {
@@ -181,11 +178,18 @@ export default function EventsPage() {
 
   const handleJoinLeave = async (event: Event) => {
     setIsActioning(event.id)
+    setActionError(null)
 
-    if (event.is_joined) {
-      await api.events.leave(event.id)
-    } else {
-      await api.events.join(event.id)
+    const result = event.is_joined
+      ? await api.events.leave(event.id)
+      : await api.events.join(event.id)
+
+    // Only flip the UI if the server agreed. Previously a rejected join (event
+    // full, already cancelled) still rendered as "Attending".
+    if (result.error) {
+      setActionError(result.error)
+      setIsActioning(null)
+      return
     }
 
     setEvents((prev) =>
@@ -244,8 +248,7 @@ export default function EventsPage() {
   }
 
   return (
-    <ProtectedRoute>
-      <AppLayout>
+    <AppLayout>
         <div className="p-6 md:p-8 max-w-4xl mx-auto">
         {/* Header */}
         <div className="mb-6">
@@ -395,7 +398,8 @@ export default function EventsPage() {
                 key={event.id}
                 className={cn(
                   "overflow-hidden cursor-pointer hover:shadow-lg transition-all",
-                  event.is_joined && "ring-2 ring-primary"
+                  event.is_joined && !event.is_cancelled && "ring-2 ring-primary",
+                  event.is_cancelled && "opacity-70"
                 )}
                 onClick={() => setSelectedEvent(event)}
               >
@@ -432,7 +436,12 @@ export default function EventsPage() {
                                 {event.category}
                               </Badge>
                             )}
-                            {event.is_joined && (
+                            {event.is_cancelled && (
+                              <Badge variant="destructive" className="text-xs">
+                                Cancelled
+                              </Badge>
+                            )}
+                            {event.is_joined && !event.is_cancelled && (
                               <Badge className="bg-primary text-primary-foreground text-xs">
                                 <Check className="h-3 w-3 mr-1" />
                                 Attending
@@ -518,7 +527,12 @@ export default function EventsPage() {
                       {selectedEvent.category}
                     </Badge>
                   )}
-                  {selectedEvent.is_joined && (
+                  {selectedEvent.is_cancelled && (
+                    <Badge variant="destructive" className="text-xs">
+                      Cancelled
+                    </Badge>
+                  )}
+                  {selectedEvent.is_joined && !selectedEvent.is_cancelled && (
                     <Badge className="bg-primary text-primary-foreground text-xs">
                       <Check className="h-3 w-3 mr-1" />
                       Attending
@@ -553,20 +567,36 @@ export default function EventsPage() {
                       </div>
                     </div>
 
-                    <Button
-                      className="w-full mt-4"
-                      variant={selectedEvent.is_joined ? "outline" : "default"}
-                      onClick={() => handleJoinLeave(selectedEvent)}
-                      disabled={isActioning === selectedEvent.id}
-                    >
-                      {isActioning === selectedEvent.id ? (
-                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                      ) : selectedEvent.is_joined ? (
-                        "Leave Event"
-                      ) : (
-                        "Join Event"
-                      )}
-                    </Button>
+                    {actionError && (
+                      <p className="text-sm text-destructive">{actionError}</p>
+                    )}
+
+                    {/* Cancelled and finished events are read-only — there is
+                        nothing to RSVP to. */}
+                    {selectedEvent.is_cancelled ? (
+                      <div className="w-full mt-4 rounded-lg bg-destructive/10 border border-destructive/20 p-3 text-center text-sm text-destructive">
+                        This event has been cancelled.
+                      </div>
+                    ) : isPastEvent(selectedEvent) ? (
+                      <div className="w-full mt-4 rounded-lg bg-muted p-3 text-center text-sm text-muted-foreground">
+                        This event has already taken place.
+                      </div>
+                    ) : (
+                      <Button
+                        className="w-full mt-4 h-12 text-base"
+                        variant={selectedEvent.is_joined ? "outline" : "default"}
+                        onClick={() => handleJoinLeave(selectedEvent)}
+                        disabled={isActioning === selectedEvent.id}
+                      >
+                        {isActioning === selectedEvent.id ? (
+                          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                        ) : selectedEvent.is_joined ? (
+                          "Leave Event"
+                        ) : (
+                          "Join Event"
+                        )}
+                      </Button>
+                    )}
                   </div>
                 </DialogDescription>
               </DialogHeader>
@@ -574,7 +604,6 @@ export default function EventsPage() {
           )}
         </Dialog>
         </div>
-      </AppLayout>
-    </ProtectedRoute>
+    </AppLayout>
   )
 }

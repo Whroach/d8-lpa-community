@@ -61,6 +61,21 @@ const userSchema = new mongoose.Schema({
     type: Boolean,
     default: false
   },
+  // Audit trail of moderation actions taken against this account. The admin
+  // panel previously displayed a hardcoded sample list here.
+  moderation_history: [{
+    action: { type: String },
+    reason: { type: String, default: '' },
+    admin: { type: String, default: '' },
+    created_at: { type: Date, default: Date.now }
+  }],
+  // Free-form private notes written by admins about this account.
+  admin_notes: [{
+    content: { type: String, required: true },
+    admin: { type: String, default: '' },
+    created_at: { type: Date, default: Date.now },
+    updated_at: { type: Date, default: Date.now }
+  }],
   last_active: {
     type: Date,
     default: Date.now

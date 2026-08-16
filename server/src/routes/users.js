@@ -123,6 +123,7 @@ router.put('/profile', auth, async (req, res) => {
       location_city,
       location_state,
       location_country,
+      district_number,
       favorite_music,
       custom_music,
       animals,
@@ -183,6 +184,7 @@ router.put('/profile', auth, async (req, res) => {
     if (location_city !== undefined) profile.location_city = location_city;
     if (location_state !== undefined) profile.location_state = location_state;
     if (location_country !== undefined) profile.location_country = location_country;
+    if (district_number !== undefined) profile.district_number = String(district_number);
     
     // Music, Animals, Pet Peeves
     if (favorite_music !== undefined) profile.favorite_music = favorite_music;

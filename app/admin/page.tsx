@@ -16,6 +16,7 @@ import {
   AlertTriangle,
   Ban,
   Clock,
+  Loader2,
   Check,
   History,
   ChevronDown,
@@ -48,7 +49,7 @@ import {
 } from "@/components/ui/dialog"
 import { Textarea } from "@/components/ui/textarea"
 import { Label } from "@/components/ui/label"
-import { mockAdminActionHistory } from "@/lib/mock-data"
+
 import { api } from "@/lib/api"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
@@ -99,40 +100,6 @@ interface AdminEvent {
   is_cancelled?: boolean
 }
 
-const mockAdminNotes: Record<string, AdminNote[]> = {
-  "user-3": [
-    { id: "note-1", content: "User reported by multiple people for inappropriate messages. Monitoring closely.", admin: "Admin User", created_at: "2024-01-08T10:00:00Z" },
-  ],
-  "user-4": [
-    { id: "note-2", content: "Repeated harassment complaints. User was warned twice before suspension.", admin: "Admin User", created_at: "2024-01-14T09:00:00Z" },
-    { id: "note-3", content: "User appealed suspension, reviewing case.", admin: "Admin User", created_at: "2024-01-18T14:00:00Z" },
-  ],
-  "user-6": [
-    { id: "note-4", content: "Confirmed fake profile using stolen photos.", admin: "Admin User", created_at: "2023-12-01T08:30:00Z" },
-    { id: "note-5", content: "Multiple scam reports from different users.", admin: "Admin User", created_at: "2023-12-14T11:00:00Z" },
-    { id: "note-6", content: "Permanent ban issued - do not reinstate.", admin: "Admin User", created_at: "2024-01-10T10:30:00Z" },
-  ],
-}
-
-// Mock event attendees
-const mockEventAttendees: Record<string, { id: string; first_name: string; last_name: string; email: string; photo: string; joined_at: string }[]> = {
-  "event-1": [
-    { id: "user-2", first_name: "Emma", last_name: "Wilson", email: "emma.wilson@example.com", photo: "https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=400&h=500&fit=crop", joined_at: "2024-01-15T10:00:00Z" },
-    { id: "user-4", first_name: "Olivia", last_name: "Martinez", email: "olivia.martinez@example.com", photo: "https://images.unsplash.com/photo-1488426862026-3ee34a7d66df?w=400&h=500&fit=crop", joined_at: "2024-01-16T14:30:00Z" },
-    { id: "user-7", first_name: "Mia", last_name: "Davis", email: "mia.davis@example.com", photo: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=400&h=500&fit=crop", joined_at: "2024-01-17T09:15:00Z" },
-  ],
-  "event-2": [
-    { id: "user-3", first_name: "Sophia", last_name: "Chen", email: "sophia.chen@example.com", photo: "https://images.unsplash.com/photo-1529626455594-4ff0802cfb7e?w=400&h=500&fit=crop", joined_at: "2024-01-18T11:00:00Z" },
-    { id: "user-5", first_name: "Isabella", last_name: "Kim", email: "isabella.kim@example.com", photo: "https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=400&h=500&fit=crop", joined_at: "2024-01-19T16:00:00Z" },
-  ],
-  "event-3": [
-    { id: "user-2", first_name: "Emma", last_name: "Wilson", email: "emma.wilson@example.com", photo: "https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=400&h=500&fit=crop", joined_at: "2024-01-20T08:00:00Z" },
-    { id: "user-8", first_name: "Charlotte", last_name: "Brown", email: "charlotte.brown@example.com", photo: "https://images.unsplash.com/photo-1517841905240-472988babdf9?w=400&h=500&fit=crop", joined_at: "2024-01-20T10:30:00Z" },
-    { id: "user-3", first_name: "Sophia", last_name: "Chen", email: "sophia.chen@example.com", photo: "https://images.unsplash.com/photo-1529626455594-4ff0802cfb7e?w=400&h=500&fit=crop", joined_at: "2024-01-20T12:00:00Z" },
-    { id: "user-5", first_name: "Isabella", last_name: "Kim", email: "isabella.kim@example.com", photo: "https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=400&h=500&fit=crop", joined_at: "2024-01-21T09:00:00Z" },
-  ],
-}
-
 // Helper function to get category badge color
 const getCategoryColor = (category?: string): string => {
   const categoryColorMap: Record<string, string> = {
@@ -149,24 +116,41 @@ const getCategoryColor = (category?: string): string => {
   return categoryColorMap[normalizedCategory] || "bg-gray-100 text-gray-800 border-gray-200";
 };
 
+// The access check lives in this wrapper so that AdminDashboard — which owns
+// all the hooks — is only ever mounted for a confirmed admin. Previously the
+// guard sat above the hook calls inside a single component, which both broke
+// the Rules of Hooks (hook count changed once `user` hydrated) and called
+// router.push() during render, throwing "location is not defined" in SSR.
 export default function AdminPage() {
   const router = useRouter()
   const { user } = useAuthStore()
+  const [isMounted, setIsMounted] = useState(false)
 
-  // If not authenticated at all, redirect to login
-  if (!user) {
-    router.push("/login")
-    return null
+  useEffect(() => {
+    setIsMounted(true)
+  }, [])
+
+  useEffect(() => {
+    if (isMounted && !user) {
+      router.push("/login")
+    }
+  }, [isMounted, user, router])
+
+  if (!isMounted || !user) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    )
   }
 
-  // If not admin, show access denied
   if (user.role !== "admin") {
     return (
       <div className="min-h-screen flex items-center justify-center p-4 bg-background">
         <div className="text-center">
           <Shield className="h-16 w-16 text-muted-foreground/30 mx-auto mb-4" />
           <h2 className="text-2xl font-bold text-foreground mb-2">Access Denied</h2>
-          <p className="text-muted-foreground mb-6">You don't have admin privileges.</p>
+          <p className="text-muted-foreground mb-6">You don&apos;t have admin privileges.</p>
           <Button onClick={() => router.push("/browse")}>
             Return to Browse
           </Button>
@@ -175,7 +159,10 @@ export default function AdminPage() {
     )
   }
 
-  // Admin user code continues below
+  return <AdminDashboard />
+}
+
+function AdminDashboard() {
   const [users, setUsers] = useState<AdminUser[]>([])
   const [searchQuery, setSearchQuery] = useState("")
   const [filteredUsers, setFilteredUsers] = useState<AdminUser[]>([])
@@ -185,8 +172,12 @@ export default function AdminPage() {
   const [showNotesDialog, setShowNotesDialog] = useState(false)
   const [actionType, setActionType] = useState<"warning" | "suspend" | "ban" | null>(null)
   const [actionReason, setActionReason] = useState("")
-  const [actionHistory, setActionHistory] = useState<Record<string, ActionHistory[]>>(mockAdminActionHistory)
-  const [userNotes, setUserNotes] = useState<Record<string, AdminNote[]>>(mockAdminNotes)
+  // Both start empty and are filled from the server. They used to be seeded
+  // with fabricated moderation records (including fake "scam report" notes),
+  // which an admin could easily have mistaken for real evidence.
+  const [actionHistory, setActionHistory] = useState<Record<string, ActionHistory[]>>({})
+  const [userNotes, setUserNotes] = useState<Record<string, AdminNote[]>>({})
+  const [isLoadingNotes, setIsLoadingNotes] = useState(false)
   const [newNote, setNewNote] = useState("")
   const [statusFilter, setStatusFilter] = useState<"all" | "active" | "suspended" | "banned">("all")
   
@@ -197,6 +188,10 @@ export default function AdminPage() {
   const [selectedEvent, setSelectedEvent] = useState<AdminEvent | null>(null)
   const [editingEvent, setEditingEvent] = useState<AdminEvent | null>(null)
   const [isUploadingPhoto, setIsUploadingPhoto] = useState(false)
+  const [attendees, setAttendees] = useState<
+    { id: string; first_name: string; last_name: string; email: string; photo: string | null }[]
+  >([])
+  const [isLoadingAttendees, setIsLoadingAttendees] = useState(false)
   const [eventForm, setEventForm] = useState({
     title: "",
     description: "",
@@ -211,10 +206,12 @@ export default function AdminPage() {
   })
 
   // News management state
-  const [newsItems, setNewsItems] = useState<{ id: string; title: string; message: string; created_at: string }[]>([
-    { id: "news-1", title: "Welcome to D8-LPA!", message: "Check out our upcoming events and new features. We're excited to have you in our community!", created_at: "2024-01-18T10:00:00Z" },
-    { id: "news-2", title: "New Feature: Event RSVPs", message: "You can now RSVP to events and see who else is attending. Don't miss out on our community gatherings!", created_at: "2024-01-15T14:00:00Z" },
-  ])
+  // Starts empty and is populated from the server. It used to be seeded with
+  // two hardcoded 2024 announcements, which stayed on screen as if real
+  // whenever the fetch returned nothing.
+  const [newsItems, setNewsItems] = useState<
+    { id: string; title: string; message: string; created_at: string; sent_to?: number }[]
+  >([])
   const [newsForm, setNewsForm] = useState({ title: "", message: "" })
 
   useEffect(() => {
@@ -226,9 +223,15 @@ export default function AdminPage() {
   const loadUsers = async () => {
     const result = await api.admin.getUsers()
     if (result.data) {
-      const usersData = result.data.users || result.data
-      setUsers(usersData as AdminUser[])
-      setFilteredUsers(usersData as AdminUser[])
+      const usersData = (result.data.users || result.data) as AdminUser[]
+      setUsers(usersData)
+      setFilteredUsers(usersData)
+      // Moderation history now travels with each user record.
+      setActionHistory(
+        Object.fromEntries(
+          usersData.map((u: any) => [u.id, u.moderation_history || []])
+        )
+      )
     }
   }
 
@@ -317,32 +320,44 @@ export default function AdminPage() {
     setShowHistoryDialog(true)
   }
 
-  const handleViewNotes = (user: AdminUser) => {
+  const handleViewNotes = async (user: AdminUser) => {
     setSelectedUser(user)
     setNewNote("")
     setShowNotesDialog(true)
+    setIsLoadingNotes(true)
+    const result = await api.admin.getNotes(user.id)
+    if (result.data) {
+      setUserNotes((prev) => ({ ...prev, [user.id]: result.data as AdminNote[] }))
+    }
+    setIsLoadingNotes(false)
   }
 
-  const addNote = () => {
+  // Notes are persisted server-side. They were previously held in component
+  // state only, so every note vanished on refresh.
+  const addNote = async () => {
     if (!selectedUser || !newNote.trim()) return
 
-    const note: AdminNote = {
-      id: `note-${Date.now()}`,
-      content: newNote.trim(),
-      admin: "Admin User",
-      created_at: new Date().toISOString(),
+    const result = await api.admin.addNote(selectedUser.id, newNote.trim())
+    if (result.error) {
+      alert("Could not save note: " + result.error)
+      return
     }
 
     setUserNotes((prev) => ({
       ...prev,
-      [selectedUser.id]: [...(prev[selectedUser.id] || []), note],
+      [selectedUser.id]: [...(prev[selectedUser.id] || []), result.data as AdminNote],
     }))
-
     setNewNote("")
   }
 
-  const deleteNote = (noteId: string) => {
+  const deleteNote = async (noteId: string) => {
     if (!selectedUser) return
+
+    const result = await api.admin.deleteNote(selectedUser.id, noteId)
+    if (result.error) {
+      alert("Could not delete note: " + result.error)
+      return
+    }
 
     setUserNotes((prev) => ({
       ...prev,
@@ -365,19 +380,14 @@ export default function AdminPage() {
         return
       }
 
-      const newAction: ActionHistory = {
-        id: `action-${Date.now()}`,
-        action: actionType,
-        reason: actionReason,
-        admin: "Admin User",
-        created_at: new Date().toISOString(),
+      // The server returns the authoritative audit trail, including who
+      // performed the action and when.
+      if (result.data?.moderation_history) {
+        setActionHistory((prev) => ({
+          ...prev,
+          [selectedUser.id]: result.data.moderation_history,
+        }))
       }
-
-      // Update action history
-      setActionHistory((prev) => ({
-        ...prev,
-        [selectedUser.id]: [...(prev[selectedUser.id] || []), newAction],
-      }))
 
       // Update user status
       setUsers((prev) =>
@@ -409,15 +419,14 @@ export default function AdminPage() {
 
   const removeAction = async (user: AdminUser, action: "warning" | "suspend" | "ban") => {
     try {
-      // Convert action to API action name
-      let apiAction = action;
-      if (action === "suspend") {
-        apiAction = "unsuspend";
-      } else if (action === "ban") {
-        apiAction = "unban";
-      } else if (action === "warning") {
-        apiAction = "remove_warning";
-      }
+      // Convert action to the API's inverse action name
+      const apiAction = (
+        {
+          suspend: "unsuspend",
+          ban: "unban",
+          warning: "remove_warning",
+        } as const
+      )[action];
 
       // Call backend API to remove the action
       const result = await api.admin.userAction(user.id, apiAction, `${action} lifted`);
@@ -589,7 +598,7 @@ export default function AdminPage() {
       })
     } catch (error) {
       console.error('Exception in saveEvent:', error)
-      alert(`Error: ${error.message}`)
+      alert(`Error: ${error instanceof Error ? error.message : String(error)}`)
     }
   }
 
@@ -607,21 +616,25 @@ export default function AdminPage() {
     }
   }
 
-  const uncancelEvent = (eventId: string) => {
-    setEvents((prev) =>
-      prev.map((e) =>
-        e.id === eventId ? { ...e, is_cancelled: false } : e
-      )
-    )
+  const uncancelEvent = async (eventId: string) => {
+    // Previously flipped local state only, so the event looked reinstated
+    // until the next refresh.
+    const result = await api.admin.uncancelEvent(eventId)
+    if (result.data) {
+      await loadEvents()
+    }
   }
 
-  const viewAttendees = (event: AdminEvent) => {
+  const viewAttendees = async (event: AdminEvent) => {
     setSelectedEvent(event)
     setShowAttendeesDialog(true)
-  }
-
-  const getEventAttendees = (eventId: string) => {
-    return mockEventAttendees[eventId] || []
+    setIsLoadingAttendees(true)
+    setAttendees([])
+    const result = await api.admin.getEventAttendees(event.id)
+    if (result.data) {
+      setAttendees(result.data)
+    }
+    setIsLoadingAttendees(false)
   }
 
   const formatEventDate = (dateStr: string) => {
@@ -1626,7 +1639,7 @@ export default function AdminPage() {
                     </span>
                   </div>
                   <p className="text-sm text-muted-foreground mt-2">
-                    {getEventAttendees(selectedEvent.id).length} attending
+                    {attendees.length} attending
                     {selectedEvent.max_attendees && ` of ${selectedEvent.max_attendees} spots`}
                   </p>
                 </div>
@@ -1635,8 +1648,12 @@ export default function AdminPage() {
 
                 {/* Attendees List */}
                 <div className="max-h-80 overflow-y-auto space-y-2">
-                  {getEventAttendees(selectedEvent.id).length > 0 ? (
-                    getEventAttendees(selectedEvent.id).map((attendee) => (
+                  {isLoadingAttendees ? (
+                    <div className="flex items-center justify-center py-8">
+                      <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                    </div>
+                  ) : attendees.length > 0 ? (
+                    attendees.map((attendee) => (
                       <div
                         key={attendee.id}
                         className="flex items-center gap-3 p-3 rounded-lg border border-border bg-card hover:bg-muted/30 transition-colors"
@@ -1652,10 +1669,6 @@ export default function AdminPage() {
                           <p className="text-sm text-muted-foreground truncate">
                             {attendee.email}
                           </p>
-                        </div>
-                        <div className="text-xs text-muted-foreground text-right">
-                          <p>Joined</p>
-                          <p>{formatDateTime(attendee.joined_at)}</p>
                         </div>
                       </div>
                     ))

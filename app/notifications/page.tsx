@@ -1,8 +1,8 @@
 "use client"
 
 import { useEffect, useState } from "react"
+import { useRouter } from "next/navigation"
 import { AppLayout } from "@/components/app-layout"
-import { ProtectedRoute } from "@/components/protected-route"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Skeleton } from "@/components/ui/skeleton"
@@ -26,6 +26,7 @@ interface Notification {
 }
 
 export default function NotificationsPage() {
+  const router = useRouter()
   const [notifications, setNotifications] = useState<Notification[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [filter, setFilter] = useState<'all' | 'unread'>('all')
@@ -158,9 +159,38 @@ export default function NotificationsPage() {
 
   const unreadCount = notifications.filter((n) => !n.read).length
 
+  // Cards were styled as clickable (cursor-pointer + hover lift) but had no
+  // handler, so tapping a "New Match" notification did nothing.
+  const notificationHref = (notification: Notification): string | null => {
+    switch (notification.type) {
+      case 'message':
+        return notification.related_match
+          ? `/messages?match=${notification.related_match}`
+          : '/messages'
+      case 'match':
+        return '/matches'
+      case 'like':
+        return notification.related_user
+          ? `/profile/${notification.related_user}`
+          : '/matches'
+      case 'event':
+        return '/events'
+      default:
+        return null
+    }
+  }
+
+  const handleOpenNotification = (notification: Notification) => {
+    const href = notificationHref(notification)
+    if (!href) return
+    if (!notification.read) {
+      handleMarkAsRead(notification._id)
+    }
+    router.push(href)
+  }
+
   return (
-    <ProtectedRoute>
-      <AppLayout>
+    <AppLayout>
         <div className="max-w-4xl mx-auto p-4 md:p-6">
           {/* Header */}
           <div className="mb-6">
@@ -231,11 +261,15 @@ export default function NotificationsPage() {
             </Card>
           ) : (
             <div className="space-y-3">
-              {filteredNotifications.map((notification) => (
+              {filteredNotifications.map((notification) => {
+                const href = notificationHref(notification)
+                return (
                 <Card
                   key={notification._id}
+                  onClick={() => handleOpenNotification(notification)}
                   className={cn(
-                    'cursor-pointer transition-all hover:shadow-md',
+                    'transition-all',
+                    href && 'cursor-pointer hover:shadow-md',
                     !notification.read && 'border-primary/50 bg-primary/5'
                   )}
                 >
@@ -274,7 +308,11 @@ export default function NotificationsPage() {
                           <Button
                             variant="ghost"
                             size="sm"
-                            onClick={() => handleMarkAsRead(notification._id)}
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              handleMarkAsRead(notification._id)
+                            }}
+                            aria-label="Mark as read"
                             title="Mark as read"
                           >
                             <CheckCircle2 className="h-4 w-4 text-primary" />
@@ -283,7 +321,11 @@ export default function NotificationsPage() {
                         <Button
                           variant="ghost"
                           size="sm"
-                          onClick={() => handleDelete(notification._id)}
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            handleDelete(notification._id)
+                          }}
+                          aria-label="Delete notification"
                           title="Delete notification"
                         >
                           <Trash2 className="h-4 w-4 text-destructive" />
@@ -292,12 +334,12 @@ export default function NotificationsPage() {
                     </div>
                   </CardContent>
                 </Card>
-              ))}
+                )
+              })}
             </div>
           )}
         </div>
-      </AppLayout>
-    </ProtectedRoute>
+    </AppLayout>
   )
 }
 

@@ -87,22 +87,17 @@ export function AppSidebar() {
         setBadgeCounts((prev) => ({ ...prev, messages: unreadMessages }))
       }
 
-      // Load unread event notifications count
-      const eventNotificationsResult = await api.notifications.getAll()
-      if (eventNotificationsResult.data) {
-        const unreadEventNotifications = eventNotificationsResult.data.filter(
-          (n: { type?: string; read?: boolean }) => n.type === 'event' && !n.read
-        ).length
-        setBadgeCounts((prev) => ({ ...prev, events: unreadEventNotifications }))
-      }
-
-      // Load unread notifications count
+      // One fetch covers both the events badge and the notifications badge.
       const notificationsResult = await api.notifications.getAll()
       if (notificationsResult.data) {
-        const unreadNotifications = notificationsResult.data.filter(
-          (n: { read: boolean }) => !n.read
-        ).length
-        setBadgeCounts((prev) => ({ ...prev, notifications: unreadNotifications }))
+        const all = Array.isArray(notificationsResult.data) ? notificationsResult.data : []
+        setBadgeCounts((prev) => ({
+          ...prev,
+          notifications: all.filter((n: { read?: boolean }) => !n.read).length,
+          events: all.filter(
+            (n: { type?: string; read?: boolean }) => n.type === 'event' && !n.read
+          ).length,
+        }))
       }
     }
 
@@ -215,6 +210,7 @@ export function AppSidebar() {
                   </div>
                 ) : (
                   <>
+                    <item.icon className="h-5 w-5 shrink-0" />
                     <span className="flex-1">{item.label}</span>
                     {badgeCount > 0 && (
                       <Badge variant="default" className="h-5 min-w-5 px-1.5 text-xs">

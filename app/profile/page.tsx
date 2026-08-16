@@ -37,7 +37,6 @@ import {
   Music,
 } from "lucide-react"
 import { AppLayout } from "@/components/app-layout"
-import { ProtectedRoute } from "@/components/protected-route"
 import { useAuthStore } from "@/lib/store/auth-store"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
@@ -191,11 +190,8 @@ const FREQUENCY_OPTIONS = [
 ]
 
 export default function ProfilePageWrapper() {
-  return (
-    <ProtectedRoute>
-      <ProfilePage />
-    </ProtectedRoute>
-  )
+  // AppLayout already applies ProtectedRoute, so no second guard is needed.
+  return <ProfilePage />
 }
 
 function ProfilePage() {
@@ -206,7 +202,9 @@ function ProfilePage() {
   const [photos, setPhotos] = useState<string[]>(profile?.photos || [])
   const [draggedIndex, setDraggedIndex] = useState<number | null>(null)
   const [photoUploading, setPhotoUploading] = useState(false)
+  const [photoSaving, setPhotoSaving] = useState(false)
   const [uploadError, setUploadError] = useState<string | null>(null)
+  const [saveError, setSaveError] = useState<string | null>(null)
   const [isLoadingProfile, setIsLoadingProfile] = useState(true)
   const [customInterest, setCustomInterest] = useState("")
   const [customMusic, setCustomMusic] = useState("")
@@ -223,44 +221,20 @@ function ProfilePage() {
   const [upcomingEventCount, setUpcomingEventCount] = useState(0)
 
   // Load profile data
+  // Goes through the shared API client so it honours NEXT_PUBLIC_API_URL and
+  // the 401 handling. A hand-rolled fetch here used to build the URL from the
+  // env var directly, which produced "undefined/users/profile" when unset.
   const loadProfile = async () => {
-    try {
-      setIsLoadingProfile(true)
-      
-      // Get token from localStorage
-      const authData = JSON.parse(localStorage.getItem("spark-auth") || "{}")
-      const token = authData?.state?.token
-      
-      if (!token) {
-        console.error('No auth token found')
-        setIsLoadingProfile(false)
-        return
-      }
-      
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/users/profile`, {
-        credentials: 'include',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        }
-      })
-      
-      if (response.ok) {
-        const data = await response.json()
-        setUser(data.user)
-        setProfile(data.profile)
-        // Photos are stored in profile, not user
-        if (data.profile?.photos && data.profile.photos.length > 0) {
-          setPhotos(data.profile.photos)
-        }
-      } else {
-        console.error('Failed to load profile:', response.status)
-      }
-    } catch (error) {
-      console.error('Error loading profile:', error)
-    } finally {
-      setIsLoadingProfile(false)
+    setIsLoadingProfile(true)
+    const result = await api.users.getProfile()
+    if (result.data) {
+      setUser(result.data.user)
+      setProfile(result.data.profile)
+      setPhotos(result.data.profile?.photos || [])
+    } else {
+      console.error('Failed to load profile:', result.error)
     }
+    setIsLoadingProfile(false)
   }
 
   // Load profile data on mount
@@ -319,7 +293,7 @@ function ProfilePage() {
     bio: profile?.bio || "",
     occupation: profile?.occupation || "",
     education: profile?.education || "",
-    district_number: "5",
+    district_number: profile?.district_number || "",
     location_city: profile?.location_city || "",
     location_state: profile?.location_state || "",
     interests: profile?.interests || [],
@@ -352,7 +326,7 @@ function ProfilePage() {
         bio: profile?.bio || "",
         occupation: profile?.occupation || "",
         education: profile?.education || "",
-        district_number: "5",
+        district_number: profile?.district_number || "",
         location_city: profile?.location_city || "",
         location_state: profile?.location_state || "",
         interests: profile?.interests || [],
@@ -397,6 +371,7 @@ function ProfilePage() {
 
   const handleSave = async () => {
     setIsSaving(true)
+    setSaveError(null)
     try {
       const dataToSave = {
         first_name: formData.first_name,
@@ -406,6 +381,7 @@ function ProfilePage() {
         education: formData.education,
         location_city: formData.location_city,
         location_state: formData.location_state,
+        district_number: formData.district_number,
         interests: formData.interests.filter(i => i.trim() !== ''),
         looking_for_description: formData.looking_for.filter(i => i.trim() !== ''),
         life_goals: formData.life_goals.filter(i => i.trim() !== ''),
@@ -429,7 +405,7 @@ function ProfilePage() {
       const result = await api.users.updateProfile(dataToSave)
       
       if (result.error) {
-        alert('Failed to save profile: ' + result.error)
+        setSaveError(result.error)
       } else {
         // Reload profile to ensure we have latest data
         await loadProfile()
@@ -441,13 +417,14 @@ function ProfilePage() {
       }
     } catch (error) {
       console.error('[PROFILE] Save exception:', error)
-      alert('An error occurred while saving your profile')
+      setSaveError('Something went wrong while saving. Please try again.')
     } finally {
       setIsSaving(false)
     }
   }
 
   const handleCancel = () => {
+    setSaveError(null)
     setIsEditing(false)
   }
 
@@ -483,7 +460,24 @@ function ProfilePage() {
     }
   }
 
-  // Photo management functions
+  // Photo management functions.
+  // Every change is written straight back to the server — an earlier version
+  // only updated local state, so deletes and reordering silently reverted on
+  // the next page load.
+  const persistPhotoOrder = async (nextPhotos: string[]) => {
+    setPhotoSaving(true)
+    setUploadError(null)
+    const result = await api.users.savePhotoOrder(nextPhotos)
+    if (result.error) {
+      setUploadError(result.error)
+      // Put the server's version back so the UI never lies about what is saved.
+      setPhotos(profile?.photos || [])
+    } else {
+      setProfile({ ...(profile || {}), photos: nextPhotos })
+    }
+    setPhotoSaving(false)
+  }
+
   const handleDragStart = (index: number) => {
     setDraggedIndex(index)
   }
@@ -491,7 +485,7 @@ function ProfilePage() {
   const handleDragOver = (e: React.DragEvent, index: number) => {
     e.preventDefault()
     if (draggedIndex === null || draggedIndex === index) return
-    
+
     const newPhotos = [...photos]
     const draggedPhoto = newPhotos[draggedIndex]
     newPhotos.splice(draggedIndex, 1)
@@ -502,10 +496,34 @@ function ProfilePage() {
 
   const handleDragEnd = () => {
     setDraggedIndex(null)
+    persistPhotoOrder(photos)
   }
 
-  const handleDeletePhoto = (index: number) => {
-    setPhotos(photos.filter((_, i) => i !== index))
+  // Arrow controls alongside drag-and-drop: dragging is unreliable on touch
+  // screens and fiddly with a trackpad.
+  const movePhoto = (index: number, direction: -1 | 1) => {
+    const target = index + direction
+    if (target < 0 || target >= photos.length) return
+    const newPhotos = [...photos]
+    ;[newPhotos[index], newPhotos[target]] = [newPhotos[target], newPhotos[index]]
+    setPhotos(newPhotos)
+    persistPhotoOrder(newPhotos)
+  }
+
+  const handleDeletePhoto = async (index: number) => {
+    const url = photos[index]
+    const nextPhotos = photos.filter((_, i) => i !== index)
+    setPhotos(nextPhotos)
+    setPhotoSaving(true)
+    setUploadError(null)
+    const result = await api.users.deletePhoto(url)
+    if (result.error) {
+      setUploadError(result.error)
+      setPhotos(photos)
+    } else {
+      setProfile({ ...(profile || {}), photos: nextPhotos })
+    }
+    setPhotoSaving(false)
   }
 
   const handleAddPhoto = () => {
@@ -520,12 +538,19 @@ function ProfilePage() {
 
       const file = files[0]
       if (!file.type.startsWith('image/')) {
-        setUploadError('Please upload an image file')
+        setUploadError('That file is not a photo. Please choose a JPG or PNG image.')
+        return
+      }
+
+      // The server rejects anything over 5MB; catching it here gives a clear
+      // message instead of a generic upload failure.
+      if (file.size > 5 * 1024 * 1024) {
+        setUploadError('That photo is too large. Please choose an image under 5MB.')
         return
       }
 
       if (photos.length >= 10) {
-        setUploadError('Maximum 10 photos allowed')
+        setUploadError('You can have up to 10 photos. Remove one to add another.')
         return
       }
 
@@ -536,11 +561,13 @@ function ProfilePage() {
       formData.append('photo', file)
 
       const result = await api.users.uploadPhoto(formData)
-      
+
       if (result.error) {
         setUploadError(result.error)
       } else if (result.data) {
-        setPhotos([...photos, result.data.url])
+        const nextPhotos = [...photos, result.data.url]
+        setPhotos(nextPhotos)
+        setProfile({ ...(profile || {}), photos: nextPhotos })
       }
 
       setPhotoUploading(false)
@@ -551,7 +578,9 @@ function ProfilePage() {
 
   const age = calculateAge()
   const visiblePhotos = photos.slice(0, 6)
-  const remainingCount = photos.length - 5
+  // Only the 6th tile doubles as a "+N more" overlay, and only when photos are
+  // actually hidden behind it. With exactly 6 photos nothing is hidden.
+  const remainingCount = photos.length > 6 ? photos.length - 5 : 0
 
   const formatLabel = (value: string | undefined) => {
     if (!value) return "Not set"
@@ -619,6 +648,16 @@ function ProfilePage() {
           </div>
         </div>
 
+        {saveError && (
+          <div className="mb-6 flex items-start gap-3 p-4 rounded-lg bg-destructive/10 border border-destructive/20 text-destructive">
+            <AlertTriangle className="h-5 w-5 shrink-0 mt-0.5" />
+            <div>
+              <p className="font-medium">We couldn&apos;t save your profile</p>
+              <p className="text-sm">{saveError}</p>
+            </div>
+          </div>
+        )}
+
         {/* Profile Header Card */}
         <Card className="mb-6 overflow-hidden">
           <CardContent className="p-6">
@@ -647,7 +686,8 @@ function ProfilePage() {
               {/* Profile Info */}
               <div className="flex-1 space-y-3">
                 <h2 className="text-2xl md:text-3xl font-bold text-foreground">
-                  {formData.first_name} {formData.last_name}, {age}
+                  {formData.first_name} {formData.last_name}
+                  {age ? `, ${age}` : ""}
                 </h2>
                 
                 <div className="flex flex-col gap-2">
@@ -662,11 +702,11 @@ function ProfilePage() {
                         placeholder="e.g. 5"
                       />
                     </div>
-                  ) : (
+                  ) : formData.district_number ? (
                     <span className="flex items-center gap-1 text-foreground font-medium">
                       <span className="text-primary">District #{formData.district_number}</span>
                     </span>
-                  )}
+                  ) : null}
                   
                   {/* Location */}
                   {isEditing ? (
@@ -803,6 +843,18 @@ function ProfilePage() {
             </Button>
           </CardHeader>
           <CardContent>
+            {photos.length === 0 ? (
+              <button
+                onClick={() => setShowPhotoManager(true)}
+                className="w-full flex flex-col items-center justify-center gap-3 py-10 rounded-lg border-2 border-dashed border-muted-foreground/30 text-muted-foreground hover:border-primary hover:text-primary transition-colors"
+              >
+                <Camera className="h-10 w-10" />
+                <span className="text-base font-medium">Add your first photo</span>
+                <span className="text-sm">
+                  Members with photos get far more responses
+                </span>
+              </button>
+            ) : (
             <div className="grid grid-cols-3 gap-2">
               {visiblePhotos.map((photo, index) => (
                 <div
@@ -830,6 +882,7 @@ function ProfilePage() {
                 </div>
               ))}
             </div>
+            )}
           </CardContent>
         </Card>
 
@@ -1578,18 +1631,19 @@ function ProfilePage() {
             </DialogHeader>
             <div className="space-y-4">
               <p className="text-sm text-muted-foreground">
-                Drag photos to rearrange. Your first photo will be your main profile picture.
+                Your first photo is your main profile picture. Use the arrows to
+                reorder, or drag a photo to a new spot. Changes save automatically.
               </p>
               <div className="grid grid-cols-3 gap-3">
                 {photos.map((photo, index) => (
                   <div
-                    key={index}
+                    key={photo}
                     draggable
                     onDragStart={() => handleDragStart(index)}
                     onDragOver={(e) => handleDragOver(e, index)}
                     onDragEnd={handleDragEnd}
                     className={cn(
-                      "relative aspect-[4/5] rounded-lg overflow-hidden group cursor-grab active:cursor-grabbing border-2",
+                      "relative aspect-[4/5] rounded-lg overflow-hidden cursor-grab active:cursor-grabbing border-2",
                       draggedIndex === index ? "border-primary opacity-50" : "border-transparent",
                       index === 0 && "ring-2 ring-primary ring-offset-2"
                     )}
@@ -1600,16 +1654,35 @@ function ProfilePage() {
                       fill
                       className="object-cover"
                     />
-                    <div className="absolute inset-0 bg-black/0 group-hover:bg-black/40 transition-colors" />
-                    <div className="absolute top-2 left-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                      <GripVertical className="h-5 w-5 text-white drop-shadow-lg" />
-                    </div>
+                    {/* Controls stay visible rather than appearing on hover —
+                        hover does not exist on the phones and tablets most of
+                        our members use. */}
                     <button
                       onClick={() => handleDeletePhoto(index)}
-                      className="absolute top-2 right-2 p-1.5 rounded-full bg-destructive text-destructive-foreground opacity-0 group-hover:opacity-100 transition-opacity hover:bg-destructive/90"
+                      disabled={photoSaving}
+                      aria-label={`Remove photo ${index + 1}`}
+                      className="absolute top-2 right-2 p-2 rounded-full bg-destructive text-destructive-foreground shadow-md hover:bg-destructive/90 disabled:opacity-50"
                     >
                       <Trash2 className="h-4 w-4" />
                     </button>
+                    <div className="absolute bottom-2 right-2 flex gap-1">
+                      <button
+                        onClick={() => movePhoto(index, -1)}
+                        disabled={index === 0 || photoSaving}
+                        aria-label={`Move photo ${index + 1} earlier`}
+                        className="p-2 rounded-full bg-black/60 text-white shadow-md hover:bg-black/80 disabled:opacity-30"
+                      >
+                        <ChevronLeft className="h-4 w-4" />
+                      </button>
+                      <button
+                        onClick={() => movePhoto(index, 1)}
+                        disabled={index === photos.length - 1 || photoSaving}
+                        aria-label={`Move photo ${index + 1} later`}
+                        className="p-2 rounded-full bg-black/60 text-white shadow-md hover:bg-black/80 disabled:opacity-30"
+                      >
+                        <ChevronRight className="h-4 w-4" />
+                      </button>
+                    </div>
                     {index === 0 && (
                       <div className="absolute bottom-2 left-2 px-2 py-1 bg-primary text-primary-foreground text-xs rounded font-medium">
                         Main
@@ -1637,18 +1710,31 @@ function ProfilePage() {
                   </button>
                 )}
               </div>
+              {photos.length === 0 && !photoUploading && (
+                <p className="text-sm text-muted-foreground text-center py-2">
+                  You have no photos yet. Profiles with photos get far more
+                  responses — add your first one above.
+                </p>
+              )}
               {uploadError && (
                 <div className="text-sm text-destructive flex items-center gap-2">
-                  <AlertTriangle className="h-4 w-4" />
+                  <AlertTriangle className="h-4 w-4 shrink-0" />
                   {uploadError}
                 </div>
               )}
-              <div className="flex justify-end gap-2 pt-4">
-                <Button variant="outline" onClick={() => setShowPhotoManager(false)} className="bg-transparent">
-                  Cancel
-                </Button>
-                <Button onClick={() => setShowPhotoManager(false)}>
-                  Save Changes
+              <div className="flex items-center justify-between gap-2 pt-4">
+                <span className="text-sm text-muted-foreground flex items-center gap-2">
+                  {photoSaving ? (
+                    <>
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      Saving...
+                    </>
+                  ) : (
+                    "All changes saved"
+                  )}
+                </span>
+                <Button onClick={() => setShowPhotoManager(false)} disabled={photoSaving}>
+                  Done
                 </Button>
               </div>
             </div>
@@ -1692,7 +1778,7 @@ function ProfilePreviewCard({
 }: {
   photos: string[]
   name: string
-  age: number
+  age: number | null
   location: string
   occupation: string
   bio: string
@@ -1771,7 +1857,8 @@ function ProfilePreviewCard({
         {/* Name and basic info overlay */}
         <div className="absolute bottom-0 left-0 right-0 p-4 text-white">
           <h3 className="text-2xl font-bold">
-            {name}, {age}
+            {name}
+            {age ? `, ${age}` : ""}
           </h3>
           <div className="flex items-center gap-2 text-white/90 text-sm mt-1">
             <MapPin className="h-4 w-4" />

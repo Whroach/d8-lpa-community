@@ -16,8 +16,6 @@ import {
   HelpCircle,
   FileText,
   Loader2,
-  Moon,
-  Sun,
   Check,
   Trash2,
   AlertTriangle,
@@ -25,7 +23,6 @@ import {
   Users
 } from "lucide-react"
 import { AppLayout } from "@/components/app-layout"
-import { ProtectedRoute } from "@/components/protected-route"
 import { useAuthStore } from "@/lib/store/auth-store"
 import { Switch } from "@/components/ui/switch"
 import { Label } from "@/components/ui/label"
@@ -43,7 +40,7 @@ import {
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { api } from "@/lib/api"
-import { Avatar } from "@/components/ui/avatar"
+import { toast } from "sonner"
 
 type BlockedUser = {
   id: string
@@ -150,24 +147,25 @@ export default function SettingsPage() {
 
   const saveSettings = async () => {
     setIsSaving(true)
-    await api.settings.update(settings)
+    const result = await api.settings.update(settings)
+    setIsSaving(false)
+
+    // Don't claim success when the request failed — the banner used to show
+    // "Saved" regardless of the outcome.
+    if (result.error) {
+      toast.error(result.error)
+      return
+    }
+
     setOriginalSettings(settings)
     setHasChanges(false)
     setSaveSuccess(true)
-    setIsSaving(false)
-    
-    // Clear success message after 3 seconds
     setTimeout(() => setSaveSuccess(false), 3000)
-  }
-
-  const handleLogout = () => {
-    logout()
-    router.push("/login")
   }
 
   const handleDisableAccount = async () => {
     if (!disableConfirmed || !disablePassword.trim()) {
-      alert("Please confirm you want to disable your account and enter your password")
+      toast.error("Please confirm you want to disable your account and enter your password")
       return
     }
 
@@ -179,14 +177,14 @@ export default function SettingsPage() {
       })
       
       if (result.data) {
-        alert("Your account has been disabled. You will be logged out.")
+        toast.success("Your account has been disabled. You will be logged out.")
         logout()
         router.push("/login")
       } else if (result.error) {
-        alert(result.error)
+        toast.error(result.error)
       }
     } catch (error) {
-      alert("Error disabling account. Please try again.")
+      toast.error("Error disabling account. Please try again.")
       console.error(error)
     } finally {
       setIsDisablingAccount(false)
@@ -199,7 +197,7 @@ export default function SettingsPage() {
 
   const handleDeleteAccount = async () => {
     if (!deleteConfirmed || !deletePassword.trim()) {
-      alert("Please confirm you want to delete your account and enter your password")
+      toast.error("Please confirm you want to delete your account and enter your password")
       return
     }
 
@@ -211,14 +209,14 @@ export default function SettingsPage() {
       })
       
       if (result.data) {
-        alert("Your account has been deleted. You will be logged out.")
+        toast.success("Your account has been deleted. You will be logged out.")
         logout()
         router.push("/login")
       } else if (result.error) {
-        alert(result.error)
+        toast.error(result.error)
       }
     } catch (error) {
-      alert("Error deleting account. Please try again.")
+      toast.error("Error deleting account. Please try again.")
       console.error(error)
     } finally {
       setIsDeletingAccount(false)
@@ -258,22 +256,12 @@ export default function SettingsPage() {
     setIsChangingPassword(true)
     setPasswordError(null)
     try {
-      const token = JSON.parse(localStorage.getItem("spark-auth") || "{}")?.state?.token
-      const response = await fetch('/api/auth/change-password', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          ...(token && { Authorization: `Bearer ${token}` }),
-        },
-        body: JSON.stringify({
-          current_password: currentPassword,
-          new_password: newPassword,
-        }),
+      const result = await api.auth.changePassword({
+        current_password: currentPassword,
+        new_password: newPassword,
       })
 
-      const result = await response.json()
-
-      if (response.ok) {
+      if (!result.error) {
         setPasswordSuccess(true)
         // Clear form
         setCurrentPassword("")
@@ -285,7 +273,7 @@ export default function SettingsPage() {
           setPasswordSuccess(false)
         }, 2000)
       } else {
-        setPasswordError(result.error || "Failed to change password")
+        setPasswordError(result.error)
       }
     } catch (error) {
       setPasswordError("Error changing password. Please try again.")
@@ -293,6 +281,15 @@ export default function SettingsPage() {
     } finally {
       setIsChangingPassword(false)
     }
+  }
+
+  const updateSettings = <K extends keyof typeof settings>(
+    key: K,
+    value: (typeof settings)[K]
+  ) => {
+    setSettings((prev) => ({ ...prev, [key]: value }))
+    setHasChanges(true)
+    setSaveSuccess(false)
   }
 
   const updateNotification = (key: keyof typeof settings.notifications) => {
@@ -353,11 +350,11 @@ export default function SettingsPage() {
       if (result.data) {
         setBlockedUsers(result.data)
       } else if (result.error) {
-        alert("Error loading blocked users: " + result.error)
+        toast.error("Error loading blocked users: " + result.error)
       }
     } catch (error) {
       console.error("Error loading blocked users:", error)
-      alert("Error loading blocked users")
+      toast.error("Error loading blocked users")
     } finally {
       setIsLoadingBlocked(false)
     }
@@ -375,19 +372,18 @@ export default function SettingsPage() {
       if (result.data?.success) {
         setBlockedUsers(blockedUsers.filter(u => u.id !== userId))
       } else if (result.error) {
-        alert("Error unblocking user: " + result.error)
+        toast.error("Error unblocking user: " + result.error)
       }
     } catch (error) {
       console.error("Error unblocking user:", error)
-      alert("Error unblocking user")
+      toast.error("Error unblocking user")
     } finally {
       setIsUnblocking(null)
     }
   }
 
   return (
-    <ProtectedRoute>
-      <AppLayout>
+    <AppLayout>
         <div className="p-6 md:p-8 max-w-3xl mx-auto">
         {/* Header */}
         <div className="mb-6 flex items-center justify-between">
@@ -768,7 +764,22 @@ export default function SettingsPage() {
               </div>
               <ChevronRight className="h-5 w-5 text-muted-foreground" />
             </button>
-            <button 
+            <button
+              onClick={() => setShowDisableDialog(true)}
+              className="w-full flex items-center justify-between p-3 rounded-lg hover:bg-muted transition-colors"
+            >
+              <div className="flex items-center gap-3">
+                <AlertTriangle className="h-5 w-5 text-muted-foreground" />
+                <div className="text-left">
+                  <span className="text-foreground block">Take a Break (Disable Account)</span>
+                  <span className="text-xs text-muted-foreground">
+                    Hide your profile. Log back in any time to reactivate.
+                  </span>
+                </div>
+              </div>
+              <ChevronRight className="h-5 w-5 text-muted-foreground" />
+            </button>
+            <button
               onClick={() => setShowDeleteDialog(true)}
               className="w-full flex items-center justify-between p-3 rounded-lg hover:bg-red-50 dark:hover:bg-red-950 transition-colors"
             >
@@ -1268,7 +1279,6 @@ export default function SettingsPage() {
           </DialogContent>
         </Dialog>
         </div>
-      </AppLayout>
-    </ProtectedRoute>
+    </AppLayout>
   )
 }

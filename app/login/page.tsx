@@ -26,19 +26,28 @@ export default function LoginPage() {
   const [rememberMe, setRememberMe] = useState(false)
   const [showForgotPasswordDialog, setShowForgotPasswordDialog] = useState(false)
 
-  // Load saved credentials on component mount
+  // Remember the email address only. This previously also persisted the raw
+  // password in localStorage, where any script on the page — or anyone with
+  // access to the device — could read it.
   useEffect(() => {
     const savedCredentials = localStorage.getItem("db-lpa-remember-me")
     if (savedCredentials) {
       try {
-        const { email: savedEmail, password: savedPassword } = JSON.parse(savedCredentials)
-        setEmail(savedEmail)
-        if (savedPassword) {
-          setPassword(savedPassword)
+        const parsed = JSON.parse(savedCredentials)
+        if (parsed?.email) {
+          setEmail(parsed.email)
+          setRememberMe(true)
         }
-        setRememberMe(true)
+        // Clear any password left behind by the previous implementation.
+        if (parsed?.password) {
+          localStorage.setItem(
+            "db-lpa-remember-me",
+            JSON.stringify({ email: parsed.email })
+          )
+        }
       } catch (err) {
-        console.error("Failed to load saved credentials:", err)
+        console.error("Failed to load saved email:", err)
+        localStorage.removeItem("db-lpa-remember-me")
       }
     }
   }, [])
@@ -57,14 +66,10 @@ export default function LoginPage() {
     }
 
     if (result.data) {
-      // Save credentials to localStorage if "Remember Me" is checked
+      // Save the email only — never the password.
       if (rememberMe) {
-        localStorage.setItem(
-          "db-lpa-remember-me",
-          JSON.stringify({ email, password })
-        )
+        localStorage.setItem("db-lpa-remember-me", JSON.stringify({ email }))
       } else {
-        // Clear saved credentials if "Remember Me" is unchecked
         localStorage.removeItem("db-lpa-remember-me")
       }
       
@@ -125,6 +130,7 @@ export default function LoginPage() {
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
+                  aria-label={showPassword ? "Hide password" : "Show password"}
                   className="absolute right-4 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
                 >
                   {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
@@ -140,7 +146,7 @@ export default function LoginPage() {
                   onCheckedChange={(checked) => setRememberMe(checked as boolean)}
                 />
                 <Label htmlFor="remember" className="text-sm font-normal cursor-pointer">
-                  Remember me
+                  Remember my email
                 </Label>
               </div>
               {DISABLE_EMAIL_VERIFICATION ? (

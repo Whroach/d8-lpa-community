@@ -6,7 +6,6 @@ import { useEffect, useState } from "react"
 import Link from "next/link"
 import { Search, MessageCircle, Users, Filter, MoreVertical, User, HeartOff, Ban, Flag, Heart, MapPin, ChevronUp, ChevronDown, History } from "lucide-react"
 import { AppLayout } from "@/components/app-layout"
-import { ProtectedRoute } from "@/components/protected-route"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
@@ -28,7 +27,15 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
+import { Textarea } from "@/components/ui/textarea"
 
 interface Match {
   id: string
@@ -59,10 +66,25 @@ export default function MatchesPage() {
   const [sortBy, setSortBy] = useState("recent")
   const [mainTab, setMainTab] = useState<"matches" | "liked">("matches")
   const [activeTab, setActiveTab] = useState("active")
+  const [dialogMode, setDialogMode] = useState<"block" | "report" | "report-sent" | null>(null)
+  const [pendingMatch, setPendingMatch] = useState<Match | null>(null)
+  const [reportReason, setReportReason] = useState("")
+  const [isSubmitting, setIsSubmitting] = useState(false)
+  const [dialogError, setDialogError] = useState<string | null>(null)
+
+  const closeDialog = () => {
+    setDialogMode(null)
+    setPendingMatch(null)
+    setReportReason("")
+    setDialogError(null)
+  }
 
   useEffect(() => {
-    loadMatches()
-    loadLikedProfiles()
+    // Both requests share isLoading, so wait for both before clearing it —
+    // otherwise the faster one hides the skeleton while the other is pending.
+    Promise.all([loadMatches(), loadLikedProfiles()]).finally(() =>
+      setIsLoading(false)
+    )
     if (typeof window !== "undefined") {
       localStorage.setItem("lastViewedMatches", new Date().toISOString())
       window.dispatchEvent(new Event("matchesViewed"))
@@ -70,12 +92,10 @@ export default function MatchesPage() {
   }, [])
 
   const loadLikedProfiles = async () => {
-    setIsLoading(true)
     const result = await api.browse.getLikedProfiles()
     if (result.data) {
       setLikedProfiles(result.data)
     }
-    setIsLoading(false)
   }
 
   const handleUnlikeProfile = async (likeId: string, e: React.MouseEvent) => {
@@ -129,13 +149,13 @@ export default function MatchesPage() {
   }, [matches, inactiveMatches, searchQuery, sortBy])
 
   const loadMatches = async () => {
-    setIsLoading(true)
     const result = await api.matches.getAll()
     if (result.data) {
-      setMatches(result.data.active || result.data)
-      setInactiveMatches(result.data.inactive || [])
+      setMatches(
+        Array.isArray(result.data) ? result.data : result.data.active || []
+      )
+      setInactiveMatches(Array.isArray(result.data) ? [] : result.data.inactive || [])
     }
-    setIsLoading(false)
   }
 
   const formatTimestamp = (timestamp?: string | null) => {
@@ -165,35 +185,54 @@ export default function MatchesPage() {
     }
   }
 
-  const handleBlock = async (matchId: string, e: React.MouseEvent) => {
+  const findMatch = (matchId: string) =>
+    matches.find((m) => m.id === matchId) || inactiveMatches.find((m) => m.id === matchId)
+
+  // These used to use window.confirm / window.prompt, which are jarring,
+  // unstyled, and suppressed outright by some mobile browsers.
+  const handleBlock = (matchId: string, e: React.MouseEvent) => {
     e.preventDefault()
     e.stopPropagation()
-    
-    const match = matches.find((m) => m.id === matchId) || inactiveMatches.find((m) => m.id === matchId)
+    const match = findMatch(matchId)
     if (!match) return
-    
-    if (confirm(`Are you sure you want to block ${match.user.first_name}? This will remove them completely.`)) {
-      const result = await api.browse.block(match.user.id)
-      if (!result.error) {
-        setMatches((prev) => prev.filter((m) => m.id !== matchId))
-        setInactiveMatches((prev) => prev.filter((m) => m.id !== matchId))
-      }
+    setPendingMatch(match)
+    setDialogMode("block")
+  }
+
+  const handleReport = (matchId: string, e: React.MouseEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+    const match = findMatch(matchId)
+    if (!match) return
+    setPendingMatch(match)
+    setReportReason("")
+    setDialogMode("report")
+  }
+
+  const confirmBlock = async () => {
+    if (!pendingMatch) return
+    setIsSubmitting(true)
+    const result = await api.browse.block(pendingMatch.user.id)
+    setIsSubmitting(false)
+    if (!result.error) {
+      setMatches((prev) => prev.filter((m) => m.id !== pendingMatch.id))
+      setInactiveMatches((prev) => prev.filter((m) => m.id !== pendingMatch.id))
+      setDialogMode(null)
+      setPendingMatch(null)
+    } else {
+      setDialogError(result.error)
     }
   }
 
-  const handleReport = async (matchId: string, e: React.MouseEvent) => {
-    e.preventDefault()
-    e.stopPropagation()
-    
-    const match = matches.find((m) => m.id === matchId) || inactiveMatches.find((m) => m.id === matchId)
-    if (!match) return
-    
-    const reason = prompt(`Why are you reporting ${match.user.first_name}?`)
-    if (reason) {
-      const result = await api.browse.report(match.user.id, reason)
-      if (!result.error) {
-        alert("Report submitted. Thank you for helping keep our community safe.")
-      }
+  const confirmReport = async () => {
+    if (!pendingMatch || !reportReason.trim()) return
+    setIsSubmitting(true)
+    const result = await api.browse.report(pendingMatch.user.id, reportReason.trim())
+    setIsSubmitting(false)
+    if (!result.error) {
+      setDialogMode("report-sent")
+    } else {
+      setDialogError(result.error)
     }
   }
 
@@ -230,13 +269,17 @@ export default function MatchesPage() {
               <div className="absolute top-3 right-3 z-10">
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
+                    {/* Always visible: hover-only controls are unreachable on
+                        phones and tablets, which locked touch users out of
+                        unmatch / block / report entirely. */}
                     <Button
                       variant="ghost"
                       size="icon"
-                      className="h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity"
+                      className="h-9 w-9"
+                      aria-label={`Options for ${match.user.first_name}`}
                       onClick={(e) => e.stopPropagation()}
                     >
-                      <MoreVertical className="h-4 w-4" />
+                      <MoreVertical className="h-5 w-5" />
                     </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end">
@@ -377,8 +420,7 @@ export default function MatchesPage() {
     }
 
     return (
-      <ProtectedRoute>
-        <AppLayout>
+      <AppLayout>
           <div className="p-6 md:p-8 max-w-6xl mx-auto">
         {/* Header */}
         <div className="mb-6">
@@ -576,8 +618,85 @@ export default function MatchesPage() {
             )}
           </>
         )}
+        {/* Block / Report dialogs */}
+        <Dialog open={dialogMode !== null} onOpenChange={(open) => !open && closeDialog()}>
+          <DialogContent className="sm:max-w-md">
+            {dialogMode === "block" && (
+              <>
+                <DialogHeader>
+                  <DialogTitle className="flex items-center gap-2">
+                    <Ban className="h-5 w-5 text-destructive" />
+                    Block {pendingMatch?.user.first_name}?
+                  </DialogTitle>
+                  <DialogDescription>
+                    They will be removed from your matches and neither of you will
+                    see the other again. You can undo this in Settings.
+                  </DialogDescription>
+                </DialogHeader>
+                {dialogError && (
+                  <p className="text-sm text-destructive">{dialogError}</p>
+                )}
+                <div className="flex justify-end gap-2 pt-2">
+                  <Button variant="outline" onClick={closeDialog} disabled={isSubmitting}>
+                    Cancel
+                  </Button>
+                  <Button variant="destructive" onClick={confirmBlock} disabled={isSubmitting}>
+                    {isSubmitting ? "Blocking..." : "Block"}
+                  </Button>
+                </div>
+              </>
+            )}
+
+            {dialogMode === "report" && (
+              <>
+                <DialogHeader>
+                  <DialogTitle className="flex items-center gap-2">
+                    <Flag className="h-5 w-5 text-destructive" />
+                    Report {pendingMatch?.user.first_name}
+                  </DialogTitle>
+                  <DialogDescription>
+                    Tell us what happened. Reports are private and reviewed by our team.
+                  </DialogDescription>
+                </DialogHeader>
+                <Textarea
+                  rows={4}
+                  value={reportReason}
+                  onChange={(e) => setReportReason(e.target.value)}
+                  placeholder="Please describe the issue..."
+                />
+                {dialogError && (
+                  <p className="text-sm text-destructive">{dialogError}</p>
+                )}
+                <div className="flex justify-end gap-2 pt-2">
+                  <Button variant="outline" onClick={closeDialog} disabled={isSubmitting}>
+                    Cancel
+                  </Button>
+                  <Button
+                    variant="destructive"
+                    onClick={confirmReport}
+                    disabled={!reportReason.trim() || isSubmitting}
+                  >
+                    {isSubmitting ? "Submitting..." : "Submit Report"}
+                  </Button>
+                </div>
+              </>
+            )}
+
+            {dialogMode === "report-sent" && (
+              <div className="py-4 text-center space-y-3">
+                <Flag className="h-10 w-10 text-primary mx-auto" />
+                <h2 className="text-lg font-semibold">Report submitted</h2>
+                <p className="text-sm text-muted-foreground">
+                  Thank you for helping keep our community safe.
+                </p>
+                <Button className="w-full" onClick={closeDialog}>
+                  Close
+                </Button>
+              </div>
+            )}
+          </DialogContent>
+        </Dialog>
           </div>
-        </AppLayout>
-      </ProtectedRoute>
+      </AppLayout>
     )
   }

@@ -30,6 +30,12 @@ const notificationSchema = new mongoose.Schema({
   related_event: {
     type: String
   },
+  // Shared across every copy of a broadcast announcement so admins can list
+  // and withdraw one as a single item.
+  announcement_id: {
+    type: String,
+    default: null
+  },
   read: {
     type: Boolean,
     default: false

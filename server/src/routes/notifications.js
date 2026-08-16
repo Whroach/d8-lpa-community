@@ -11,13 +11,20 @@ router.get('/', auth, async (req, res) => {
       .sort({ timestamp: -1 })
       .limit(50);
 
+    // The client keys off _id and reads created_at, and needs the related ids
+    // to deep-link a notification to the match / profile / thread it is about.
     res.json(notifications.map(n => ({
       id: n._id,
+      _id: n._id,
       type: n.type,
       title: n.title,
       message: n.message,
       avatar: n.avatar,
       read: n.read,
+      related_user: n.related_user,
+      related_match: n.related_match,
+      related_event: n.related_event,
+      created_at: n.timestamp,
       timestamp: n.timestamp
     })));
   } catch (error) {

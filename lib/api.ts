@@ -67,7 +67,7 @@ async function apiRequest<T>(
           // Don't redirect, let the component show the error
         }
       }
-      return { error: data.message || "An error occurred" }
+      return { error: data.message || data.error || "An error occurred" }
     }
 
     return { data }
@@ -100,7 +100,7 @@ async function apiRequestFormData<T>(
     const data = await response.json()
 
     if (!response.ok) {
-      return { error: data.message || "An error occurred" }
+      return { error: data.message || data.error || "An error occurred" }
     }
 
     return { data }
@@ -207,6 +207,16 @@ export const api = {
         body: JSON.stringify(data),
       })
     },
+    changePassword: async (data: { current_password: string; new_password: string }) => {
+      if (USE_MOCK_DATA) {
+        await delay(500)
+        return { data: { message: "Password changed successfully" } }
+      }
+      return apiRequest<{ message: string }>("/auth/change-password", {
+        method: "POST",
+        body: JSON.stringify(data),
+      })
+    },
   },
   users: {
     getProfile: async () => {
@@ -269,6 +279,25 @@ export const api = {
         method: "DELETE",
         body: JSON.stringify({ url: photoUrl }),
       })
+    },
+    // Persists photo order. The first photo is used as the profile picture
+    // everywhere else in the app, so keep profile_picture_url in sync.
+    savePhotoOrder: async (photos: string[]) => {
+      if (USE_MOCK_DATA) {
+        await delay(300)
+        return { data: { photos } }
+      }
+      const result = await apiRequest<any>("/users/profile", {
+        method: "PUT",
+        body: JSON.stringify({ photos }),
+      })
+      if (!result.error && photos.length > 0) {
+        await apiRequest<any>("/users/profile-picture", {
+          method: "PUT",
+          body: JSON.stringify({ photoUrl: photos[0] }),
+        })
+      }
+      return result
     },
   },
   browse: {
@@ -379,12 +408,14 @@ export const api = {
     },
   },
   matches: {
+    // The server splits matches into active/inactive; older builds returned a
+    // bare array, so callers should handle both shapes.
     getAll: async () => {
       if (USE_MOCK_DATA) {
         await delay(400)
-        return { data: mockMatches }
+        return { data: mockMatches as any }
       }
-      return apiRequest<any[]>("/matches")
+      return apiRequest<{ active?: any[]; inactive?: any[] } & any[]>("/matches")
     },
     getOne: async (matchId: string) => {
       if (USE_MOCK_DATA) {
@@ -550,6 +581,8 @@ export const api = {
     },
     update: async (settings: {
       lookingFor?: string[]
+      agePreferenceMin?: number
+      agePreferenceMax?: number
       notifications: {
         matches: boolean
         messages: boolean
@@ -597,9 +630,10 @@ export const api = {
     getUsers: async () => {
       if (USE_MOCK_DATA) {
         await delay(300)
-        return { data: [] }
+        return { data: [] as any }
       }
-      return apiRequest<any[]>("/admin/users")
+      // Server may return a bare array or { users: [...] }.
+      return apiRequest<{ users?: any[] } & any[]>("/admin/users")
     },
     // User actions (warn, suspend, ban, unban)
     userAction: async (userId: string, action: 'warn' | 'suspend' | 'ban' | 'unban' | 'remove_warning' | 'unsuspend', message?: string) => {
@@ -736,6 +770,23 @@ export const api = {
       return apiRequest<any>(`/admin/events/${eventId}/cancel`, {
         method: "PUT",
       })
+    },
+    // Reinstate a cancelled event
+    uncancelEvent: async (eventId: string) => {
+      if (USE_MOCK_DATA) {
+        await delay(200)
+        return { data: { success: true } }
+      }
+      return apiRequest<any>(`/admin/events/${eventId}/uncancel`, {
+        method: "PUT",
+      })
+    },
+    getEventAttendees: async (eventId: string) => {
+      if (USE_MOCK_DATA) {
+        await delay(200)
+        return { data: [] as any[] }
+      }
+      return apiRequest<any[]>(`/admin/events/${eventId}/attendees`)
     },
   },
 }

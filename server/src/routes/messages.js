@@ -213,6 +213,9 @@ router.post('/:matchId', auth, async (req, res) => {
     const messageResponse = {
       id: message._id,
       _id: message._id,
+      // The client uses match_id to decide which open thread a realtime
+      // message belongs to, so it must travel with the payload.
+      match_id: match._id,
       sender_id: message.sender_id,
       content: message.content,
       created_at: message.created_at,

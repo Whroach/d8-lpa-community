@@ -29,6 +29,8 @@ router.get('/', auth, async (req, res) => {
 
     res.json({
       lookingFor: profile?.looking_for_gender || [],
+      agePreferenceMin: profile?.age_preference_min ?? 18,
+      agePreferenceMax: profile?.age_preference_max ?? 100,
       notifications: {
         matches: notificationSettings.matches,
         messages: notificationSettings.messages,
@@ -50,17 +52,28 @@ router.get('/', auth, async (req, res) => {
 // PUT /api/settings - Update user settings
 router.put('/', auth, async (req, res) => {
   try {
-    const { lookingFor, notifications, privacy } = req.body;
+    const { lookingFor, notifications, privacy, agePreferenceMin, agePreferenceMax } = req.body;
 
-    // Update looking_for_gender on Profile model
-    if (Array.isArray(lookingFor)) {
+    // Update the Profile-backed preferences (who you want to see in Browse)
+    const hasAgeRange = agePreferenceMin !== undefined || agePreferenceMax !== undefined;
+    if (Array.isArray(lookingFor) || hasAgeRange) {
       let profile = await Profile.findOne({ user_id: req.userId });
       if (!profile) {
         profile = new Profile({ user_id: req.userId });
       }
-      profile.looking_for_gender = lookingFor;
+      if (Array.isArray(lookingFor)) {
+        profile.looking_for_gender = lookingFor;
+      }
+      if (hasAgeRange) {
+        // Clamp to a sane range and keep min <= max so Browse can't be
+        // filtered into returning nothing.
+        const min = Math.min(120, Math.max(18, Number(agePreferenceMin) || 18));
+        const max = Math.min(120, Math.max(18, Number(agePreferenceMax) || 100));
+        profile.age_preference_min = Math.min(min, max);
+        profile.age_preference_max = Math.max(min, max);
+      }
       await profile.save();
-      logger.log('[SETTINGS] Updated looking_for_gender:', lookingFor);
+      logger.log('[SETTINGS] Updated profile preferences for user:', req.userId);
     }
 
     // Update notification settings
@@ -92,6 +105,8 @@ router.put('/', auth, async (req, res) => {
 
     res.json({
       lookingFor,
+      agePreferenceMin,
+      agePreferenceMax,
       notifications,
       privacy,
     });

@@ -353,7 +353,11 @@ export default function SignupPage() {
                       value={code}
                       onChange={(e) => handleVerificationInput(index, e.target.value)}
                       onKeyDown={(e) => handleVerificationKeyDown(index, e)}
-                      ref={(el) => (inputRefs.current[index] = el)}
+                      ref={(el) => {
+                        // Must not return a value: React 19 treats a returned
+                        // non-function ref callback result as a cleanup.
+                        inputRefs.current[index] = el
+                      }}
                       className="w-14 h-16 text-center text-2xl font-bold border-2 rounded-lg focus:border-primary focus:ring-2 focus:ring-primary/20"
                     />
                   ))}

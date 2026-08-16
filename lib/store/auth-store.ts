@@ -7,6 +7,8 @@ const USE_MOCK_DATA = false
 
 export interface User {
   id: string
+  /** Mongo returns _id; several endpoints echo it back alongside id. */
+  _id?: string
   email: string
   first_name?: string
   last_name?: string
@@ -44,19 +46,34 @@ export interface Profile {
   }
   location_city?: string
   location_state?: string
+  location_country?: string
+  district_number?: string
   distance_preference?: number
   age_preference_min?: number
   age_preference_max?: number
   looking_for_relationship?: "dating" | "hookup" | "relationship" | "friendship"
-  looking_for_description?: string
-  life_goals?: string
+  /** Stored as an array; older records may still hold a single string. */
+  looking_for_description?: string | string[]
+  looking_for_gender?: string[]
+  life_goals?: string | string[]
   languages?: string[]
   cultural_background?: string
   personal_preferences?: string
   bio?: string
-  favorite_music?: string
-  animals?: string
-  pet_peeves?: string
+  photos?: string[]
+  profile_picture_url?: string | null
+  favorite_music?: string | string[]
+  animals?: string | string[]
+  pet_peeves?: string | string[]
+  // Conversation-starter prompts and open-ended questions
+  prompt_good_at?: string
+  prompt_perfect_weekend?: string
+  prompt_message_if?: string
+  hoping_to_find?: string
+  great_day?: string
+  relationship_values?: string
+  show_affection?: string
+  build_with_person?: string
 }
 
 export interface OnboardingData {

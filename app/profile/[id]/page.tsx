@@ -36,6 +36,11 @@ export default function UserProfilePage() {
   const [likeId, setLikeId] = useState<string | null>(null)
   const [isLiking, setIsLiking] = useState(false)
   const [hasMatched, setHasMatched] = useState(false)
+  const [matchId, setMatchId] = useState<string | null>(null)
+  const [showReportDialog, setShowReportDialog] = useState(false)
+  const [reportReason, setReportReason] = useState("")
+  const [isReporting, setIsReporting] = useState(false)
+  const [reportSubmitted, setReportSubmitted] = useState(false)
 
   useEffect(() => {
     loadProfile()
@@ -57,11 +62,18 @@ export default function UserProfilePage() {
   }, [userId])
 
   useEffect(() => {
+    // api.matches.getAll() returns { active, inactive } from the server; an
+    // earlier call to a non-existent api.matches.getMatches() threw, so the
+    // Message button never appeared for people you had actually matched with.
     const loadMatchStatus = async () => {
-      const result = await api.matches.getMatches()
+      const result = await api.matches.getAll()
       if (result.data) {
-        const match = result.data.find((m: any) => m.users.includes(userId))
+        const active = Array.isArray(result.data)
+          ? result.data
+          : result.data.active || []
+        const match = active.find((m: any) => m.user?.id === userId)
         setHasMatched(!!match)
+        setMatchId(match?.id || null)
       }
     }
 
@@ -73,18 +85,11 @@ export default function UserProfilePage() {
   const loadProfile = async () => {
     setIsLoading(true)
     const result = await api.users.getById(userId)
-    console.log('[PROFILE_LOAD] API result:', result)
-    console.log('[PROFILE_LOAD] result.data:', result.data)
     if (result.data) {
-      console.log('[PROFILE_LOAD] user:', result.data.user)
-      console.log('[PROFILE_LOAD] profile:', result.data.profile)
-      console.log('[PROFILE_LOAD] favorite_music:', result.data.profile?.favorite_music)
-      console.log('[PROFILE_LOAD] animals:', result.data.profile?.animals)
-      console.log('[PROFILE_LOAD] pet_peeves:', result.data.profile?.pet_peeves)
       setUser(result.data.user)
       setProfile(result.data.profile)
     } else {
-      console.log('[PROFILE_LOAD] No data in result, error:', result.error)
+      console.error('[PROFILE_LOAD] Failed to load profile:', result.error)
     }
     setIsLoading(false)
   }
@@ -118,8 +123,20 @@ export default function UserProfilePage() {
     setShowPhotoModal(true)
   }
 
+  // Deep-link straight to this person's thread instead of dumping the user on
+  // the messages index to hunt for it.
   const handleMessage = () => {
-    router.push(`/messages`)
+    router.push(matchId ? `/messages?match=${matchId}` : `/messages`)
+  }
+
+  const handleSubmitReport = async () => {
+    if (!reportReason.trim()) return
+    setIsReporting(true)
+    const result = await api.browse.report(userId, reportReason.trim())
+    setIsReporting(false)
+    if (!result.error) {
+      setReportSubmitted(true)
+    }
   }
 
   const handleToggleLike = async () => {
@@ -274,7 +291,14 @@ export default function UserProfilePage() {
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end">
-                  <DropdownMenuItem className="text-destructive">
+                  <DropdownMenuItem
+                    className="text-destructive"
+                    onClick={() => {
+                      setReportReason("")
+                      setReportSubmitted(false)
+                      setShowReportDialog(true)
+                    }}
+                  >
                     <Flag className="mr-2 h-4 w-4" />
                     Report
                   </DropdownMenuItem>
@@ -464,6 +488,59 @@ export default function UserProfilePage() {
                 </>
               )}
             </div>
+          </DialogContent>
+        </Dialog>
+
+        {/* Report Dialog */}
+        <Dialog open={showReportDialog} onOpenChange={setShowReportDialog}>
+          <DialogContent className="sm:max-w-md">
+            {reportSubmitted ? (
+              <div className="py-4 text-center space-y-3">
+                <Flag className="h-10 w-10 text-primary mx-auto" />
+                <h2 className="text-lg font-semibold">Report submitted</h2>
+                <p className="text-sm text-muted-foreground">
+                  Thank you. Our team will review this and take action if needed.
+                </p>
+                <Button className="w-full" onClick={() => setShowReportDialog(false)}>
+                  Close
+                </Button>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                <div>
+                  <h2 className="text-lg font-semibold flex items-center gap-2">
+                    <Flag className="h-5 w-5 text-destructive" />
+                    Report {user?.first_name}
+                  </h2>
+                  <p className="text-sm text-muted-foreground mt-1">
+                    Tell us what happened. Reports are private and reviewed by our team.
+                  </p>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="report-reason">Reason</Label>
+                  <textarea
+                    id="report-reason"
+                    rows={4}
+                    value={reportReason}
+                    onChange={(e) => setReportReason(e.target.value)}
+                    placeholder="Please describe the issue..."
+                    className="w-full rounded-md border border-input bg-background px-3 py-2 text-base"
+                  />
+                </div>
+                <div className="flex justify-end gap-2">
+                  <Button variant="outline" onClick={() => setShowReportDialog(false)}>
+                    Cancel
+                  </Button>
+                  <Button
+                    variant="destructive"
+                    onClick={handleSubmitReport}
+                    disabled={!reportReason.trim() || isReporting}
+                  >
+                    {isReporting ? "Submitting..." : "Submit Report"}
+                  </Button>
+                </div>
+              </div>
+            )}
           </DialogContent>
         </Dialog>
 

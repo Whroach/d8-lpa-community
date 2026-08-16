@@ -1,4 +1,5 @@
 import express from 'express';
+import mongoose from 'mongoose';
 import multer from 'multer';
 import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3';
 import dotenv from 'dotenv';
@@ -71,7 +72,10 @@ const checkAdmin = async (req, res, next) => {
 // GET /api/admin/users
 router.get('/users', auth, checkAdmin, async (req, res) => {
   try {
-    const { status, search, page = 1, limit = 20 } = req.query;
+    // The admin UI loads the full roster client-side, so default to a page
+    // size that covers it. Hard-capped so a bad query can't pull everything.
+    const { status, search, page = 1, limit = 500 } = req.query;
+    const pageSize = Math.min(1000, Math.max(1, parseInt(limit) || 500));
     
     const query = {};
     
@@ -87,13 +91,13 @@ router.get('/users', auth, checkAdmin, async (req, res) => {
       ];
     }
 
-    const skip = (parseInt(page) - 1) * parseInt(limit);
-    
+    const skip = (Math.max(1, parseInt(page) || 1) - 1) * pageSize;
+
     const [users, total] = await Promise.all([
       User.find(query)
         .sort({ created_at: -1 })
         .skip(skip)
-        .limit(parseInt(limit)),
+        .limit(pageSize),
       User.countDocuments(query)
     ]);
 
@@ -109,11 +113,18 @@ router.get('/users', auth, checkAdmin, async (req, res) => {
         last_active: u.last_active,
         warnings: u.warnings,
         is_suspended: u.is_suspended,
-        is_banned: u.is_banned
+        is_banned: u.is_banned,
+        moderation_history: (u.moderation_history || []).map(h => ({
+          id: h._id,
+          action: h.action,
+          reason: h.reason,
+          admin: h.admin,
+          created_at: h.created_at
+        }))
       })),
       total,
-      page: parseInt(page),
-      totalPages: Math.ceil(total / parseInt(limit))
+      page: Math.max(1, parseInt(page) || 1),
+      totalPages: Math.ceil(total / pageSize)
     });
   } catch (error) {
     console.error('Admin get users error:', error);
@@ -311,10 +322,100 @@ router.post('/users/:userId/action', auth, checkAdmin, async (req, res) => {
         return res.status(400).json({ message: 'Invalid action' });
     }
 
-    res.json({ success: true });
+    // Record the action so the admin panel's History tab shows a real audit
+    // trail rather than sample data.
+    user.moderation_history = user.moderation_history || [];
+    user.moderation_history.push({
+      action,
+      reason: message || '',
+      admin: req.user?.email || 'admin',
+      created_at: new Date()
+    });
+    await user.save();
+
+    res.json({ success: true, moderation_history: user.moderation_history });
   } catch (error) {
     console.error('User action error:', error);
     res.status(500).json({ message: 'Error performing user action' });
+  }
+});
+
+// GET /api/admin/users/:userId/notes
+router.get('/users/:userId/notes', auth, checkAdmin, async (req, res) => {
+  try {
+    const user = await User.findById(req.params.userId).select('admin_notes');
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+    res.json(
+      (user.admin_notes || []).map(n => ({
+        id: n._id,
+        content: n.content,
+        admin: n.admin,
+        created_at: n.created_at
+      }))
+    );
+  } catch (error) {
+    console.error('Get notes error:', error);
+    res.status(500).json({ message: 'Error fetching notes' });
+  }
+});
+
+// POST /api/admin/users/:userId/notes
+router.post('/users/:userId/notes', auth, checkAdmin, async (req, res) => {
+  try {
+    const { content } = req.body;
+    if (!content || !content.trim()) {
+      return res.status(400).json({ message: 'Note content is required' });
+    }
+
+    const user = await User.findById(req.params.userId);
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    user.admin_notes = user.admin_notes || [];
+    user.admin_notes.push({
+      content: content.trim(),
+      admin: req.user?.email || 'admin'
+    });
+    await user.save();
+
+    const note = user.admin_notes[user.admin_notes.length - 1];
+    res.status(201).json({
+      id: note._id,
+      content: note.content,
+      admin: note.admin,
+      created_at: note.created_at
+    });
+  } catch (error) {
+    console.error('Add note error:', error);
+    res.status(500).json({ message: 'Error adding note' });
+  }
+});
+
+// DELETE /api/admin/users/:userId/notes?noteId=...
+router.delete('/users/:userId/notes', auth, checkAdmin, async (req, res) => {
+  try {
+    const { noteId } = req.query;
+    if (!noteId) {
+      return res.status(400).json({ message: 'noteId is required' });
+    }
+
+    const user = await User.findById(req.params.userId);
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    user.admin_notes = (user.admin_notes || []).filter(
+      n => n._id.toString() !== noteId
+    );
+    await user.save();
+
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Delete note error:', error);
+    res.status(500).json({ message: 'Error deleting note' });
   }
 });
 
@@ -457,6 +558,75 @@ router.put('/events/:eventId/cancel', auth, checkAdmin, async (req, res) => {
   }
 });
 
+// PUT /api/admin/events/:eventId/uncancel - Reinstate a cancelled event
+router.put('/events/:eventId/uncancel', auth, checkAdmin, async (req, res) => {
+  try {
+    const event = await Event.findById(req.params.eventId);
+
+    if (!event) {
+      return res.status(404).json({ message: 'Event not found' });
+    }
+
+    event.is_cancelled = false;
+    event.cancelled_at = null;
+    await event.save();
+
+    for (const attendeeId of event.attendees) {
+      if (await shouldCreateNotification(attendeeId, 'event')) {
+        await Notification.create({
+          user_id: attendeeId,
+          type: 'event',
+          title: 'Event Back On',
+          message: `The event "${event.title}" is no longer cancelled.`,
+          related_event: event._id
+        });
+      }
+    }
+
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Uncancel event error:', error);
+    res.status(500).json({ message: 'Error reinstating event' });
+  }
+});
+
+// GET /api/admin/events/:eventId/attendees - Who has RSVP'd
+router.get('/events/:eventId/attendees', auth, checkAdmin, async (req, res) => {
+  try {
+    const event = await Event.findById(req.params.eventId);
+
+    if (!event) {
+      return res.status(404).json({ message: 'Event not found' });
+    }
+
+    const users = await User.find({ _id: { $in: event.attendees || [] } })
+      .select('first_name last_name email');
+
+    const profiles = await Profile.find({ user_id: { $in: users.map(u => u._id) } })
+      .select('user_id photos profile_picture_url');
+
+    const photoByUser = new Map(
+      profiles.map(p => [
+        p.user_id.toString(),
+        p.profile_picture_url || p.photos?.[0] || null
+      ])
+    );
+
+    res.json(
+      users.map(u => ({
+        id: u._id,
+        first_name: u.first_name,
+        last_name: u.last_name,
+        email: u.email,
+        photo: photoByUser.get(u._id.toString()) || null
+      }))
+    );
+  } catch (error) {
+    console.error('Get event attendees error:', error);
+    res.status(500).json({ message: 'Error fetching attendees' });
+  }
+});
+
 // DELETE /api/admin/events/:eventId
 router.delete('/events/:eventId', auth, checkAdmin, async (req, res) => {
   try {
@@ -502,15 +672,76 @@ router.post('/news', auth, checkAdmin, async (req, res) => {
       avatar: null
     }));
 
-    await Notification.insertMany(notifications);
+    // Stamp every copy with a shared batch id so the announcement can be
+    // listed and withdrawn as a single item afterwards.
+    const batchId = new mongoose.Types.ObjectId().toString();
+    await Notification.insertMany(
+      notifications.map((n) => ({ ...n, announcement_id: batchId }))
+    );
 
-    res.json({ 
-      success: true, 
-      sent_to: usersWhoWantNews.length 
+    res.json({
+      success: true,
+      id: batchId,
+      sent_to: usersWhoWantNews.length
     });
   } catch (error) {
     console.error('Send news error:', error);
     res.status(500).json({ message: 'Error sending news' });
+  }
+});
+
+// GET /api/admin/news - List announcements that have been sent
+router.get('/news', auth, checkAdmin, async (req, res) => {
+  try {
+    // One document per announcement batch, newest first.
+    const announcements = await Notification.aggregate([
+      { $match: { type: 'news', announcement_id: { $ne: null } } },
+      {
+        $group: {
+          _id: '$announcement_id',
+          title: { $first: '$title' },
+          message: { $first: '$message' },
+          // The schema stamps creation time as `timestamp`, not `created_at`.
+          created_at: { $first: '$timestamp' },
+          sent_to: { $sum: 1 }
+        }
+      },
+      { $sort: { created_at: -1 } },
+      { $limit: 50 }
+    ]);
+
+    res.json(
+      announcements.map((a) => ({
+        id: a._id,
+        title: a.title,
+        message: a.message,
+        created_at: a.created_at,
+        sent_to: a.sent_to
+      }))
+    );
+  } catch (error) {
+    console.error('List news error:', error);
+    res.status(500).json({ message: 'Error fetching announcements' });
+  }
+});
+
+// DELETE /api/admin/news?id=... - Withdraw an announcement from every inbox
+router.delete('/news', auth, checkAdmin, async (req, res) => {
+  try {
+    const { id } = req.query;
+    if (!id) {
+      return res.status(400).json({ message: 'Announcement id is required' });
+    }
+
+    const result = await Notification.deleteMany({
+      type: 'news',
+      announcement_id: id
+    });
+
+    res.json({ success: true, removed: result.deletedCount });
+  } catch (error) {
+    console.error('Delete news error:', error);
+    res.status(500).json({ message: 'Error deleting announcement' });
   }
 });
 

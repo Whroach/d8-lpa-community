@@ -1,14 +1,11 @@
 "use client"
 
 import React from "react"
-import Phone from "lucide-react/Phone"
-import Video from "lucide-react/Video"
 
 import { useEffect, useState, useRef } from "react"
 import { useSearchParams, useRouter } from "next/navigation"
 import { Search, Send, Loader2, MoreVertical, MessageCircle, Smile, Flag, ShieldAlert, Trash2, AlertTriangle } from "lucide-react"
 import { AppLayout } from "@/components/app-layout"
-import { ProtectedRoute } from "@/components/protected-route"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
@@ -60,6 +57,7 @@ interface Conversation {
 interface Message {
   id?: string
   _id?: string
+  match_id?: string
   sender_id: string
   content: string
   created_at: string
@@ -80,16 +78,26 @@ export default function MessagesPage() {
   const [searchQuery, setSearchQuery] = useState("")
   const [newMessage, setNewMessage] = useState("")
   const [isSending, setIsSending] = useState(false)
+  const [sendError, setSendError] = useState<string | null>(null)
   const [showEmojiPicker, setShowEmojiPicker] = useState(false)
   const [showReportDialog, setShowReportDialog] = useState(false)
   const [reportReason, setReportReason] = useState("")
   const [blockOnly, setBlockOnly] = useState(false)
   const [showDeleteDialog, setShowDeleteDialog] = useState(false)
+  const [showUnmatchDialog, setShowUnmatchDialog] = useState(false)
+  const [isUnmatching, setIsUnmatching] = useState(false)
   const [isDeleting, setIsDeleting] = useState(false)
   const [skipNextLoad, setSkipNextLoad] = useState(false)
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
   const shouldScrollRef = useRef(true)
+  // Mirrors selectedConversation so the socket handler always reads the
+  // currently open thread without re-subscribing on every selection change.
+  const selectedConversationRef = useRef<Conversation | null>(null)
+
+  useEffect(() => {
+    selectedConversationRef.current = selectedConversation
+  }, [selectedConversation])
 
   const emojiCategories = [
     {
@@ -138,24 +146,37 @@ export default function MessagesPage() {
       if (message.sender_id === currentUserId) {
         return
       }
-      
-      setMessages((prev) => {
-        // Check if message already exists (avoid duplicates)
-        if (prev.some(m => m.id === message.id || m._id === message._id)) {
-          return prev
-        }
-        return [...prev, message]
-      })
 
-      // Update conversation list with new last message
-      setConversations(prev =>
-        prev.map(c => {
-          // Check if this message belongs to this conversation
-          // We need to check if the message is from the selected conversation or update the list
+      // Only append to the open thread when the message actually belongs to it.
+      // Without this check, a message arriving from any other conversation was
+      // rendered inside whichever chat happened to be on screen.
+      const openMatchId = selectedConversationRef.current?.match_id
+      const isForOpenThread = !message.match_id || message.match_id === openMatchId
+
+      if (isForOpenThread && openMatchId) {
+        setMessages((prev) => {
+          if (prev.some((m) => m.id === message.id || m._id === message._id)) {
+            return prev
+          }
+          return [...prev, message]
+        })
+      }
+
+      // Update only the conversation the message belongs to, and bump its
+      // unread badge if the user is not currently looking at it. Previously
+      // every conversation in the list had its preview overwritten.
+      setConversations((prev) =>
+        prev.map((c) => {
+          const belongsHere = message.match_id
+            ? c.match_id === message.match_id
+            : c.match_id === openMatchId
+          if (!belongsHere) return c
           return {
             ...c,
             last_message: message.content,
-            last_message_at: message.created_at
+            last_message_at: message.created_at,
+            unread_count:
+              c.match_id === openMatchId ? 0 : (c.unread_count || 0) + 1,
           }
         })
       )
@@ -271,8 +292,9 @@ export default function MessagesPage() {
 
   const handleSelectConversation = (conv: Conversation) => {
     setSelectedConversation(conv)
-    // Update URL without navigation
-    router.push(`/messages?match=${conv.match_id}`, { scroll: false })
+    // replace, not push — otherwise every conversation the user clicks adds a
+    // history entry and Back walks them through all of them.
+    router.replace(`/messages?match=${conv.match_id}`, { scroll: false })
     // Mark as read (optimistic)
     setConversations(prev => 
       prev.map(c => c.id === conv.id ? { ...c, unread_count: 0 } : c)
@@ -284,7 +306,8 @@ export default function MessagesPage() {
     if (!newMessage.trim() || isSending || !selectedConversation) return
 
     const sentContent = newMessage
-    
+    setSendError(null)
+
     // Optimistic update - clear input and add message immediately
     const currentUserId = user?.id || user?._id || "user-1"
     const tempMessage: Message = {
@@ -313,13 +336,19 @@ export default function MessagesPage() {
       )
       // Update last message in conversation list
       setConversations(prev =>
-        prev.map(c => c.id === selectedConversation.id 
+        prev.map(c => c.id === selectedConversation.id
           ? { ...c, last_message: sentContent, last_message_at: new Date().toISOString() }
           : c
         )
       )
+    } else {
+      // Roll the optimistic bubble back and restore the text so the user does
+      // not think a failed message was delivered.
+      setMessages((prev) => prev.filter((msg) => msg.id !== tempMessage.id))
+      setNewMessage(sentContent)
+      setSendError(result.error || "Your message could not be sent. Please try again.")
     }
-    
+
     setIsSending(false)
     
     // Re-focus after sending completes (in case it was lost)
@@ -398,8 +427,9 @@ export default function MessagesPage() {
 
   const handleUnmatch = async () => {
     if (!selectedConversation) return
-    
-    if (confirm(`Are you sure you want to unmatch with ${selectedConversation.user.first_name}? You can view past messages but won't be able to send new ones.`)) {
+
+    setIsUnmatching(true)
+    {
       const result = await api.matches.unmatch(selectedConversation.match_id)
       if (result.data) {
         // Mark conversation as inactive instead of deleting
@@ -422,13 +452,16 @@ export default function MessagesPage() {
         }
       }
     }
+    setIsUnmatching(false)
+    setShowUnmatchDialog(false)
   }
 
   const handleReportAndBlock = async () => {
     if (!selectedConversation) return
     
-    // Report if reason provided
-    if (reportReason.trim()) {
+    // Honour the "just block" checkbox — it previously had no effect and a
+    // report was filed anyway whenever a reason had been typed.
+    if (!blockOnly && reportReason.trim()) {
       await api.browse.report(selectedConversation.user.id, reportReason)
     }
     
@@ -449,6 +482,7 @@ export default function MessagesPage() {
     
     setShowReportDialog(false)
     setReportReason("")
+    setBlockOnly(false)
   }
 
   // Group messages by date
@@ -464,8 +498,7 @@ export default function MessagesPage() {
   })
 
   return (
-    <ProtectedRoute>
-      <AppLayout>
+    <AppLayout>
         <div className="flex h-[calc(100vh-80px)] md:h-screen">
         {/* Conversations Sidebar */}
         <div className={cn(
@@ -613,7 +646,7 @@ export default function MessagesPage() {
                       View Profile
                     </DropdownMenuItem>
                     {selectedConversation?.is_active !== false && (
-                      <DropdownMenuItem onClick={handleUnmatch}>
+                      <DropdownMenuItem onClick={() => setShowUnmatchDialog(true)}>
                         Unmatch
                       </DropdownMenuItem>
                     )}
@@ -668,14 +701,16 @@ export default function MessagesPage() {
                                   "max-w-[75%] px-4 py-2.5 rounded-2xl",
                                   isOwn
                                     ? "bg-primary text-primary-foreground rounded-br-md"
-                                    : "bg-blue-500 text-white rounded-bl-md"
+                                    : "bg-muted text-foreground rounded-bl-md"
                                 )}
                               >
-                                <p className="text-sm leading-relaxed">{message.content}</p>
+                                <p className="text-base leading-relaxed whitespace-pre-wrap break-words">
+                                  {message.content}
+                                </p>
                                 <p
                                   className={cn(
-                                    "text-[10px] mt-1",
-                                    isOwn ? "text-primary-foreground/70" : "text-white/70"
+                                    "text-[11px] mt-1",
+                                    isOwn ? "text-primary-foreground/70" : "text-muted-foreground"
                                   )}
                                 >
                                   {formatMessageTime(message.created_at)}
@@ -711,6 +746,12 @@ export default function MessagesPage() {
                   onSubmit={handleSend}
                   className="p-4 border-t border-border bg-card"
                 >
+                  {sendError && (
+                    <div className="mb-2 flex items-center gap-2 text-sm text-destructive">
+                      <AlertTriangle className="h-4 w-4 shrink-0" />
+                      {sendError}
+                    </div>
+                  )}
                   <div className="flex items-center gap-2">
                     <Popover open={showEmojiPicker} onOpenChange={setShowEmojiPicker}>
                       <PopoverTrigger asChild>
@@ -847,6 +888,45 @@ export default function MessagesPage() {
           </DialogContent>
         </Dialog>
 
+        {/* Unmatch Dialog */}
+        <Dialog open={showUnmatchDialog} onOpenChange={setShowUnmatchDialog}>
+          <DialogContent className="sm:max-w-md">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <AlertTriangle className="h-5 w-5 text-amber-500" />
+                Unmatch with {selectedConversation?.user.first_name}?
+              </DialogTitle>
+              <DialogDescription>
+                You will still be able to read your past messages, but neither of
+                you will be able to send new ones.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="flex gap-2 justify-end pt-2">
+              <Button
+                variant="outline"
+                onClick={() => setShowUnmatchDialog(false)}
+                disabled={isUnmatching}
+              >
+                Cancel
+              </Button>
+              <Button
+                variant="destructive"
+                onClick={handleUnmatch}
+                disabled={isUnmatching}
+              >
+                {isUnmatching ? (
+                  <>
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    Unmatching...
+                  </>
+                ) : (
+                  "Unmatch"
+                )}
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
+
         {/* Delete Conversation Dialog */}
         <Dialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
           <DialogContent className="sm:max-w-md">
@@ -898,7 +978,6 @@ export default function MessagesPage() {
           </DialogContent>
         </Dialog>
         </div>
-      </AppLayout>
-    </ProtectedRoute>
+    </AppLayout>
   )
 }

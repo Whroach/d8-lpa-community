@@ -197,17 +197,26 @@ router.post('/:matchId', auth, async (req, res) => {
     
     const isFirstMessage = previousMessages === 1; // Count is 1 because we just created the message
 
-    // Only create notification for the first message from this user
+    // Only create notification for the first message from this user.
+    // The message is already saved at this point, so a notification failure
+    // must never fail the send — the recipient would get the message while
+    // the sender saw an error and re-sent it, duplicating the conversation.
     if (isFirstMessage && await shouldCreateNotification(otherUserId, 'message')) {
-      await Notification.create({
-        user_id: otherUserId,
-        type: 'message',
-        title: 'New Message',
-        message: `${req.user.first_name} sent you a message: "${content.substring(0, 50)}${content.length > 50 ? '...' : ''}"`,
-        avatar: req.user.photos[0],
-        related_user: req.userId,
-        related_match: match._id
-      });
+      try {
+        // Photos live on Profile, not User.
+        const senderProfile = await Profile.findOne({ user_id: req.userId });
+        await Notification.create({
+          user_id: otherUserId,
+          type: 'message',
+          title: 'New Message',
+          message: `${req.user.first_name} sent you a message: "${content.substring(0, 50)}${content.length > 50 ? '...' : ''}"`,
+          avatar: senderProfile?.profile_picture_url || senderProfile?.photos?.[0] || '',
+          related_user: req.userId,
+          related_match: match._id
+        });
+      } catch (notificationError) {
+        logger.error('[MESSAGES] Failed to create message notification:', notificationError.message);
+      }
     }
 
     const messageResponse = {

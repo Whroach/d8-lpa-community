@@ -5,6 +5,7 @@ import React from "react"
 import { ProtectedRoute } from "@/components/protected-route"
 import { AppSidebar } from "@/components/app-sidebar"
 import { MobileNav } from "@/components/mobile-nav"
+import { RealtimeProvider } from "@/components/realtime-provider"
 import { useSidebarStore } from "@/lib/store/sidebar-store"
 import { cn } from "@/lib/utils"
 
@@ -18,6 +19,7 @@ export function AppLayout({ children }: AppLayoutProps) {
   return (
     <ProtectedRoute>
       <div className="min-h-screen bg-background">
+        <RealtimeProvider />
         <AppSidebar />
         <main
           className={cn(

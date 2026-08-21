@@ -37,6 +37,9 @@ router.get('/', auth, async (req, res) => {
         likes: notificationSettings.likes,
         events: notificationSettings.events,
         admin_news: notificationSettings.admin_news,
+        // Older documents predate this field; default it on rather than
+        // letting `undefined` read as "sound off".
+        sound: notificationSettings.sound !== false,
       },
       privacy: {
         profileVisible: privacySettings.profile_visible,
@@ -76,30 +79,38 @@ router.put('/', auth, async (req, res) => {
       logger.log('[SETTINGS] Updated profile preferences for user:', req.userId);
     }
 
-    // Update notification settings
-    await UserNotificationSettings.findOneAndUpdate(
-      { user_id: req.userId },
-      {
-        matches: notifications.matches,
-        messages: notifications.messages,
-        likes: notifications.likes,
-        events: notifications.events,
-        admin_news: notifications.admin_news,
-        updated_at: new Date(),
-      },
-      { upsert: true, new: true }
-    );
+    // Update notification settings. Only the keys the client actually sent are
+    // written, so a partial body can't silently reset the toggles it omitted —
+    // and a missing `notifications` object no longer throws.
+    if (notifications && typeof notifications === 'object') {
+      const notificationUpdate = { updated_at: new Date() };
+      for (const key of ['matches', 'messages', 'likes', 'events', 'admin_news', 'sound']) {
+        if (notifications[key] !== undefined) {
+          notificationUpdate[key] = Boolean(notifications[key]);
+        }
+      }
+      await UserNotificationSettings.findOneAndUpdate(
+        { user_id: req.userId },
+        notificationUpdate,
+        { upsert: true, new: true }
+      );
+    }
 
-    // Update privacy settings
-    await UserPrivacySettings.findOneAndUpdate(
-      { user_id: req.userId },
-      {
-        profile_visible: privacy.profileVisible,
-        selective_mode: privacy.selectiveMode,
-        updated_at: new Date(),
-      },
-      { upsert: true, new: true }
-    );
+    // Update privacy settings (same partial-body guard as above)
+    if (privacy && typeof privacy === 'object') {
+      const privacyUpdate = { updated_at: new Date() };
+      if (privacy.profileVisible !== undefined) {
+        privacyUpdate.profile_visible = Boolean(privacy.profileVisible);
+      }
+      if (privacy.selectiveMode !== undefined) {
+        privacyUpdate.selective_mode = Boolean(privacy.selectiveMode);
+      }
+      await UserPrivacySettings.findOneAndUpdate(
+        { user_id: req.userId },
+        privacyUpdate,
+        { upsert: true, new: true }
+      );
+    }
 
     logger.log('[SETTINGS] Updated settings for user:', req.userId);
 

@@ -20,7 +20,8 @@ import {
   Trash2,
   AlertTriangle,
   X,
-  Users
+  Users,
+  Volume2
 } from "lucide-react"
 import { AppLayout } from "@/components/app-layout"
 import { useAuthStore } from "@/lib/store/auth-store"
@@ -41,6 +42,11 @@ import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { api } from "@/lib/api"
 import { toast } from "sonner"
+import { useNotificationStore } from "@/lib/store/notification-store"
+import {
+  playNotificationSound,
+  unlockNotificationSound,
+} from "@/lib/notification-sound"
 
 type BlockedUser = {
   id: string
@@ -53,6 +59,7 @@ type BlockedUser = {
 export default function SettingsPage() {
   const router = useRouter()
   const { logout } = useAuthStore()
+  const setSoundEnabled = useNotificationStore((state) => state.setSoundEnabled)
   const [isSaving, setIsSaving] = useState(false)
   const [hasChanges, setHasChanges] = useState(false)
   const [saveSuccess, setSaveSuccess] = useState(false)
@@ -98,6 +105,7 @@ export default function SettingsPage() {
       likes: true,
       events: true,
       admin_news: true,
+      sound: true,
     },
     privacy: {
       profileVisible: true,
@@ -129,6 +137,7 @@ export default function SettingsPage() {
           likes: result.data.notifications?.likes ?? true,
           events: result.data.notifications?.events ?? true,
           admin_news: result.data.notifications?.admin_news ?? true,
+          sound: result.data.notifications?.sound ?? true,
         },
         privacy: {
           profileVisible: result.data.privacy?.profileVisible ?? true,
@@ -303,6 +312,25 @@ export default function SettingsPage() {
     setSettings(newSettings)
     setHasChanges(true)
     setSaveSuccess(false)
+  }
+
+  // The chime preference is also held in the realtime store so it takes effect
+  // immediately, without waiting for Save or a reload.
+  const handleToggleSound = () => {
+    const next = !settings.notifications.sound
+    updateNotification("sound")
+    setSoundEnabled(next)
+    if (next) {
+      // This runs inside a real click, which is what lets the browser unlock
+      // audio playback for the rest of the session.
+      unlockNotificationSound()
+      playNotificationSound()
+    }
+  }
+
+  const handleTestSound = () => {
+    unlockNotificationSound()
+    playNotificationSound()
   }
 
   const updatePrivacy = (key: keyof typeof settings.privacy) => {
@@ -526,6 +554,37 @@ export default function SettingsPage() {
                   id="admin_news"
                   checked={settings.notifications.admin_news}
                   onCheckedChange={() => updateNotification("admin_news")}
+                />
+              </div>
+            </div>
+            <Separator />
+            <div className="flex items-center justify-between">
+              <div>
+                <Label htmlFor="sound">Notification Sound</Label>
+                <p className="text-sm text-muted-foreground">
+                  Play a chime when a message or alert arrives while you have
+                  the app open
+                </p>
+              </div>
+              <div className="flex items-center gap-2">
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={handleTestSound}
+                  disabled={!settings.notifications.sound}
+                  className="gap-1.5"
+                >
+                  <Volume2 className="h-4 w-4" />
+                  Test
+                </Button>
+                <span className="text-sm font-medium text-muted-foreground w-8 text-right">
+                  {settings.notifications.sound ? "On" : "Off"}
+                </span>
+                <Switch
+                  id="sound"
+                  checked={settings.notifications.sound}
+                  onCheckedChange={handleToggleSound}
                 />
               </div>
             </div>

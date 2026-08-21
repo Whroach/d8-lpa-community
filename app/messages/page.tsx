@@ -4,7 +4,7 @@ import React from "react"
 
 import { useEffect, useState, useRef } from "react"
 import { useSearchParams, useRouter } from "next/navigation"
-import { Search, Send, Loader2, MoreVertical, MessageCircle, Smile, Flag, ShieldAlert, Trash2, AlertTriangle } from "lucide-react"
+import { Search, Send, Loader2, MoreVertical, MessageCircle, Smile, Flag, ShieldAlert, Trash2, AlertTriangle, Pencil, Undo2 } from "lucide-react"
 import { AppLayout } from "@/components/app-layout"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Input } from "@/components/ui/input"
@@ -45,6 +45,7 @@ interface Conversation {
     first_name: string
     last_name?: string
     photos?: string[]
+    profile_picture_url?: string | null
   }
   last_message: string | null
   last_message_at: string | null
@@ -62,6 +63,11 @@ interface Message {
   content: string
   created_at: string
   read?: boolean
+  /** Set once the sender has edited this message; drives the "Edited" marker. */
+  edited_at?: string | null
+  /** Unsent messages stay in the thread as a tombstone for both participants. */
+  is_unsent?: boolean
+  unsent_at?: string | null
 }
 
 export default function MessagesPage() {
@@ -88,6 +94,12 @@ export default function MessagesPage() {
   const [isUnmatching, setIsUnmatching] = useState(false)
   const [isDeleting, setIsDeleting] = useState(false)
   const [skipNextLoad, setSkipNextLoad] = useState(false)
+  // Inline edit / unsend state for the user's own messages.
+  const [editingMessageId, setEditingMessageId] = useState<string | null>(null)
+  const [editDraft, setEditDraft] = useState("")
+  const [isSavingEdit, setIsSavingEdit] = useState(false)
+  const [unsendTarget, setUnsendTarget] = useState<Message | null>(null)
+  const [isUnsending, setIsUnsending] = useState(false)
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
   const shouldScrollRef = useRef(true)
@@ -182,11 +194,38 @@ export default function MessagesPage() {
       )
     }
 
+    // An edit or unsend by the other participant replaces the message in place
+    // rather than appending anything, so the thread doesn't jump.
+    const handleMessageUpdated = (updated: Message) => {
+      const updatedId = updated.id || updated._id
+      if (!updatedId) return
+
+      setMessages((prev) =>
+        prev.map((m) =>
+          (m.id || m._id) === updatedId ? { ...m, ...updated } : m
+        )
+      )
+
+      // Keep the conversation-list preview honest when the last message in a
+      // thread is the one that changed.
+      setConversations((prev) =>
+        prev.map((c) => {
+          if (updated.match_id && c.match_id !== updated.match_id) return c
+          return {
+            ...c,
+            last_message: updated.is_unsent ? "Message unsent" : updated.content,
+          }
+        })
+      )
+    }
+
     socket.on('new-message', handleNewMessage)
+    socket.on('message-updated', handleMessageUpdated)
 
     // Cleanup on unmount
     return () => {
       socket.off('new-message', handleNewMessage)
+      socket.off('message-updated', handleMessageUpdated)
     }
   }, [user])
 
@@ -280,8 +319,88 @@ export default function MessagesPage() {
     const result = await api.messages.getMessages(matchId)
     if (result.data) {
       setMessages(result.data)
+      // Fetching a thread marks it read server-side, so tell the nav badges to
+      // re-read the true unread count instead of holding a stale number.
+      window.dispatchEvent(new Event("messagesViewed"))
     }
     setIsLoadingMessages(false)
+  }
+
+  const handleStartEdit = (message: Message) => {
+    const id = message.id || message._id
+    if (!id) return
+    setEditingMessageId(id)
+    setEditDraft(message.content)
+  }
+
+  const handleCancelEdit = () => {
+    setEditingMessageId(null)
+    setEditDraft("")
+  }
+
+  const handleSaveEdit = async (message: Message) => {
+    const id = message.id || message._id
+    if (!id || !selectedConversation) return
+
+    const trimmed = editDraft.trim()
+    if (!trimmed) return
+    if (trimmed === message.content) {
+      handleCancelEdit()
+      return
+    }
+
+    setIsSavingEdit(true)
+    const result = await api.messages.edit(
+      selectedConversation.match_id,
+      id,
+      trimmed
+    )
+    setIsSavingEdit(false)
+
+    if (result.error) {
+      setSendError(result.error)
+      return
+    }
+
+    setMessages((prev) =>
+      prev.map((m) => ((m.id || m._id) === id ? { ...m, ...result.data } : m))
+    )
+    setConversations((prev) =>
+      prev.map((c) =>
+        c.match_id === selectedConversation.match_id
+          ? { ...c, last_message: trimmed }
+          : c
+      )
+    )
+    handleCancelEdit()
+  }
+
+  const handleUnsend = async () => {
+    const message = unsendTarget
+    const id = message?.id || message?._id
+    if (!message || !id || !selectedConversation) return
+
+    setIsUnsending(true)
+    const result = await api.messages.unsend(selectedConversation.match_id, id)
+    setIsUnsending(false)
+
+    if (result.error) {
+      setSendError(result.error)
+      setUnsendTarget(null)
+      return
+    }
+
+    setMessages((prev) =>
+      prev.map((m) => ((m.id || m._id) === id ? { ...m, ...result.data } : m))
+    )
+    setConversations((prev) =>
+      prev.map((c) =>
+        c.match_id === selectedConversation.match_id
+          ? { ...c, last_message: "Message unsent" }
+          : c
+      )
+    )
+    setUnsendTarget(null)
   }
 
   const scrollToBottom = () => {
@@ -685,37 +804,163 @@ export default function MessagesPage() {
                         </span>
                       </div>
                       <div className="space-y-3">
-                        {group.messages.map((message) => {
+                        {group.messages.map((message, index) => {
                           const isOwn = message.sender_id === user?.id || message.sender_id === user?._id
-                          const messageKey = message.id || message._id || `${message.sender_id}-${message.created_at}`
+                          const messageId = message.id || message._id
+                          const messageKey = messageId || `${message.sender_id}-${message.created_at}`
+                          const nextMessage = group.messages[index + 1]
+                          // Only the last bubble in a run from the other person
+                          // carries their picture, so a burst of messages does
+                          // not repeat the same face on every line.
+                          const showAvatar =
+                            !isOwn &&
+                            (!nextMessage || nextMessage.sender_id !== message.sender_id)
+                          const isEditing = !!messageId && editingMessageId === messageId
+                          const canModify =
+                            isOwn &&
+                            !message.is_unsent &&
+                            !!messageId &&
+                            !messageId.startsWith("temp-") &&
+                            selectedConversation?.is_active !== false
+
                           return (
                             <div
                               key={messageKey}
                               className={cn(
-                                "flex",
+                                "flex items-end gap-2 group",
                                 isOwn ? "justify-end" : "justify-start"
                               )}
                             >
-                              <div
-                                className={cn(
-                                  "max-w-[75%] px-4 py-2.5 rounded-2xl",
-                                  isOwn
-                                    ? "bg-primary text-primary-foreground rounded-br-md"
-                                    : "bg-muted text-foreground rounded-bl-md"
-                                )}
-                              >
-                                <p className="text-base leading-relaxed whitespace-pre-wrap break-words">
-                                  {message.content}
-                                </p>
-                                <p
+                              {!isOwn && (
+                                showAvatar ? (
+                                  <Avatar className="h-8 w-8 shrink-0 mb-0.5">
+                                    <AvatarImage
+                                      src={
+                                        selectedConversation?.user.profile_picture_url ||
+                                        selectedConversation?.user.photos?.[0] ||
+                                        undefined
+                                      }
+                                      alt={selectedConversation?.user.first_name}
+                                    />
+                                    <AvatarFallback className="text-xs">
+                                      {selectedConversation?.user.first_name?.[0]}
+                                    </AvatarFallback>
+                                  </Avatar>
+                                ) : (
+                                  // Keeps stacked bubbles aligned with the one
+                                  // that does show a picture.
+                                  <div className="h-8 w-8 shrink-0" aria-hidden="true" />
+                                )
+                              )}
+
+                              {canModify && !isEditing && (
+                                <DropdownMenu>
+                                  <DropdownMenuTrigger asChild>
+                                    <Button
+                                      variant="ghost"
+                                      size="icon"
+                                      className="h-7 w-7 shrink-0 opacity-60 md:opacity-0 md:group-hover:opacity-100 focus-visible:opacity-100 transition-opacity"
+                                    >
+                                      <MoreVertical className="h-4 w-4 text-muted-foreground" />
+                                      <span className="sr-only">Message options</span>
+                                    </Button>
+                                  </DropdownMenuTrigger>
+                                  <DropdownMenuContent align="end">
+                                    <DropdownMenuItem onClick={() => handleStartEdit(message)}>
+                                      <Pencil className="h-4 w-4 mr-2" />
+                                      Edit
+                                    </DropdownMenuItem>
+                                    <DropdownMenuItem
+                                      className="text-destructive"
+                                      onClick={() => setUnsendTarget(message)}
+                                    >
+                                      <Undo2 className="h-4 w-4 mr-2" />
+                                      Unsend
+                                    </DropdownMenuItem>
+                                  </DropdownMenuContent>
+                                </DropdownMenu>
+                              )}
+
+                              {isEditing ? (
+                                <div className="max-w-[75%] w-full sm:w-96 rounded-2xl border border-primary/40 bg-card p-3 space-y-2">
+                                  <Textarea
+                                    value={editDraft}
+                                    onChange={(e) => setEditDraft(e.target.value)}
+                                    onKeyDown={(e) => {
+                                      if (e.key === "Enter" && !e.shiftKey) {
+                                        e.preventDefault()
+                                        handleSaveEdit(message)
+                                      }
+                                      if (e.key === "Escape") handleCancelEdit()
+                                    }}
+                                    rows={2}
+                                    maxLength={2000}
+                                    autoFocus
+                                    className="resize-none text-base"
+                                  />
+                                  <div className="flex items-center justify-end gap-2">
+                                    <Button
+                                      type="button"
+                                      variant="ghost"
+                                      size="sm"
+                                      onClick={handleCancelEdit}
+                                      disabled={isSavingEdit}
+                                    >
+                                      Cancel
+                                    </Button>
+                                    <Button
+                                      type="button"
+                                      size="sm"
+                                      onClick={() => handleSaveEdit(message)}
+                                      disabled={isSavingEdit || !editDraft.trim()}
+                                    >
+                                      {isSavingEdit ? (
+                                        <Loader2 className="h-4 w-4 animate-spin" />
+                                      ) : (
+                                        "Save"
+                                      )}
+                                    </Button>
+                                  </div>
+                                </div>
+                              ) : (
+                                <div
                                   className={cn(
-                                    "text-[11px] mt-1",
-                                    isOwn ? "text-primary-foreground/70" : "text-muted-foreground"
+                                    "max-w-[75%] px-4 py-2.5 rounded-2xl",
+                                    message.is_unsent
+                                      ? "bg-muted/60 border border-dashed border-border text-muted-foreground"
+                                      : isOwn
+                                        ? "bg-primary text-primary-foreground rounded-br-md"
+                                        : "bg-muted text-foreground rounded-bl-md"
                                   )}
                                 >
-                                  {formatMessageTime(message.created_at)}
-                                </p>
-                              </div>
+                                  {message.is_unsent ? (
+                                    <p className="text-base italic leading-relaxed">
+                                      {isOwn
+                                        ? "You unsent a message"
+                                        : `${selectedConversation?.user.first_name} unsent a message`}
+                                    </p>
+                                  ) : (
+                                    <p className="text-base leading-relaxed whitespace-pre-wrap break-words">
+                                      {message.content}
+                                    </p>
+                                  )}
+                                  <p
+                                    className={cn(
+                                      "text-[11px] mt-1 flex items-center gap-1.5",
+                                      message.is_unsent
+                                        ? "text-muted-foreground"
+                                        : isOwn
+                                          ? "text-primary-foreground/70"
+                                          : "text-muted-foreground"
+                                    )}
+                                  >
+                                    {formatMessageTime(message.created_at)}
+                                    {message.edited_at && !message.is_unsent && (
+                                      <span className="italic">Edited</span>
+                                    )}
+                                  </p>
+                                </div>
+                              )}
                             </div>
                           )
                         })}
@@ -971,6 +1216,62 @@ export default function MessagesPage() {
                   <>
                     <Trash2 className="h-4 w-4 mr-2" />
                     Delete Conversation
+                  </>
+                )}
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
+
+        {/* Unsend Message Confirmation */}
+        <Dialog
+          open={!!unsendTarget}
+          onOpenChange={(open) => !open && setUnsendTarget(null)}
+        >
+          <DialogContent className="sm:max-w-md">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <Undo2 className="h-5 w-5 text-amber-500" />
+                Unsend Message
+              </DialogTitle>
+              <DialogDescription>
+                This removes the message text for both of you.{" "}
+                {selectedConversation?.user.first_name} will still see that you
+                unsent something.
+              </DialogDescription>
+            </DialogHeader>
+            {unsendTarget && (
+              <div className="py-2">
+                <div className="rounded-lg border border-border bg-muted/50 p-3">
+                  <p className="text-sm text-muted-foreground line-clamp-3 whitespace-pre-wrap break-words">
+                    {unsendTarget.content}
+                  </p>
+                </div>
+              </div>
+            )}
+            <div className="flex gap-2 justify-end">
+              <Button
+                variant="outline"
+                onClick={() => setUnsendTarget(null)}
+                disabled={isUnsending}
+                className="bg-transparent"
+              >
+                Cancel
+              </Button>
+              <Button
+                variant="destructive"
+                onClick={handleUnsend}
+                disabled={isUnsending}
+              >
+                {isUnsending ? (
+                  <>
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    Unsending...
+                  </>
+                ) : (
+                  <>
+                    <Undo2 className="h-4 w-4 mr-2" />
+                    Unsend
                   </>
                 )}
               </Button>

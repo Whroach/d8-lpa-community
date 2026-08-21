@@ -2,7 +2,6 @@
 
 import { useRouter } from "next/navigation"
 
-import { useEffect, useState } from "react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import {
@@ -29,8 +28,8 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip"
-import { api } from "@/lib/api"
 import { useAuthStore } from "@/lib/store/auth-store" // Import useAuthStore
+import { useNotificationStore } from "@/lib/store/notification-store"
 
 const navItems = [
   { href: "/profile", label: "Profile", icon: User, badgeKey: null },
@@ -48,94 +47,13 @@ const bottomNavItems = [
 export function AppSidebar() {
   const pathname = usePathname()
   const { isCollapsed, toggleCollapsed } = useSidebarStore()
-  const [badgeCounts, setBadgeCounts] = useState({
-    matches: 0,
-    messages: 0,
-    events: 0,
-    notifications: 0,
-  })
   const router = useRouter() // Declare router
   const { user, logout } = useAuthStore() // Declare user and logout
 
-  useEffect(() => {
-    const loadCounts = async () => {
-      const lastViewedMatches = typeof window !== "undefined"
-        ? new Date(localStorage.getItem("lastViewedMatches") || 0)
-        : new Date(0)
-      const lastViewedEvents = typeof window !== "undefined"
-        ? new Date(localStorage.getItem("lastViewedEvents") || 0)
-        : new Date(0)
-
-      // Load matches count (new matches)
-      const matchesResult = await api.matches.getAll()
-      if (matchesResult.data) {
-        // Handle new data structure {active: [], inactive: []}
-        const allMatches = matchesResult.data.active || matchesResult.data
-        const newMatches = (Array.isArray(allMatches) ? allMatches : []).filter(
-          (m: { matched_at: string }) => new Date(m.matched_at) > lastViewedMatches
-        ).length
-        setBadgeCounts((prev) => ({ ...prev, matches: newMatches }))
-      }
-
-      // Load unread messages count
-      const conversationsResult = await api.messages.getConversations()
-      if (conversationsResult.data) {
-        const unreadMessages = conversationsResult.data.reduce(
-          (acc: number, conv: { unread_count?: number }) => acc + (conv.unread_count || 0),
-          0
-        )
-        setBadgeCounts((prev) => ({ ...prev, messages: unreadMessages }))
-      }
-
-      // One fetch covers both the events badge and the notifications badge.
-      const notificationsResult = await api.notifications.getAll()
-      if (notificationsResult.data) {
-        const all = Array.isArray(notificationsResult.data) ? notificationsResult.data : []
-        setBadgeCounts((prev) => ({
-          ...prev,
-          notifications: all.filter((n: { read?: boolean }) => !n.read).length,
-          events: all.filter(
-            (n: { type?: string; read?: boolean }) => n.type === 'event' && !n.read
-          ).length,
-        }))
-      }
-    }
-
-    loadCounts()
-
-    // Listen for notifications read event
-    const handleNotificationsRead = async () => {
-      // Add a small delay to allow backend to update
-      setTimeout(async () => {
-        const notificationsResult = await api.notifications.getAll()
-        if (notificationsResult.data) {
-          const unreadNotifications = notificationsResult.data.filter(
-            (n: { read: boolean }) => !n.read
-          ).length
-          // Unread notifications count updated
-          setBadgeCounts((prev) => ({ ...prev, notifications: unreadNotifications }))
-        }
-      }, 300)
-    }
-
-    const handleMatchesViewed = () => {
-      setBadgeCounts((prev) => ({ ...prev, matches: 0 }))
-    }
-
-    const handleEventsViewed = () => {
-      setBadgeCounts((prev) => ({ ...prev, events: 0 }))
-    }
-
-    window.addEventListener('notificationsRead', handleNotificationsRead)
-    window.addEventListener('matchesViewed', handleMatchesViewed)
-    window.addEventListener('eventsViewed', handleEventsViewed)
-
-    return () => {
-      window.removeEventListener('notificationsRead', handleNotificationsRead)
-      window.removeEventListener('matchesViewed', handleMatchesViewed)
-      window.removeEventListener('eventsViewed', handleEventsViewed)
-    }
-  }, [])
+  // Counts are loaded and kept live by RealtimeProvider, so the sidebar and
+  // the mobile nav always show the same numbers.
+  const badgeCounts = useNotificationStore((state) => state.counts)
+  const clearCount = useNotificationStore((state) => state.clearCount)
 
   return (
     <TooltipProvider delayDuration={0}>
@@ -188,7 +106,7 @@ export function AppSidebar() {
                 onClick={() => {
                   // Clear badge count when clicking the link
                   if (item.badgeKey) {
-                    setBadgeCounts((prev) => ({ ...prev, [item.badgeKey as string]: 0 }))
+                    clearCount(item.badgeKey as keyof typeof badgeCounts)
                   }
                 }}
                 className={cn(

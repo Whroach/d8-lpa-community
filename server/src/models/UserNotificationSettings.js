@@ -26,6 +26,13 @@ const UserNotificationSettingsSchema = new mongoose.Schema({
     type: Boolean,
     default: true
   },
+  // Whether the app plays a chime when something arrives in real time. This is
+  // a client-side playback preference, not a filter — turning it off still
+  // creates the notification and updates the badge.
+  sound: {
+    type: Boolean,
+    default: true
+  },
   created_at: {
     type: Date,
     default: Date.now

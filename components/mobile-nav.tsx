@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useState } from "react"
 import Link from "next/link"
 import { usePathname, useRouter } from "next/navigation"
 import {
@@ -16,8 +16,8 @@ import {
   Menu,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
-import { api } from "@/lib/api"
 import { useAuthStore } from "@/lib/store/auth-store"
+import { useNotificationStore } from "@/lib/store/notification-store"
 import {
   Sheet,
   SheetContent,
@@ -47,59 +47,10 @@ export function MobileNav() {
   const router = useRouter()
   const { user, logout } = useAuthStore()
   const [isMoreOpen, setIsMoreOpen] = useState(false)
-  const [badgeCounts, setBadgeCounts] = useState({
-    matches: 0,
-    messages: 0,
-    events: 0,
-    notifications: 0,
-  })
 
-  useEffect(() => {
-    const loadCounts = async () => {
-      const [conversationsResult, notificationsResult] = await Promise.all([
-        api.messages.getConversations(),
-        api.notifications.getAll(),
-      ])
-
-      if (conversationsResult.data) {
-        const unreadMessages = (
-          Array.isArray(conversationsResult.data) ? conversationsResult.data : []
-        ).reduce(
-          (acc: number, conv: { unread_count?: number }) => acc + (conv.unread_count || 0),
-          0
-        )
-        setBadgeCounts((prev) => ({ ...prev, messages: unreadMessages }))
-      }
-
-      if (notificationsResult.data) {
-        const all = Array.isArray(notificationsResult.data) ? notificationsResult.data : []
-        setBadgeCounts((prev) => ({
-          ...prev,
-          notifications: all.filter((n: { read?: boolean }) => !n.read).length,
-          events: all.filter(
-            (n: { type?: string; read?: boolean }) => n.type === "event" && !n.read
-          ).length,
-        }))
-      }
-    }
-
-    loadCounts()
-
-    const clearNotifications = () =>
-      setBadgeCounts((prev) => ({ ...prev, notifications: 0 }))
-    const clearMatches = () => setBadgeCounts((prev) => ({ ...prev, matches: 0 }))
-    const clearEvents = () => setBadgeCounts((prev) => ({ ...prev, events: 0 }))
-
-    window.addEventListener("notificationsRead", clearNotifications)
-    window.addEventListener("matchesViewed", clearMatches)
-    window.addEventListener("eventsViewed", clearEvents)
-
-    return () => {
-      window.removeEventListener("notificationsRead", clearNotifications)
-      window.removeEventListener("matchesViewed", clearMatches)
-      window.removeEventListener("eventsViewed", clearEvents)
-    }
-  }, [])
+  // Same source as the desktop sidebar — RealtimeProvider loads these once and
+  // keeps them live, so the two navs can no longer disagree.
+  const badgeCounts = useNotificationStore((state) => state.counts)
 
   const moreBadgeTotal =
     badgeCounts.events + badgeCounts.notifications

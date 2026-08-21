@@ -476,6 +476,27 @@ export const api = {
         method: "DELETE",
       })
     },
+    /** Edit one of your own messages. The other user sees an "Edited" marker. */
+    edit: async (conversationId: string, messageId: string, content: string) => {
+      if (USE_MOCK_DATA) {
+        await delay(200)
+        return { data: { id: messageId, content, edited_at: new Date().toISOString() } }
+      }
+      return apiRequest<any>(`/messages/${conversationId}/${messageId}`, {
+        method: "PUT",
+        body: JSON.stringify({ content }),
+      })
+    },
+    /** Unsend one of your own messages, leaving a tombstone in the thread. */
+    unsend: async (conversationId: string, messageId: string) => {
+      if (USE_MOCK_DATA) {
+        await delay(200)
+        return { data: { id: messageId, content: "", is_unsent: true } }
+      }
+      return apiRequest<any>(`/messages/${conversationId}/${messageId}`, {
+        method: "DELETE",
+      })
+    },
   },
   events: {
     getAll: async () => {

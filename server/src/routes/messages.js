@@ -10,6 +10,23 @@ import logger from '../utils/logger.js';
 
 const router = express.Router();
 
+// One shape for every message the API returns, so the client never has to
+// guess whether it got a raw document or a hand-built response object.
+function serializeMessage(message) {
+  return {
+    id: message._id.toString(),
+    _id: message._id.toString(),
+    match_id: message.match_id.toString(),
+    sender_id: message.sender_id.toString(),
+    content: message.is_unsent ? '' : message.content,
+    created_at: message.created_at,
+    read: message.read,
+    edited_at: message.edited_at || null,
+    is_unsent: Boolean(message.is_unsent),
+    unsent_at: message.unsent_at || null
+  };
+}
+
 // Helper function to check if user wants this type of notification
 async function shouldCreateNotification(userId, notificationType) {
   const settings = await UserNotificationSettings.findOne({ user_id: userId });
@@ -66,12 +83,15 @@ router.get('/', auth, async (req, res) => {
           id: otherUser._id,
           first_name: otherUser.first_name,
           last_name: otherUser.last_name,
-          photos: otherProfile?.photos || []
+          photos: otherProfile?.photos || [],
+          // The chat renders this next to each incoming bubble; the dedicated
+          // profile picture wins over the first photo in the gallery.
+          profile_picture_url: otherProfile?.profile_picture_url || otherProfile?.photos?.[0] || null
         },
         last_message: match.last_message,
         last_message_at: match.last_message_at,
         unread_count: unreadCount,
-        recent_messages: recentMessages.reverse(), // Return in chronological order
+        recent_messages: recentMessages.reverse().map(serializeMessage), // chronological order
         has_messages: recentMessages.length > 0,
         is_active: match.is_active
       };
@@ -139,7 +159,7 @@ router.get('/:matchId', auth, async (req, res) => {
       await match.save();
     }
 
-    res.json(messages);
+    res.json(messages.map(serializeMessage));
   } catch (error) {
     console.error('Get messages error:', error);
     res.status(500).json({ message: 'Error fetching messages' });
@@ -219,33 +239,135 @@ router.post('/:matchId', auth, async (req, res) => {
       }
     }
 
-    const messageResponse = {
-      id: message._id,
-      _id: message._id,
-      // The client uses match_id to decide which open thread a realtime
-      // message belongs to, so it must travel with the payload.
-      match_id: match._id,
-      sender_id: message.sender_id,
-      content: message.content,
-      created_at: message.created_at,
-      read: message.read
-    };
+    // serializeMessage carries match_id, which the client uses to decide which
+    // open thread an incoming realtime message belongs to.
+    const messageResponse = serializeMessage(message);
 
-    // Emit real-time message to the match room
+    // Emit real-time message to the match room (reaches whoever has this
+    // thread open).
     io.to(`match-${match._id}`).emit('new-message', messageResponse);
 
-    // Emit notification to other user (for real-time badge update)
-    if (isFirstMessage) {
-      io.to(otherUserId.toString()).emit('new-notification', {
-        type: 'message',
-        match_id: match._id
-      });
-    }
+    // Ping the recipient's personal room on every message, not just the first.
+    // The app-wide realtime provider listens here to bump the unread badge and
+    // play the chime, so this has to fire wherever they are in the app.
+    io.to(otherUserId.toString()).emit('new-notification', {
+      type: 'message',
+      match_id: match._id.toString(),
+      message_id: message._id.toString(),
+      preview: content.trim().substring(0, 80),
+      from: req.user.first_name
+    });
 
     res.status(201).json(messageResponse);
   } catch (error) {
     console.error('Send message error:', error);
     res.status(500).json({ message: 'Error sending message' });
+  }
+});
+
+// Shared lookup for the edit/unsend routes: resolves the message only when the
+// caller is in the match AND wrote the message themselves.
+async function findOwnMessage(req) {
+  const match = await Match.findOne({
+    _id: req.params.matchId,
+    users: req.userId
+  });
+  if (!match) return { error: { status: 404, message: 'Conversation not found' } };
+
+  const message = await Message.findOne({
+    _id: req.params.messageId,
+    match_id: match._id.toString()
+  });
+  if (!message) return { error: { status: 404, message: 'Message not found' } };
+
+  if (message.sender_id.toString() !== req.userId.toString()) {
+    return { error: { status: 403, message: 'You can only change your own messages' } };
+  }
+  if (message.is_unsent) {
+    return { error: { status: 409, message: 'This message was already unsent' } };
+  }
+  return { match, message };
+}
+
+// Keep the conversation preview honest after an edit or unsend — otherwise the
+// sidebar keeps showing text the sender just changed or took back.
+async function syncConversationPreview(match, message) {
+  const isLatest = !match.last_message_at ||
+    new Date(message.created_at).getTime() >= new Date(match.last_message_at).getTime();
+  if (!isLatest) return;
+
+  match.last_message = message.is_unsent ? 'Message unsent' : message.content;
+  await match.save();
+}
+
+// PUT /api/messages/:matchId/:messageId - Edit one of your own messages
+router.put('/:matchId/:messageId', auth, async (req, res) => {
+  try {
+    const { content } = req.body;
+    const io = req.app.get('io');
+
+    if (!content || !content.trim()) {
+      return res.status(400).json({ message: 'Message content required' });
+    }
+    if (content.trim().length > 2000) {
+      return res.status(400).json({ message: 'Message is too long' });
+    }
+
+    const { match, message, error } = await findOwnMessage(req);
+    if (error) return res.status(error.status).json({ message: error.message });
+
+    if (message.content === content.trim()) {
+      return res.json(serializeMessage(message));
+    }
+
+    message.content = content.trim();
+    message.edited_at = new Date();
+    await message.save();
+
+    await syncConversationPreview(match, message);
+
+    const payload = serializeMessage(message);
+    io.to(`match-${match._id}`).emit('message-updated', payload);
+
+    const otherUserId = match.users.find(id => id.toString() !== req.userId.toString());
+    if (otherUserId) {
+      io.to(otherUserId.toString()).emit('message-updated', payload);
+    }
+
+    res.json(payload);
+  } catch (error) {
+    logger.error('[MESSAGES] Edit message error:', error.message);
+    res.status(500).json({ message: 'Error editing message' });
+  }
+});
+
+// DELETE /api/messages/:matchId/:messageId - Unsend one of your own messages
+router.delete('/:matchId/:messageId', auth, async (req, res) => {
+  try {
+    const io = req.app.get('io');
+
+    const { match, message, error } = await findOwnMessage(req);
+    if (error) return res.status(error.status).json({ message: error.message });
+
+    message.is_unsent = true;
+    message.unsent_at = new Date();
+    message.content = '';
+    await message.save();
+
+    await syncConversationPreview(match, message);
+
+    const payload = serializeMessage(message);
+    io.to(`match-${match._id}`).emit('message-updated', payload);
+
+    const otherUserId = match.users.find(id => id.toString() !== req.userId.toString());
+    if (otherUserId) {
+      io.to(otherUserId.toString()).emit('message-updated', payload);
+    }
+
+    res.json(payload);
+  } catch (error) {
+    logger.error('[MESSAGES] Unsend message error:', error.message);
+    res.status(500).json({ message: 'Error unsending message' });
   }
 });
 

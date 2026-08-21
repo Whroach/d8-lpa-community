@@ -11,7 +11,10 @@ const messageSchema = new mongoose.Schema({
   },
   content: {
     type: String,
-    required: true,
+    // Unsending clears the text so it cannot leak back out through the
+    // conversation preview, logs, or any endpoint that returns the message.
+    required: function () { return !this.is_unsent; },
+    default: '',
     maxlength: 2000
   },
   read: {
@@ -24,7 +27,24 @@ const messageSchema = new mongoose.Schema({
   // For soft delete (user deleted conversation on their end)
   deleted_by: [{
     type: String
-  }]
+  }],
+  // Set the first time the sender edits the message. Its presence is what the
+  // client renders the "Edited" marker from, so it doubles as the flag.
+  edited_at: {
+    type: Date,
+    default: null
+  },
+  // Unsent messages are kept as tombstones rather than removed, so the other
+  // participant sees that something was taken back instead of silently losing
+  // a message they had already read.
+  is_unsent: {
+    type: Boolean,
+    default: false
+  },
+  unsent_at: {
+    type: Date,
+    default: null
+  }
 }, {
   timestamps: { createdAt: 'created_at', updatedAt: 'updated_at' }
 });

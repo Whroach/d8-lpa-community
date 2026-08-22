@@ -787,7 +787,10 @@ export default function MessagesPage() {
               </div>
 
               {/* Messages */}
-              <div className="flex-1 overflow-y-auto p-4 space-y-6">
+              {/* overflow-x-hidden: a long unbroken word in a bubble was able
+                  to widen the thread and push the incoming messages off the
+                  left edge of the screen. */}
+              <div className="flex-1 overflow-y-auto overflow-x-hidden p-4 space-y-6">
                 {messages.length === 0 && !isLoadingMessages ? (
                   <div className="flex items-center justify-center h-full">
                     <div className="text-center">
@@ -827,7 +830,7 @@ export default function MessagesPage() {
                             <div
                               key={messageKey}
                               className={cn(
-                                "flex items-end gap-2 group",
+                                "flex items-end gap-2",
                                 isOwn ? "justify-end" : "justify-start"
                               )}
                             >
@@ -853,114 +856,127 @@ export default function MessagesPage() {
                                 )
                               )}
 
-                              {canModify && !isEditing && (
-                                <DropdownMenu>
-                                  <DropdownMenuTrigger asChild>
-                                    <Button
-                                      variant="ghost"
-                                      size="icon"
-                                      className="h-7 w-7 shrink-0 opacity-60 md:opacity-0 md:group-hover:opacity-100 focus-visible:opacity-100 transition-opacity"
+                              <div
+                                className={cn(
+                                  "flex flex-col min-w-0 max-w-[calc(100%-3rem)] sm:max-w-[75%]",
+                                  isOwn ? "items-end" : "items-start"
+                                )}
+                              >
+                                {isEditing ? (
+                                  <div className="w-full rounded-2xl border-2 border-primary bg-card p-3 space-y-2">
+                                    <Label
+                                      htmlFor={`edit-${messageId}`}
+                                      className="text-xs text-muted-foreground"
                                     >
-                                      <MoreVertical className="h-4 w-4 text-muted-foreground" />
-                                      <span className="sr-only">Message options</span>
-                                    </Button>
-                                  </DropdownMenuTrigger>
-                                  <DropdownMenuContent align="end">
-                                    <DropdownMenuItem onClick={() => handleStartEdit(message)}>
-                                      <Pencil className="h-4 w-4 mr-2" />
-                                      Edit
-                                    </DropdownMenuItem>
-                                    <DropdownMenuItem
-                                      className="text-destructive"
-                                      onClick={() => setUnsendTarget(message)}
-                                    >
-                                      <Undo2 className="h-4 w-4 mr-2" />
-                                      Unsend
-                                    </DropdownMenuItem>
-                                  </DropdownMenuContent>
-                                </DropdownMenu>
-                              )}
-
-                              {isEditing ? (
-                                <div className="max-w-[75%] w-full sm:w-96 rounded-2xl border border-primary/40 bg-card p-3 space-y-2">
-                                  <Textarea
-                                    value={editDraft}
-                                    onChange={(e) => setEditDraft(e.target.value)}
-                                    onKeyDown={(e) => {
-                                      if (e.key === "Enter" && !e.shiftKey) {
-                                        e.preventDefault()
-                                        handleSaveEdit(message)
-                                      }
-                                      if (e.key === "Escape") handleCancelEdit()
-                                    }}
-                                    rows={2}
-                                    maxLength={2000}
-                                    autoFocus
-                                    className="resize-none text-base"
-                                  />
-                                  <div className="flex items-center justify-end gap-2">
-                                    <Button
-                                      type="button"
-                                      variant="ghost"
-                                      size="sm"
-                                      onClick={handleCancelEdit}
-                                      disabled={isSavingEdit}
-                                    >
-                                      Cancel
-                                    </Button>
-                                    <Button
-                                      type="button"
-                                      size="sm"
-                                      onClick={() => handleSaveEdit(message)}
-                                      disabled={isSavingEdit || !editDraft.trim()}
-                                    >
-                                      {isSavingEdit ? (
-                                        <Loader2 className="h-4 w-4 animate-spin" />
-                                      ) : (
-                                        "Save"
-                                      )}
-                                    </Button>
+                                      Edit your message
+                                    </Label>
+                                    <Textarea
+                                      id={`edit-${messageId}`}
+                                      value={editDraft}
+                                      onChange={(e) => setEditDraft(e.target.value)}
+                                      onKeyDown={(e) => {
+                                        if (e.key === "Enter" && !e.shiftKey) {
+                                          e.preventDefault()
+                                          handleSaveEdit(message)
+                                        }
+                                        if (e.key === "Escape") handleCancelEdit()
+                                      }}
+                                      rows={2}
+                                      maxLength={2000}
+                                      autoFocus
+                                      className="resize-none text-base"
+                                    />
+                                    <div className="flex items-center justify-end gap-2">
+                                      <Button
+                                        type="button"
+                                        variant="outline"
+                                        onClick={handleCancelEdit}
+                                        disabled={isSavingEdit}
+                                        className="bg-transparent"
+                                      >
+                                        Cancel
+                                      </Button>
+                                      <Button
+                                        type="button"
+                                        onClick={() => handleSaveEdit(message)}
+                                        disabled={isSavingEdit || !editDraft.trim()}
+                                      >
+                                        {isSavingEdit ? (
+                                          <>
+                                            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                                            Saving...
+                                          </>
+                                        ) : (
+                                          "Save Changes"
+                                        )}
+                                      </Button>
+                                    </div>
                                   </div>
-                                </div>
-                              ) : (
-                                <div
-                                  className={cn(
-                                    "max-w-[75%] px-4 py-2.5 rounded-2xl",
-                                    message.is_unsent
-                                      ? "bg-muted/60 border border-dashed border-border text-muted-foreground"
-                                      : isOwn
-                                        ? "bg-primary text-primary-foreground rounded-br-md"
-                                        : "bg-muted text-foreground rounded-bl-md"
-                                  )}
-                                >
-                                  {message.is_unsent ? (
-                                    <p className="text-base italic leading-relaxed">
-                                      {isOwn
-                                        ? "You unsent a message"
-                                        : `${selectedConversation?.user.first_name} unsent a message`}
-                                    </p>
-                                  ) : (
-                                    <p className="text-base leading-relaxed whitespace-pre-wrap break-words">
-                                      {message.content}
-                                    </p>
-                                  )}
-                                  <p
+                                ) : (
+                                  <div
                                     className={cn(
-                                      "text-[11px] mt-1 flex items-center gap-1.5",
+                                      "px-4 py-2.5 rounded-2xl",
                                       message.is_unsent
-                                        ? "text-muted-foreground"
+                                        ? "bg-muted/60 border border-dashed border-border text-muted-foreground"
                                         : isOwn
-                                          ? "text-primary-foreground/70"
-                                          : "text-muted-foreground"
+                                          ? "bg-primary text-primary-foreground rounded-br-md"
+                                          : "bg-muted text-foreground rounded-bl-md"
                                     )}
                                   >
-                                    {formatMessageTime(message.created_at)}
-                                    {message.edited_at && !message.is_unsent && (
-                                      <span className="italic">Edited</span>
+                                    {message.is_unsent ? (
+                                      <p className="text-base italic leading-relaxed">
+                                        {isOwn
+                                          ? "You unsent a message"
+                                          : `${selectedConversation?.user.first_name} unsent a message`}
+                                      </p>
+                                    ) : (
+                                      <p className="text-base leading-relaxed whitespace-pre-wrap break-words">
+                                        {message.content}
+                                      </p>
                                     )}
-                                  </p>
-                                </div>
-                              )}
+                                    <p
+                                      className={cn(
+                                        "text-[11px] mt-1 flex items-center gap-1.5",
+                                        message.is_unsent
+                                          ? "text-muted-foreground"
+                                          : isOwn
+                                            ? "text-primary-foreground/70"
+                                            : "text-muted-foreground"
+                                      )}
+                                    >
+                                      {formatMessageTime(message.created_at)}
+                                      {message.edited_at && !message.is_unsent && (
+                                        <span className="italic">Edited</span>
+                                      )}
+                                    </p>
+                                  </div>
+                                )}
+
+                                {/* Always on screen and spelled out — these must
+                                    not depend on hovering to be discovered. */}
+                                {canModify && !isEditing && (
+                                  <div className="flex items-center gap-1 mt-1">
+                                    <Button
+                                      type="button"
+                                      variant="ghost"
+                                      onClick={() => handleStartEdit(message)}
+                                      className="h-8 px-2.5 text-sm font-medium text-muted-foreground hover:text-foreground"
+                                    >
+                                      <Pencil className="h-4 w-4 mr-1.5" />
+                                      Edit
+                                    </Button>
+                                    <Button
+                                      type="button"
+                                      variant="ghost"
+                                      onClick={() => setUnsendTarget(message)}
+                                      className="h-8 px-2.5 text-sm font-medium text-muted-foreground hover:text-destructive"
+                                    >
+                                      <Undo2 className="h-4 w-4 mr-1.5" />
+                                      Unsend
+                                    </Button>
+                                  </div>
+                                )}
+                              </div>
                             </div>
                           )
                         })}

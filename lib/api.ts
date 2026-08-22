@@ -67,6 +67,20 @@ async function apiRequest<T>(
           // Don't redirect, let the component show the error
         }
       }
+      // A session left open elsewhere after the account was disabled or
+      // deleted would otherwise sit there failing every request. Send it back
+      // to the login screen, which is also where reactivating happens.
+      if (
+        response.status === 403 &&
+        (data.message?.includes("disabled") || data.message?.includes("deleted"))
+      ) {
+        if (typeof window !== "undefined") {
+          localStorage.removeItem("spark-auth")
+          if (!window.location.pathname.startsWith("/login")) {
+            window.location.href = "/login"
+          }
+        }
+      }
       return { error: data.message || data.error || "An error occurred" }
     }
 

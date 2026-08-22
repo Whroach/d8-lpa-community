@@ -39,21 +39,22 @@ router.get('/', auth, async (req, res) => {
     const currentUser = req.user;
     const currentProfile = await Profile.findOne({ user_id: req.userId });
 
-    // Determine gender preference - check both User.looking_for and Profile.looking_for_gender
-    let genderPreference = [];
-    if (currentUser.looking_for && currentUser.looking_for.length > 0) {
-      genderPreference = currentUser.looking_for;
-    } else if (currentProfile?.looking_for_gender && currentProfile.looking_for_gender.length > 0) {
-      genderPreference = currentProfile.looking_for_gender;
-    } else if (currentUser.gender) {
-      // Default: show opposite gender if no preference is set
-      genderPreference = currentUser.gender === 'male' ? ['female'] : ['male'];
-    }
+    // Who the viewer wants to see. This lives on the Profile — the User model
+    // has no `looking_for` field, so the old check against it never matched.
+    //
+    // An empty list means "no preference stated", which shows everyone. It
+    // used to fall back to the opposite gender, so a member who never answered
+    // the question silently had half of Browse hidden from them without any
+    // way to tell why.
+    const genderPreference =
+      currentProfile?.looking_for_gender?.length > 0
+        ? currentProfile.looking_for_gender
+        : [];
 
-    logger.log('[BROWSE] Gender preference:', { 
+    logger.log('[BROWSE] Gender preference:', {
       userGender: currentUser.gender,
       lookingFor: genderPreference,
-      source: currentUser.looking_for?.length > 0 ? 'user_model' : 'profile_model'
+      source: genderPreference.length > 0 ? 'profile' : 'none stated (showing everyone)'
     });
 
     // Get users the current user has already liked
@@ -74,10 +75,13 @@ router.get('/', auth, async (req, res) => {
         $nin: [...blockedUserIds, req.userId] 
       },
       onboarding_completed: true,
-      is_banned: false,
-      is_suspended: false,
-      is_disabled: false,
-      is_deleted: false,
+      // $ne: true rather than false — an equality check on false does not match
+      // documents where the field is absent, so any account saved before one of
+      // these flags existed would have been excluded from Browse for good.
+      is_banned: { $ne: true },
+      is_suspended: { $ne: true },
+      is_disabled: { $ne: true },
+      is_deleted: { $ne: true },
       role: { $ne: 'admin' }
     };
 
@@ -133,21 +137,33 @@ router.get('/', auth, async (req, res) => {
 
       const profile = await Profile.findOne({ user_id: user._id });
       
-      // Check mutual compatibility - other user should be interested in current user's gender
-      let otherUserPreference = [];
-      if (user.looking_for && user.looking_for.length > 0) {
-        otherUserPreference = user.looking_for;
-      } else if (profile?.looking_for_gender && profile.looking_for_gender.length > 0) {
-        otherUserPreference = profile.looking_for_gender;
-      } else if (user.gender) {
-        // Default: assume they want opposite gender
-        otherUserPreference = user.gender === 'male' ? ['female'] : ['male'];
-      }
-      
-      // Check if other user is interested in current user's gender (handle "everyone" case)
-      if (otherUserPreference.length > 0 && 
-          !otherUserPreference.includes('everyone') && 
-          !otherUserPreference.includes(currentUser.gender)) {
+      // Check mutual compatibility - the other user should be open to the
+      // current user's gender.
+      //
+      // Only an explicitly stated preference filters anyone out. This used to
+      // assume anyone who had not chosen was looking for the opposite gender
+      // ("male" for everybody who was not male), which quietly hid three
+      // groups of real profiles:
+      //   - anyone who signed up before this question existed, or skipped it
+      //   - non-binary members, who no invented default ever matched
+      //   - members whose own gender is "prefer_not_to_say" or blank, who
+      //     matched nobody's preference list and so saw an almost empty Browse
+      // Someone who has not said who they want to meet has not said "not you".
+      const otherUserPreference =
+        profile?.looking_for_gender?.length > 0 ? profile.looking_for_gender : [];
+
+      // With no gender recorded for the viewer there is nothing to test
+      // against, so let the profile through rather than hiding everyone.
+      const viewerGenderIsKnown =
+        currentUser.gender &&
+        currentUser.gender !== 'prefer_not_to_say';
+
+      if (
+        otherUserPreference.length > 0 &&
+        viewerGenderIsKnown &&
+        !otherUserPreference.includes('everyone') &&
+        !otherUserPreference.includes(currentUser.gender)
+      ) {
         logger.log('[BROWSE] Filtered out (other user not interested in current gender):', {
           userId: user._id,
           otherUserPreference,
@@ -653,21 +669,42 @@ router.post('/:userId/block', auth, async (req, res) => {
 // GET /api/browse/blocked-list - Get list of blocked users
 router.get('/blocked-list', auth, async (req, res) => {
   try {
-    // Get all users blocked by current user
-    const blockedRecords = await Block.find({ blocker: req.userId }).populate('blocked', 'first_name last_name');
-    
-    const blockedUsers = await Promise.all(
-      blockedRecords.map(async (record) => {
-        const profile = await Profile.findOne({ user_id: record.blocked._id });
+    // Block.blocked is a plain String, not a ref, so .populate() could never
+    // resolve it — every row came back with an undefined id and name, which
+    // left Settings showing blank entries whose Unblock button did nothing.
+    // Look the users up directly instead.
+    const blockedRecords = await Block.find({ blocker: req.userId });
+    const blockedIds = blockedRecords.map(record => record.blocked);
+
+    const users = await User.find({ _id: { $in: blockedIds } })
+      .select('first_name last_name');
+    const usersById = new Map(users.map(user => [user._id.toString(), user]));
+
+    const profiles = await Profile.find({ user_id: { $in: blockedIds } })
+      .select('user_id profile_picture_url photos');
+    const profilesByUserId = new Map(
+      profiles.map(profile => [profile.user_id.toString(), profile])
+    );
+
+    const blockedUsers = blockedRecords
+      .map(record => {
+        const blockedId = record.blocked.toString();
+        const user = usersById.get(blockedId);
+        // Skip blocks pointing at an account that no longer exists rather than
+        // rendering an empty row.
+        if (!user) return null;
+
+        const profile = profilesByUserId.get(blockedId);
         return {
-          id: record.blocked._id,
-          first_name: record.blocked.first_name,
-          last_name: record.blocked.last_name,
-          profile_picture_url: profile?.profile_picture_url || null,
+          id: blockedId,
+          first_name: user.first_name,
+          last_name: user.last_name,
+          profile_picture_url:
+            profile?.profile_picture_url || profile?.photos?.[0] || null,
           blocked_at: record.created_at || new Date()
         };
       })
-    );
+      .filter(Boolean);
 
     res.json(blockedUsers);
   } catch (error) {

@@ -73,19 +73,26 @@ export function ProfileCard({ profile, className }: ProfileCardProps) {
       {/* Photo navigation buttons */}
       {photos.length > 1 && (
         <>
+          {/* Always visible. These used to be opacity-0 until hover, which
+              meant that on a phone — where there is no hover — there was no
+              sign a profile had more than one photo. */}
           <button
             onClick={prevPhoto}
-            className="absolute left-0 top-0 bottom-24 w-1/3 flex items-center justify-start pl-2 opacity-0 hover:opacity-100 transition-opacity"
+            className="absolute left-0 top-0 bottom-24 w-1/3 flex items-center justify-start pl-2 focus-visible:outline-none"
             aria-label="Previous photo"
           >
-            <ChevronLeft className="h-8 w-8 text-white drop-shadow-lg" />
+            <span className="flex h-10 w-10 items-center justify-center rounded-full bg-black/45 backdrop-blur-sm transition-colors hover:bg-black/65">
+              <ChevronLeft className="h-6 w-6 text-white drop-shadow" />
+            </span>
           </button>
           <button
             onClick={nextPhoto}
-            className="absolute right-0 top-0 bottom-24 w-1/3 flex items-center justify-end pr-2 opacity-0 hover:opacity-100 transition-opacity"
+            className="absolute right-0 top-0 bottom-24 w-1/3 flex items-center justify-end pr-2 focus-visible:outline-none"
             aria-label="Next photo"
           >
-            <ChevronRight className="h-8 w-8 text-white drop-shadow-lg" />
+            <span className="flex h-10 w-10 items-center justify-center rounded-full bg-black/45 backdrop-blur-sm transition-colors hover:bg-black/65">
+              <ChevronRight className="h-6 w-6 text-white drop-shadow" />
+            </span>
           </button>
         </>
       )}

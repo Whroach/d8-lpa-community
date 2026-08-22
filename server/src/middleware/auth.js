@@ -27,6 +27,20 @@ export const auth = async (req, res, next) => {
       return res.status(403).json({ message: 'Account is suspended' });
     }
 
+    // Deleting or disabling an account has to invalidate the tokens already
+    // out there. Without these checks a 7-day token kept working across every
+    // endpoint after the account was gone, and "Take a Break" did nothing to
+    // any session that was already signed in.
+    if (user.is_deleted) {
+      return res.status(403).json({ message: 'This account has been deleted.' });
+    }
+
+    if (user.is_disabled) {
+      return res.status(403).json({
+        message: 'Your account is disabled. Log in again to reactivate it.'
+      });
+    }
+
     // Update last active
     user.last_active = new Date();
     await user.save();

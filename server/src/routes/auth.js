@@ -280,6 +280,15 @@ router.post('/login', [
       return res.status(403).json({ message: 'Your account has been deleted. Please contact d8lpa.community@gmail.com if you believe this is an error.' });
     }
 
+    // "Take a Break" promises the member they can log back in any time to
+    // reactivate, so signing in is what undoes it.
+    if (user.is_disabled) {
+      user.is_disabled = false;
+      user.disabled_at = null;
+      user.disable_reason = '';
+      logger.info(`[LOGIN] Reactivated disabled account on login: ${email}`);
+    }
+
     const profile = await Profile.findOne({ user_id: user._id });
     const token = generateToken(user._id);
 

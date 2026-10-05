@@ -53,6 +53,12 @@ const eventSchema = new mongoose.Schema({
     of: String,
     default: () => new Map()
   },
+  // In-app reminders already given, as "<userId>:eve" (day before) or
+  // "<userId>:day" (on the day), so each is created only once.
+  reminders_sent: {
+    type: [String],
+    default: []
+  },
   created_by: {
     type: String,
     required: true

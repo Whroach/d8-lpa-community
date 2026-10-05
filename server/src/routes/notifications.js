@@ -2,12 +2,25 @@ import express from 'express';
 import { auth } from '../middleware/auth.js';
 import Notification from '../models/Notification.js';
 import { validateIdParams } from '../utils/helpers.js';
+import { createDueEventReminders } from '../jobs/event-reminders.js';
+import logger from '../utils/logger.js';
+
+// Event reminders are created when the member looks, so no scheduled task is
+// needed. A failure here must never stop the notifications from loading.
+async function remindersFor(req) {
+  try {
+    await createDueEventReminders({ userId: req.userId.toString() });
+  } catch (error) {
+    logger.error('Event reminder error:', error.message);
+  }
+}
 
 const router = express.Router();
 
 // GET /api/notifications
 router.get('/', auth, async (req, res) => {
   try {
+    await remindersFor(req);
     const notifications = await Notification.find({ user_id: req.userId.toString() })
       .sort({ timestamp: -1 })
       .limit(50);
@@ -37,6 +50,7 @@ router.get('/', auth, async (req, res) => {
 // GET /api/notifications/unread-count
 router.get('/unread-count', auth, async (req, res) => {
   try {
+    await remindersFor(req);
     const count = await Notification.countDocuments({
       user_id: req.userId,
       read: false

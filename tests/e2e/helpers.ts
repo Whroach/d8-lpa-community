@@ -1,4 +1,4 @@
-import { expect, type APIRequestContext, type Browser, type BrowserContext, type Page } from "@playwright/test"
+import { expect, type APIRequestContext, type Browser, type BrowserContext, type BrowserContextOptions, type Page } from "@playwright/test"
 
 export const API = `http://localhost:${process.env.E2E_API_PORT || "4120"}/api`
 
@@ -96,8 +96,12 @@ export async function matchMembers(request: APIRequestContext, a: Member, b: Mem
  * session the login form would store). The login form itself is covered by
  * the auth tests.
  */
-export async function signedInContext(browser: Browser, member: Pick<Member, "token" | "user" | "profile">): Promise<BrowserContext> {
-  const context = await browser.newContext()
+export async function signedInContext(
+  browser: Browser,
+  member: Pick<Member, "token" | "user" | "profile">,
+  options: BrowserContextOptions = {}
+): Promise<BrowserContext> {
+  const context = await browser.newContext(options)
   const session = {
     state: {
       user: { ...member.user, id: (member.user as any).id || (member.user as any)._id },
@@ -118,8 +122,13 @@ export async function signedInContext(browser: Browser, member: Pick<Member, "to
   return context
 }
 
-export async function signedInPage(browser: Browser, member: Member, path = "/browse"): Promise<Page> {
-  const context = await signedInContext(browser, member)
+export async function signedInPage(
+  browser: Browser,
+  member: Pick<Member, "token" | "user" | "profile">,
+  path = "/browse",
+  options: BrowserContextOptions = {}
+): Promise<Page> {
+  const context = await signedInContext(browser, member, options)
   const page = await context.newPage()
   await page.goto(path)
   return page
@@ -205,3 +214,6 @@ export async function createUnfinishedMember(request: APIRequestContext, prefix 
   const me = await (await request.get(`${API}/auth/me`, { headers: authHeaders(token) })).json()
   return { email, password: PASSWORD, token, id: String(user_id), user: me.user as Record<string, unknown>, profile: me.profile as Record<string, unknown> }
 }
+
+/** The app's own error messages (Next.js adds an empty role="alert" route announcer of its own). */
+export const alertBox = (page: Page) => page.locator('[role="alert"]:not(#__next-route-announcer__)')

@@ -4,20 +4,20 @@ Inventory of every user-facing function in the Next.js front end, written by rea
 
 Use it to write Playwright end-to-end tests and tick each row off in the `Status` / `Test` columns.
 
-## Status summary (updated 2026-10-04)
+## Status summary (updated 2026-10-05, end of round 2)
 
-452 existing functions were inventoried, plus 22 added on this branch.
+452 existing functions were inventoried, plus 28 added on this branch (480 rows).
 
 | Status | Count | Meaning |
 |---|---|---|
-| Works | 142 | Exercised by an automated browser test (existing functions and the new ones below) |
-| Works (API test only) | 37 | The server side is tested; the button itself is not clicked by a test |
-| Fixed | 58 | Was broken or misleading; fixed on this branch (test linked where there is one) |
-| Changed | 6 | Deliberately replaced or removed (explained in the row) |
-| Still broken | 7 | Known defect, not fixed yet |
-| Not verified | 224 | No automated test clicks this yet. Not known to be broken; most were looked at in the screenshot review |
+| Works | 327 | Exercised by an automated browser test |
+| Works (API test) | 11 | Tested on the server side; rows marked "nothing more to click" have no separate control, the admin ones still lack a browser click |
+| Fixed | 116 | Was broken or misleading; fixed on this branch, test linked |
+| Changed | 14 | Deliberately replaced or removed (explained in the row) |
+| Still broken | 0 | Known defect |
+| Not verified | 12 | No automated test yet: AUTH-07, ADM-31, ADM-41, ADM-43, ADM-44, ADM-46, ADM-47, ADM-48, ADM-49, ADM-51, ADM-54, ADM-55 |
 
-"Not verified" is the honest gap: mostly the onboarding form fields, the profile editor, Browse filters, and the admin screens' individual buttons.
+Not verified, in plain words: the "Feature Disabled" dialog on the login screen (only appears with a build-time switch) and part of the admin screens - member notes, some event-form fields, event photo, cancel / restore / delete, the attendee list. Their server routes are all tested in `server/tests/admin.test.js`; two browser tests for them exist but are switched off (`test.fixme` in `tests/e2e/admin.spec.ts`) because a selector is wrong.
 
 ### Added on this branch
 
@@ -659,7 +659,7 @@ File: `app/admin/page.tsx` (three tabs: Users, Events, News)
 | ADM-51 | Event form: remove the uploaded photo | app/admin/page.tsx:1589 | Icon-only trash button with **no accessible name** on the preview | none | Not verified |  |
 | ADM-52 | Create the event (disabled until title, start date, start time and location are filled) | app/admin/page.tsx:533, 1606 | Button `Create Event` inside the dialog | `POST /admin/events`, then `GET /events` | Works (API test only) | [core.test](../server/tests/core.test.js) |
 | ADM-53 | Edit an event | app/admin/page.tsx:493, 1080 | Row button `Actions`, menu item `Edit`; dialog title `Edit Event`; button `Save Changes` | `PUT /admin/events/{id}`, then `GET /events` | Fixed - the edit form filled the date from the UTC day; date and time now both use the device clock (convention in `lib/event-dates.ts`); tested in six time zones on both clock-change days | [admin.spec](../tests/e2e/admin.spec.ts) |
-| ADM-54 | Event dialog: cancel | app/admin/page.tsx:1603 | Button `Cancel` | none | Works | [admin.spec](../tests/e2e/admin.spec.ts) [admin.test](../server/tests/admin.test.js) |
+| ADM-54 | Event dialog: cancel | app/admin/page.tsx:1603 | Button `Cancel` | none | Not verified - the test that opens and cancels this dialog is switched off (test.fixme) | |
 | ADM-55 | Event save error | app/admin/page.tsx:566, 577 | Native `alert()` starting `Error updating event:` or `Error creating event:` | none | Not verified |  |
 | ADM-56 | Cancel an event (no confirmation) | app/admin/page.tsx:612, 1090 | Menu item `Cancel Event` | `PUT /admin/events/{id}/cancel`, then `GET /events` | Works (API test only) | [core.test](../server/tests/core.test.js) |
 | ADM-57 | Restore a cancelled event | app/admin/page.tsx:619, 1085 | Menu item `Restore` | `PUT /admin/events/{id}/uncancel`, then `GET /events` | Works (API test only) | [core.test](../server/tests/core.test.js) |

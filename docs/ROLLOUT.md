@@ -32,9 +32,16 @@ No new variable is required. Optional ones:
 - `usernotificationsettings`: `quiet_hours_enabled` (off), `quiet_hours_start`, `quiet_hours_end`, `email_digest` (off), `email_digest_last_sent`
 - `events`: `rsvp_notes`, `is_hidden` (off)
 - `reports`: `category`, `source`, `match_id`
+- `events`: `reminders_sent` (round 2; a list, empty by default) - which in-app reminders have already been given
 - `users`: `has_seen_tour` (default false, so **every existing member sees the short welcome tour once** on their next visit; they can skip it)
 
 Preferences saved as `non-binary` by older versions are understood as `non_binary` when read; nothing is rewritten.
+
+Round 2 adds no collection and no index.
+
+## 2a. Round 2: event reminders
+
+Members who said "I'm going" get an in-app notification the day before an event and on the day. **Nothing needs scheduling**: a member's due reminders are created when they open the app. "Today" and "tomorrow" follow `COMMUNITY_TIME_ZONE` (default `America/Chicago`), and the time in the reminder is written with its zone ("6:30 PM CST"). Optional: to have reminders waiting before members open the app, add a Railway cron service running `node src/jobs/run-event-reminders.js` hourly. No email is sent. Right after deploy, members going to an event that is today or tomorrow will get that reminder once.
 
 ## 3. Deploy order
 
@@ -52,6 +59,11 @@ Existing sign-ins stay valid: the token format and secret are unchanged.
 - The menu has Saved, Safety and Help; the collapsible icon-only sidebar is gone.
 - "Report & Block" is now two separate actions.
 - Login says "That email or password is not right" for both mistakes.
+- Round 2: Notifications are no longer all marked read just by opening the page - members will see "New" on items until they open or mark them, and a "Mark all as read" button.
+- Round 2: Unmatch and "Remove like" on the Matches page now ask first.
+- Round 2: adding a photo shows tips and a "position your photo" step; photos are made smaller in the browser before upload. The screen now says 9 photos (what the server always allowed), not 10.
+- Round 2: first name, last name and city can be edited on My Profile. Birthday cannot.
+- Round 2: My Profile shows the member (only) a "Your profile is N% complete" card with suggestions; "Hide for now" removes it on that device.
 - Vercel Analytics was removed from the page (the site is hosted on Railway, and it sent page views to a third party).
 
 ## 5. Decisions for the owner

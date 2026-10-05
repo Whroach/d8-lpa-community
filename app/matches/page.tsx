@@ -362,8 +362,8 @@ export default function MatchesPage() {
                     {match.user.first_name?.[0] || "?"}
                   </AvatarFallback>
                 </Avatar>
-                <div className="flex-1 min-w-0 pr-28">
-                  <h3 className="font-semibold text-foreground truncate">
+                <div className="flex-1 min-w-0">
+                  <h3 className="font-semibold text-foreground truncate pr-28">
                     {match.user.first_name}
                     {match.user.age ? `, ${match.user.age}` : ""}
                   </h3>

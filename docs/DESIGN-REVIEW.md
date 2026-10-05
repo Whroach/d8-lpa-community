@@ -57,3 +57,40 @@ How it was reviewed: 13 screens were captured at phone (390px), tablet (820px) a
 - Landmarks and names: `main`, two labelled `nav`s, labelled chat regions, `role="log"` on the thread, live regions for new messages and typing.
 - Badges announce "3 new", not just "3".
 - Known gaps: several clickable cards (notifications, events, photo tiles, profile-editor badges) are `div`s that cannot be reached by keyboard; the emoji picker is mouse/touch oriented; no screen-reader pass was done.
+
+---
+
+# Round 2 - 2026-10-05
+
+## What was covered this time
+
+- **axe, full rule sets.** `tests/e2e/a11y-member.spec.ts` runs every WCAG 2.0/2.1 A and AA rule (not a hand-picked list) on 31 member screens and open dialogs - Browse (with a filter), Matches (with the unmatch, report and remove-like dialogs), Messages (with the options menu and emoji picker), Notifications, Events (with filters and details), Saved, My Profile (viewing, editing, discard prompt, photo manager, crop step, remove-photo prompt, preview), another member's profile (with photo viewer, report and block dialogs) and Settings (with its five dialogs) - in light and in dark. Result after fixes: **0 serious or critical findings, 0 contrast failures**. The sign-up, onboarding and admin screens are covered by the helper's own accessibility tests (see the pull request description).
+- **Screenshots.** `node scripts/screenshots-round2.mjs` captures 12 changed screens and dialogs at phone, tablet and desktop widths in light and dark (72 captures) and tiles them into six contact sheets in [`docs/screenshots/round2/`](screenshots/round2/). **Inspected by eye this round: the two phone sheets (light and dark).** The tablet and desktop sheets were generated but not inspected - stated plainly, as before.
+- **Keyboard-only passes** (as tests): Browse filters and chips, Matches dialogs (Escape keeps the match), Notifications actions, Events (Enter opens the details, Escape closes them and focus goes back to the card), the photo crop step (move, zoom, slider), the emoji picker, and the profile editor's choice chips.
+- **Screen-reader semantics** (as tests and code): dialogs all have names; the chat thread is a `role="log"`; toasts sit in a live region; result counts and the unread summary are `role="status"`; errors are `role="alert"`; toggles carry `aria-pressed`; progress has a named `progressbar`. No pass was done with an actual screen reader.
+
+## Found and fixed
+
+| Where | Found | Fixed |
+|---|---|---|
+| Everywhere | Clickable "badges" (interest and choice chips) were mouse-and-touch only | Any badge with an action is now a focusable button, 36px high, usable with Enter and Space; choice chips say whether they are selected |
+| Matches | The two tabs pointed at panels that do not exist (axe); "..." options was an icon; unlike was an icon with no name; text at 12px | Two plain labelled buttons; "Options" and "Remove like" in words; 14-16px text; confirmations before unmatch and remove-like |
+| Messages | With the options menu open, the whole page behind it was hidden from assistive technology yet still focusable (axe) | Menu no longer hides the page |
+| My Profile | Preview: five controls with no names (axe). Editor: no field had a programmatic label; header fields were 32px high with placeholder-only labels | Named controls; every field labelled; header fields are normal-height labelled fields in a grid |
+| My Profile, phone | **Save was cut off the right edge** in edit mode (seen on the phone sheet) | Buttons wrap |
+| My Profile, phone | Completeness card: the suggestion text was squeezed into a narrow column beside "Add this" (phone sheet) | Stacks on a phone |
+| Notifications | Opening the page marked everything read; times said "Recently"; whole card was a clickable box; delete was an icon; on a phone the icon sat in a tall empty pill (phone sheet) | Per-item read, real times, real links, "Delete" with Undo, "New" in words, icon no longer stretches |
+| Matches, phone | Name, last message and date were squeezed by space reserved for the Options button (phone sheet) | Only the name line leaves room for it |
+| Browse | Filter chips small, remove-X unnamed; "You Liked This User" | 32px remove buttons with names; "You like {name}" |
+| Events | Cards could not be opened by keyboard; date boxes unlabelled; only the small native date picker | Cards are buttons; labelled; "Next 7 days / Next 30 days / Any time" |
+| Member profile | Gallery tiles were not keyboard reachable; viewer controls unnamed | Buttons with names, arrow keys, "Photo 2 of 3" |
+
+## Still open
+
+- Tablet and desktop sheets for round 2 were not inspected by eye.
+- The profile editor is still one long page; sections are not collapsible and there is no sticky Save bar.
+- On another member's profile, Like is still below the first screen on a phone.
+- Settings is still one long page.
+- The photo crop step is on My Profile only; the onboarding photo upload does not use it yet.
+- Custom music / animal / pet-peeve entries are added with Enter only (no Add button).
+- No testing with real members, a real screen reader, or a physical phone.

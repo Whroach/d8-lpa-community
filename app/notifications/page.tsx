@@ -249,7 +249,7 @@ export default function NotificationsPage() {
                   )}
                 >
                   <div className="flex gap-3">
-                    <div className="mt-1 shrink-0 rounded-full bg-muted p-2">
+                    <div className="mt-1 shrink-0 self-start rounded-full bg-muted p-2">
                       <Icon className="h-5 w-5 text-foreground" aria-hidden="true" />
                     </div>
                     <div className="min-w-0 flex-1">

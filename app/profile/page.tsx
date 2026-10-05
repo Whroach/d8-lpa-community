@@ -704,7 +704,7 @@ function ProfilePage() {
               This is what other members see. Choose Edit to change it.
             </p>
           </div>
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2">
             <Button variant="outline" onClick={() => setShowPreview(true)} className="bg-white border-2 border-black dark:bg-slate-950 dark:border-white hover:bg-slate-50 dark:hover:bg-slate-900">
               <Eye className="h-4 w-4 mr-2" />
               Preview
@@ -770,8 +770,8 @@ function ProfilePage() {
             <ul className="mt-3 space-y-4">
               {completeness.missing.slice(0, 3).map((item) => (
                 <li key={item.key} data-testid={`suggestion-${item.key}`} className="rounded-lg border border-border p-3">
-                  <div className="flex flex-wrap items-center justify-between gap-2">
-                    <div className="min-w-0 flex-1">
+                  <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                    <div className="min-w-0 sm:flex-1">
                       <p className="font-semibold">{item.label}</p>
                       <p className="text-muted-foreground">{item.reason}</p>
                     </div>

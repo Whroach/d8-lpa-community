@@ -18,6 +18,20 @@ Ranked by value to members aged 40-65 in a small, trust-based community, against
 | 10 | Email summary (opt-in; job exists, not scheduled) | Brings back members who do not open the app daily |
 | 11 | Installable app (manifest, icons, offline page) | "Tap the icon" beats "type the address" |
 
+## Built in round 2 (2026-10-05)
+
+| Feature | Notes |
+|---|---|
+| Profile-completeness helper with examples | "Your profile is 60% complete", next three suggestions with plain reasons, tappable example answers written for this age group; seen only by the member |
+| Photo tips and simple cropping | Tips, then a frame the shape of a profile card: move (drag or buttons), zoom, or "Use the whole picture". My Profile only - not yet in onboarding |
+| In-app event reminders | The day before and on the day, once each; no scheduler needed |
+| Keyboard access for clickable cards and chips | Notifications, event cards, photo tiles, profile chips |
+| Notifications read one at a time; Delete with Undo; real times | |
+
+**Interest groups / tags: not built, on purpose.** Members' free-text interests already work as tags - Browse can now filter on any interest members actually have. Named groups ("Gardeners", "New members") with their own pages would be new shared spaces, and those need the moderation plan the roadmap already asked for.
+
+**"Not for me" in Browse: not built, on purpose.** The server can hide a profile, but there is no screen to bring a hidden member back, so one mis-tap would hide someone for good. It needs a "Hidden profiles" list first.
+
 ## Next (not built)
 
 | # | Feature | Notes |

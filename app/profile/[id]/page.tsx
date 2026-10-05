@@ -10,7 +10,7 @@ import { Badge } from "@/components/ui/badge"
 import { Card, CardContent } from "@/components/ui/card"
 import { Separator } from "@/components/ui/separator"
 import { Label } from "@/components/ui/label"
-import { Dialog, DialogContent } from "@/components/ui/dialog"
+import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -353,9 +353,11 @@ export default function UserProfilePage() {
                     const remainingCount = photos.length - 6;
 
                     return (
-                      <div
+                      <button
+                        type="button"
                         key={idx}
-                        className="relative aspect-square rounded-lg overflow-hidden cursor-pointer group border-2 border-border hover:border-primary/50 transition-all"
+                        aria-label={isLastPhoto && hasMorePhotos ? `Open photo ${idx + 1} of ${photos.length} (${remainingCount} more)` : `Open photo ${idx + 1} of ${photos.length}`}
+                        className="relative aspect-square rounded-lg overflow-hidden group border-2 border-border hover:border-primary/50 transition-all"
                         onClick={() => {
                           if (isLastPhoto && hasMorePhotos) {
                             setSelectedPhotoIndex(idx);
@@ -379,7 +381,7 @@ export default function UserProfilePage() {
                             <span className="text-white text-4xl font-bold">+{remainingCount}</span>
                           </div>
                         )}
-                      </div>
+                      </button>
                     );
                   })}
                 </div>
@@ -457,14 +459,27 @@ export default function UserProfilePage() {
 
         {/* Photo Modal */}
         <Dialog open={showPhotoModal} onOpenChange={setShowPhotoModal}>
-          <DialogContent className="max-w-4xl p-0 bg-black/95">
+          <DialogContent
+            className="max-w-4xl p-0 bg-black/95 [&>button:last-child]:hidden"
+            onKeyDown={(e) => {
+              if (e.key === "ArrowLeft") prevPhoto()
+              if (e.key === "ArrowRight") nextPhoto()
+            }}
+          >
+            <DialogTitle className="sr-only">{user.first_name}&apos;s photos</DialogTitle>
             <div className="relative h-[80vh]">
               <button
+                type="button"
+                aria-label="Close photos"
                 onClick={() => setShowPhotoModal(false)}
-                className="absolute top-4 right-4 z-50 p-2 rounded-full bg-black/50 text-white hover:bg-black/70 transition-colors"
+                className="absolute top-4 right-4 z-50 flex items-center gap-2 rounded-full bg-black/70 px-4 py-2 text-white hover:bg-black/90 transition-colors"
               >
-                <X className="h-6 w-6" />
+                <X className="h-5 w-5" aria-hidden="true" />
+                Close
               </button>
+              <p className="absolute top-5 left-4 z-50 rounded-full bg-black/70 px-3 py-1 text-white" aria-live="polite">
+                Photo {selectedPhotoIndex + 1} of {photos.length}
+              </p>
 
               {photos.length > 0 && (
                 <>
@@ -480,31 +495,36 @@ export default function UserProfilePage() {
                   {photos.length > 1 && (
                     <>
                       <button
+                        type="button"
+                        aria-label="Previous photo"
                         onClick={prevPhoto}
                         disabled={selectedPhotoIndex === 0}
-                        className="absolute left-4 top-1/2 -translate-y-1/2 p-3 rounded-full bg-black/50 text-white hover:bg-black/70 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                        className="absolute left-4 top-1/2 -translate-y-1/2 p-3 rounded-full bg-black/70 text-white hover:bg-black/90 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
                       >
-                        <ChevronLeft className="h-8 w-8" />
+                        <ChevronLeft className="h-8 w-8" aria-hidden="true" />
                       </button>
                       <button
+                        type="button"
+                        aria-label="Next photo"
                         onClick={nextPhoto}
                         disabled={selectedPhotoIndex === photos.length - 1}
-                        className="absolute right-4 top-1/2 -translate-y-1/2 p-3 rounded-full bg-black/50 text-white hover:bg-black/70 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                        className="absolute right-4 top-1/2 -translate-y-1/2 p-3 rounded-full bg-black/70 text-white hover:bg-black/90 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
                       >
-                        <ChevronRight className="h-8 w-8" />
+                        <ChevronRight className="h-8 w-8" aria-hidden="true" />
                       </button>
 
                       <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-2">
                         {photos.map((_: any, idx: number) => (
                           <button
+                            type="button"
                             key={idx}
+                            aria-label={`Go to photo ${idx + 1}`}
+                            aria-current={idx === selectedPhotoIndex}
                             onClick={() => setSelectedPhotoIndex(idx)}
-                            className={`h-2 rounded-full transition-all ${
-                              idx === selectedPhotoIndex
-                                ? "w-8 bg-white"
-                                : "w-2 bg-white/50 hover:bg-white/70"
-                            }`}
-                          />
+                            className="flex h-11 w-8 items-center justify-center"
+                          >
+                            <span className={`block h-2.5 rounded-full transition-all ${idx === selectedPhotoIndex ? "w-8 bg-white" : "w-2.5 bg-white/60"}`} />
+                          </button>
                         ))}
                       </div>
                     </>

@@ -11,7 +11,7 @@ export const auth = async (req, res, next) => {
 
     const token = authHeader.split(' ')[1];
     
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    const decoded = jwt.verify(token, process.env.JWT_SECRET, { algorithms: ['HS256'] });
     
     const user = await User.findById(decoded.userId);
     
@@ -41,9 +41,13 @@ export const auth = async (req, res, next) => {
       });
     }
 
-    // Update last active
-    user.last_active = new Date();
-    await user.save();
+    // Update last active - at most once a minute, and without re-saving the
+    // whole document (which raced with route handlers saving the same user).
+    const now = Date.now();
+    if (!user.last_active || now - new Date(user.last_active).getTime() > 60 * 1000) {
+      user.last_active = new Date(now);
+      await User.updateOne({ _id: user._id }, { $set: { last_active: user.last_active } });
+    }
 
     req.user = user;
     req.userId = user._id;
@@ -93,7 +97,7 @@ export const optionalAuth = async (req, res, next) => {
     }
 
     const token = authHeader.split(' ')[1];
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    const decoded = jwt.verify(token, process.env.JWT_SECRET, { algorithms: ['HS256'] });
     const user = await User.findById(decoded.userId);
     
     if (user && !user.is_banned && !user.is_suspended) {

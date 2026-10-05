@@ -46,11 +46,23 @@ const eventSchema = new mongoose.Schema({
   attendees: [{
     type: String
   }],
+  // Optional short note from an attendee, keyed by user id - for example
+  // "Driving from Tulsa, two seats free" or "First time, say hello!".
+  rsvp_notes: {
+    type: Map,
+    of: String,
+    default: () => new Map()
+  },
   created_by: {
     type: String,
     required: true
   },
   is_cancelled: {
+    type: Boolean,
+    default: false
+  },
+  // Hidden events are drafts: only admins see them.
+  is_hidden: {
     type: Boolean,
     default: false
   },

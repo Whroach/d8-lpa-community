@@ -1,5 +1,4 @@
 import express from 'express';
-import bcrypt from 'bcryptjs';
 import { auth } from '../middleware/auth.js';
 import User from '../models/User.js';
 import Profile from '../models/Profile.js';
@@ -40,10 +39,16 @@ router.get('/', auth, async (req, res) => {
         // Older documents predate this field; default it on rather than
         // letting `undefined` read as "sound off".
         sound: notificationSettings.sound !== false,
+        quiet_hours_enabled: Boolean(notificationSettings.quiet_hours_enabled),
+        quiet_hours_start: notificationSettings.quiet_hours_start || '21:00',
+        quiet_hours_end: notificationSettings.quiet_hours_end || '08:00',
+        email_digest: Boolean(notificationSettings.email_digest),
       },
       privacy: {
         profileVisible: privacySettings.profile_visible,
         selectiveMode: privacySettings.selective_mode,
+        showOnline: privacySettings.show_online !== false,
+        readReceipts: privacySettings.read_receipts !== false,
       },
     });
   } catch (error) {
@@ -65,7 +70,8 @@ router.put('/', auth, async (req, res) => {
         profile = new Profile({ user_id: req.userId });
       }
       if (Array.isArray(lookingFor)) {
-        profile.looking_for_gender = lookingFor;
+        const allowed = ['male', 'female', 'non_binary', 'everyone'];
+        profile.looking_for_gender = lookingFor.filter(value => allowed.includes(value));
       }
       if (hasAgeRange) {
         // Clamp to a sane range and keep min <= max so Browse can't be
@@ -84,9 +90,17 @@ router.put('/', auth, async (req, res) => {
     // and a missing `notifications` object no longer throws.
     if (notifications && typeof notifications === 'object') {
       const notificationUpdate = { updated_at: new Date() };
-      for (const key of ['matches', 'messages', 'likes', 'events', 'admin_news', 'sound']) {
+      for (const key of ['matches', 'messages', 'likes', 'events', 'admin_news', 'sound', 'quiet_hours_enabled', 'email_digest']) {
         if (notifications[key] !== undefined) {
           notificationUpdate[key] = Boolean(notifications[key]);
+        }
+      }
+      for (const key of ['quiet_hours_start', 'quiet_hours_end']) {
+        if (notifications[key] !== undefined) {
+          if (typeof notifications[key] !== 'string' || !/^([01]\d|2[0-3]):[0-5]\d$/.test(notifications[key])) {
+            return res.status(400).json({ message: 'Please choose a valid time for quiet hours.' });
+          }
+          notificationUpdate[key] = notifications[key];
         }
       }
       await UserNotificationSettings.findOneAndUpdate(
@@ -104,6 +118,12 @@ router.put('/', auth, async (req, res) => {
       }
       if (privacy.selectiveMode !== undefined) {
         privacyUpdate.selective_mode = Boolean(privacy.selectiveMode);
+      }
+      if (privacy.showOnline !== undefined) {
+        privacyUpdate.show_online = Boolean(privacy.showOnline);
+      }
+      if (privacy.readReceipts !== undefined) {
+        privacyUpdate.read_receipts = Boolean(privacy.readReceipts);
       }
       await UserPrivacySettings.findOneAndUpdate(
         { user_id: req.userId },
@@ -132,7 +152,7 @@ router.post('/disable', auth, async (req, res) => {
   try {
     const { reason, password } = req.body;
 
-    if (!password) {
+    if (typeof password !== 'string' || !password) {
       return res.status(400).json({ message: 'Password is required' });
     }
 
@@ -144,13 +164,15 @@ router.post('/disable', auth, async (req, res) => {
 
     const isPasswordValid = await user.comparePassword(password);
     if (!isPasswordValid) {
-      return res.status(401).json({ message: 'Invalid password' });
+      // 400 rather than 401: the client treats 401 as "your session ended"
+      // and would sign the member out over a mistyped password.
+      return res.status(400).json({ message: 'That password is not right. Please try again.' });
     }
 
     // Disable account
     user.is_disabled = true;
     user.disabled_at = new Date();
-    user.disable_reason = reason || '';
+    user.disable_reason = typeof reason === 'string' ? reason.slice(0, 500) : '';
     await user.save();
 
     res.json({
@@ -168,7 +190,7 @@ router.post('/delete', auth, async (req, res) => {
   try {
     const { reason, password } = req.body;
 
-    if (!password) {
+    if (typeof password !== 'string' || !password) {
       return res.status(400).json({ message: 'Password is required' });
     }
 
@@ -180,13 +202,13 @@ router.post('/delete', auth, async (req, res) => {
 
     const isPasswordValid = await user.comparePassword(password);
     if (!isPasswordValid) {
-      return res.status(401).json({ message: 'Invalid password' });
+      return res.status(400).json({ message: 'That password is not right. Please try again.' });
     }
 
     // Soft delete account
     user.is_deleted = true;
     user.deleted_at = new Date();
-    user.delete_reason = reason || '';
+    user.delete_reason = typeof reason === 'string' ? reason.slice(0, 500) : '';
     user.is_disabled = true; // Also disable the account
     await user.save();
 

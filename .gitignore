@@ -25,3 +25,10 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+# local development and tests
+/server/.local-uploads/
+/test-results/
+/playwright-report/
+/tests/e2e/.auth/
+/.dev-logs/
+/docs/screenshots/tmp/

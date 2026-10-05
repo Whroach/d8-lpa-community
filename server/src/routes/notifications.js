@@ -1,13 +1,14 @@
 import express from 'express';
 import { auth } from '../middleware/auth.js';
 import Notification from '../models/Notification.js';
+import { validateIdParams } from '../utils/helpers.js';
 
 const router = express.Router();
 
 // GET /api/notifications
 router.get('/', auth, async (req, res) => {
   try {
-    const notifications = await Notification.find({ user_id: req.userId })
+    const notifications = await Notification.find({ user_id: req.userId.toString() })
       .sort({ timestamp: -1 })
       .limit(50);
 
@@ -49,7 +50,7 @@ router.get('/unread-count', auth, async (req, res) => {
 });
 
 // PUT /api/notifications/:id/read
-router.put('/:id/read', auth, async (req, res) => {
+router.put('/:id/read', auth, validateIdParams('id'), async (req, res) => {
   try {
     const notification = await Notification.findOneAndUpdate(
       { _id: req.params.id, user_id: req.userId },
@@ -99,7 +100,7 @@ router.put('/mark-all-read', auth, async (req, res) => {
 });
 
 // DELETE /api/notifications/:id
-router.delete('/:id', auth, async (req, res) => {
+router.delete('/:id', auth, validateIdParams('id'), async (req, res) => {
   try {
     const result = await Notification.deleteOne({
       _id: req.params.id,

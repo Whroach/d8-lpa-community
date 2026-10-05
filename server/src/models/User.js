@@ -115,6 +115,11 @@ const userSchema = new mongoose.Schema({
   },
   delete_reason: {
     type: String
+  },
+  // Whether the member has been through (or skipped) the welcome tour.
+  has_seen_tour: {
+    type: Boolean,
+    default: false
   }
 }, {
   timestamps: { createdAt: 'created_at', updatedAt: 'updated_at' }
@@ -123,7 +128,7 @@ const userSchema = new mongoose.Schema({
 // Hash password before saving
 userSchema.pre('save', async function() {
   if (!this.isModified('password')) return;
-  
+
   const salt = await bcrypt.genSalt(10);
   this.password = await bcrypt.hash(this.password, salt);
 });
@@ -141,6 +146,12 @@ userSchema.methods.toJSON = function() {
   delete obj.verification_code_expires;
   delete obj.password_reset_token;
   delete obj.password_reset_expires;
+  // Moderation records are for admins only; they used to be sent to the
+  // member's own browser with every login and profile load.
+  delete obj.admin_notes;
+  delete obj.moderation_history;
+  delete obj.delete_reason;
+  delete obj.disable_reason;
   return obj;
 };
 

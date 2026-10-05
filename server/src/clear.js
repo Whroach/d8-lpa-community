@@ -1,3 +1,4 @@
+import { requireMongoUri, requireEnv } from './utils/script-env.js';
 import mongoose from 'mongoose';
 import dotenv from 'dotenv';
 import path from 'path';
@@ -19,7 +20,7 @@ import Notification from './models/Notification.js';
 import Block from './models/Block.js';
 import Report from './models/Report.js';
 
-const MONGODB_URI = process.env.MONGODB_URI || 'mongodb+srv://lpa-d8:Qd1gXd48ljTQDzGP3477UeNrlQrdRjhG7eXpQ@cluster0.iogpu.mongodb.net/d8lpa?retryWrites=true&w=majority&appName=Cluster0';
+const MONGODB_URI = requireMongoUri({ destructive: true });
 
 const clearAllData = async () => {
   try {

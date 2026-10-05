@@ -471,7 +471,7 @@ People you have unmatched will appear here
             <div>
               <h1 className="text-3xl md:text-4xl font-bold text-foreground">Matches & Likes</h1>
               <p className="text-muted-foreground mt-1 text-sm">
-                {matches.length} active {matches.length === 1 ? "match" : "matches"} • {likedProfiles.length} profiles you liked
+                {matches.length} active {matches.length === 1 ? "match" : "matches"} • {likedProfiles.length} {likedProfiles.length === 1 ? "profile" : "profiles"} you liked
               </p>
             </div>
           </div>

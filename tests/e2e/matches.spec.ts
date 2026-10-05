@@ -133,7 +133,7 @@ test.describe("Matches page", () => {
     const other = await createMember(request, { firstName: "Robin" })
     await request.post(`${API}/browse/${other.id}/like`, { headers: authHeaders(me.token) })
     const page = await signedInPage(browser, me, "/matches")
-    await expect(page.getByText("0 active matches • 1 profiles you liked")).toBeVisible()
+    await expect(page.getByText("0 active matches • 1 profile you liked")).toBeVisible()
     await page.getByRole("tab", { name: "Profiles You Liked" }).click()
     const card = page.getByTestId("liked-card").filter({ hasText: "Robin" })
     await expect(card).toContainText("Liked")

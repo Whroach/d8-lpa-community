@@ -127,3 +127,81 @@ export async function signedInPage(browser: Browser, member: Member, path = "/br
 
 /** The "Saved" toast on the settings screen. */
 export const savedToast = (page: Page) => page.getByText("Saved", { exact: true }).first()
+
+/** Changes a member's own profile through the API (the same call the editor makes). */
+export async function updateProfile(request: APIRequestContext, member: Member, data: Record<string, unknown>) {
+  const res = await request.put(`${API}/users/profile`, { headers: authHeaders(member.token), data })
+  expect(res.ok()).toBeTruthy()
+  return (await res.json()) as { user: Record<string, any>; profile: Record<string, any> }
+}
+
+/** A short tag that is different on every run, for names that must be unique. */
+export const runTag = () => `${Date.now().toString(36).slice(-5)}${(counter += 1)}`
+
+/** A small solid-colour PNG made in the page (never a photo of a person). */
+export async function makePng(page: Page, width = 400, height = 500, colour = "#3b7a57"): Promise<Buffer> {
+  const dataUrl = await page.evaluate(
+    ([w, h, c]) => {
+      const canvas = document.createElement("canvas")
+      canvas.width = w as number
+      canvas.height = h as number
+      const ctx = canvas.getContext("2d")!
+      ctx.fillStyle = c as string
+      ctx.fillRect(0, 0, canvas.width, canvas.height)
+      ctx.fillStyle = "#ffffff"
+      ctx.fillRect(canvas.width / 4, canvas.height / 4, canvas.width / 2, canvas.height / 2)
+      return canvas.toDataURL("image/png")
+    },
+    [width, height, colour] as const
+  )
+  return Buffer.from(dataUrl.split(",")[1], "base64")
+}
+
+/**
+ * Like signedInContext, but with browser options - a time zone, a phone-sized
+ * screen, dark mode... (Added for the admin and onboarding tests.)
+ */
+export async function signedInContextWith(
+  browser: Browser,
+  member: Pick<Member, "token" | "user" | "profile">,
+  options: Parameters<Browser["newContext"]>[0] = {}
+): Promise<BrowserContext> {
+  const context = await browser.newContext(options)
+  const session = {
+    state: {
+      user: { ...member.user, id: (member.user as any).id || (member.user as any)._id },
+      profile: member.profile,
+      token: member.token,
+      sessionTimestamp: Date.now(),
+      isAuthenticated: true,
+      onboardingData: {},
+      onboardingStep: 1,
+    },
+    version: 0,
+  }
+  await context.addInitScript((value) => {
+    if (!window.localStorage.getItem("spark-auth")) {
+      window.localStorage.setItem("spark-auth", value)
+    }
+  }, JSON.stringify(session))
+  return context
+}
+
+// 1x1 PNG and a tiny GIF, generated - not photos of anyone.
+export const TINY_PNG = Buffer.from(
+  "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==",
+  "base64"
+)
+
+/** Signs up and verifies a fictional person but stops before onboarding. */
+export async function createUnfinishedMember(request: APIRequestContext, prefix = "newbie") {
+  const email = uniqueEmail(prefix)
+  const signup = await request.post(`${API}/auth/signup`, { data: { email, password: PASSWORD } })
+  expect(signup.status()).toBe(201)
+  const { token, user_id } = await signup.json()
+  const mail = await latestEmail(request, email)
+  const code = mail.text.match(/\b(\d{6})\b/)![1]
+  expect((await request.post(`${API}/auth/verify-email`, { data: { email, code } })).ok()).toBeTruthy()
+  const me = await (await request.get(`${API}/auth/me`, { headers: authHeaders(token) })).json()
+  return { email, password: PASSWORD, token, id: String(user_id), user: me.user as Record<string, unknown>, profile: me.profile as Record<string, unknown> }
+}

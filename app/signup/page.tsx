@@ -89,7 +89,11 @@ export default function SignupPage() {
     }
 
     if (result.data) {
-      if (REQUIRE_VERIFICATION) {
+      // The code screen is only shown when a code was really sent. (When the
+      // server had verification switched off, this screen used to wait for a
+      // code that was never emailed.)
+      const serverSentCode = (result.data as { requiresVerification?: boolean }).requiresVerification !== false
+      if (REQUIRE_VERIFICATION && serverSentCode) {
         setSignupData({ email: result.data.email, token: result.data.token, userId: String(result.data.user_id || "") })
         setVerificationCode(EMPTY_CODE)
         setVerificationError(null)

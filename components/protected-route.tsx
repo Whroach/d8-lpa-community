@@ -1,7 +1,7 @@
 "use client"
 
 import React from "react"
-import { useEffect, useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import { usePathname, useRouter } from "next/navigation"
 import { Loader2 } from "lucide-react"
 import { useAuthStore } from "@/lib/store/auth-store"
@@ -25,6 +25,7 @@ export function ProtectedRoute({ children }: ProtectedRouteProps) {
   const { isAuthenticated, checkSession, logout, token, user, setUser, setProfile, refreshSession } = useAuthStore()
   const [isMounted, setIsMounted] = useState(false)
   const [showBanModal, setShowBanModal] = useState(false)
+  const timedOut = useRef(false)
 
   useEffect(() => {
     setIsMounted(true)
@@ -39,10 +40,16 @@ export function ProtectedRoute({ children }: ProtectedRouteProps) {
     // If user is not authenticated or session expired, redirect to login
     if (!isAuthenticated || !isSessionValid || !token) {
       if (isAuthenticated && !isSessionValid) {
+        // Signing out re-runs this effect; remember why, so the plain
+        // redirect below does not replace the one that carries the
+        // explanation. (It used to, and the member was signed out after
+        // eight hours with no word about why.)
+        timedOut.current = true
         logout()
-        router.push("/login?expired=1")
+        router.replace("/login?expired=1")
         return
       }
+      if (timedOut.current) return
       router.push("/login")
       return
     }

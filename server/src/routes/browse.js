@@ -14,6 +14,7 @@ import Favorite from '../models/Favorite.js';
 import {
   calculateAge,
   isBlockedBetween,
+  normalizeLookingFor,
   shouldCreateNotification,
   validateIdParams
 } from '../utils/helpers.js';
@@ -74,10 +75,9 @@ router.get('/', auth, async (req, res) => {
     // used to fall back to the opposite gender, so a member who never answered
     // the question silently had half of Browse hidden from them without any
     // way to tell why.
-    const genderPreference =
-      currentProfile?.looking_for_gender?.length > 0
-        ? currentProfile.looking_for_gender
-        : [];
+    // Normalised on read as well, so preferences saved as "non-binary" by
+    // older versions of the app start matching without a data migration.
+    const genderPreference = normalizeLookingFor(currentProfile?.looking_for_gender || []);
 
     // Everything the current user has already decided on. Profiles they
     // passed on are left out; profiles they liked stay, marked as liked.
@@ -165,8 +165,7 @@ router.get('/', auth, async (req, res) => {
       //   - members whose own gender is "prefer_not_to_say" or blank, who
       //     matched nobody's preference list and so saw an almost empty Browse
       // Someone who has not said who they want to meet has not said "not you".
-      const otherUserPreference =
-        profile?.looking_for_gender?.length > 0 ? profile.looking_for_gender : [];
+      const otherUserPreference = normalizeLookingFor(profile?.looking_for_gender || []);
 
       // With no gender recorded for the viewer there is nothing to test
       // against, so let the profile through rather than hiding everyone.

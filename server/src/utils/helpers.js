@@ -87,3 +87,18 @@ export function validationMessage(error) {
   }
   return `Please check "${first.path.replace(/_/g, ' ')}" and try again.`;
 }
+
+/**
+ * "Who I'd like to meet" values. Older screens sent "non-binary" while gender
+ * is stored as "non_binary", so that choice never matched anyone.
+ */
+export function normalizeLookingFor(values) {
+  if (!Array.isArray(values)) return [];
+  const allowed = ['male', 'female', 'non_binary', 'everyone'];
+  const out = [];
+  for (const raw of values) {
+    const value = String(raw).toLowerCase().replace('-', '_');
+    if (allowed.includes(value) && !out.includes(value)) out.push(value);
+  }
+  return out;
+}

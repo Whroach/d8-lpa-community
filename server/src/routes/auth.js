@@ -10,7 +10,7 @@ import { auth } from '../middleware/auth.js';
 import { sendVerificationEmail, sendPasswordResetEmail } from '../utils/email.js';
 import logger from '../utils/logger.js';
 import config from '../config/env.js';
-import { calculateAge, keepOwnPhotos, validationMessage } from '../utils/helpers.js';
+import { calculateAge, keepOwnPhotos, normalizeLookingFor, validationMessage } from '../utils/helpers.js';
 
 const router = express.Router();
 // Production always sends real verification emails. Elsewhere accounts are
@@ -353,7 +353,9 @@ router.put('/complete-onboarding', auth, async (req, res) => {
       relationship_values,
       show_affection,
       build_with_person,
-      agreed_to_guidelines
+      agreed_to_guidelines,
+      age_preference_min,
+      age_preference_max
     } = req.body;
 
     // Members must be adults. The form checks this too, but the form is not
@@ -407,6 +409,14 @@ router.put('/complete-onboarding', auth, async (req, res) => {
       profile.profile_picture_url = profile.photos[0];
     }
 
+    // Age range chosen during onboarding (it used to be thrown away here).
+    if (age_preference_min !== undefined || age_preference_max !== undefined) {
+      const min = Math.min(120, Math.max(18, Number(age_preference_min) || 18));
+      const max = Math.min(120, Math.max(18, Number(age_preference_max) || 99));
+      profile.age_preference_min = Math.min(min, max);
+      profile.age_preference_max = Math.max(min, max);
+    }
+
     // Interests and preferences
     profile.interests = interests || profile.interests;
     profile.favorite_music = favorite_music || profile.favorite_music;
@@ -418,7 +428,7 @@ router.put('/complete-onboarding', auth, async (req, res) => {
 
     // Looking for
     if (looking_for && Array.isArray(looking_for)) {
-      profile.looking_for_gender = looking_for;
+      profile.looking_for_gender = normalizeLookingFor(looking_for);
     }
     profile.looking_for_relationship = looking_for_relationship || profile.looking_for_relationship;
     profile.looking_for_description = looking_for_description ? (Array.isArray(looking_for_description) ? looking_for_description : [looking_for_description]) : profile.looking_for_description;

@@ -14,6 +14,7 @@ import {
   calculateAge,
   isBlockedBetween,
   keepOwnPhotos,
+  normalizeLookingFor,
   validateIdParams,
   validationMessage
 } from '../utils/helpers.js';
@@ -166,7 +167,7 @@ router.put('/profile', auth, async (req, res) => {
     if (personal_preferences !== undefined) profile.personal_preferences = personal_preferences;
 
     // Looking for
-    if (looking_for !== undefined) profile.looking_for_gender = looking_for;
+    if (looking_for !== undefined) profile.looking_for_gender = normalizeLookingFor(looking_for);
     if (looking_for_relationship !== undefined) profile.looking_for_relationship = looking_for_relationship;
     if (looking_for_description !== undefined) profile.looking_for_description = looking_for_description;
 

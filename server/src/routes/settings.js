@@ -5,6 +5,7 @@ import Profile from '../models/Profile.js';
 import UserNotificationSettings from '../models/UserNotificationSettings.js';
 import UserPrivacySettings from '../models/UserPrivacySettings.js';
 import logger from '../utils/logger.js';
+import { normalizeLookingFor } from '../utils/helpers.js';
 
 const router = express.Router();
 
@@ -70,8 +71,7 @@ router.put('/', auth, async (req, res) => {
         profile = new Profile({ user_id: req.userId });
       }
       if (Array.isArray(lookingFor)) {
-        const allowed = ['male', 'female', 'non_binary', 'everyone'];
-        profile.looking_for_gender = lookingFor.filter(value => allowed.includes(value));
+        profile.looking_for_gender = normalizeLookingFor(lookingFor);
       }
       if (hasAgeRange) {
         // Clamp to a sane range and keep min <= max so Browse can't be

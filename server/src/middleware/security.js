@@ -162,7 +162,9 @@ export const validateRequest = (req, res, next) => {
   }
 
   // Validate content type for POST/PUT requests
-  if (['POST', 'PUT', 'PATCH'].includes(req.method)) {
+  // Only when there is a body: "like", "RSVP" and "mark read" send none.
+  const hasBody = Number(req.headers['content-length'] || 0) > 0 || Boolean(req.headers['transfer-encoding']);
+  if (hasBody && ['POST', 'PUT', 'PATCH'].includes(req.method)) {
     const contentType = req.headers['content-type'];
     if (!contentType || (!contentType.includes('application/json') && !contentType.includes('multipart/form-data'))) {
       return res.status(415).json({ message: 'Unsupported Media Type' });

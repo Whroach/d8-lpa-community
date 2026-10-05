@@ -59,7 +59,7 @@ async function apiRequest<T>(
     if (!response.ok) {
       if (response.status === 401) {
         // Don't redirect on login endpoint - let the component handle the error
-        if (endpoint !== "/auth/login" && endpoint !== "/auth/signup") {
+        if (endpoint !== "/auth/login" && endpoint !== "/auth/signup" && token) {
           if (typeof window !== "undefined") {
             localStorage.removeItem("spark-auth")
             window.location.href = "/login?expired=1"
@@ -70,12 +70,10 @@ async function apiRequest<T>(
         return { error: data.message || "You are going a little fast. Please wait a minute and try again.", status: 429 }
       }
       // Handle 403 (banned/suspended) - show message but stay on current page
-      if (response.status === 403 && data.message?.includes("suspended or banned")) {
-        if (typeof window !== "undefined") {
-          localStorage.removeItem("spark-auth")
-          // Don't redirect, let the component show the error
-        }
-      }
+      // Suspended or banned: nothing to do here. The page shell shows the
+      // explanation and signs the member out. (Clearing the session at this
+      // point made the other requests on the page fail as "not signed in",
+      // which redirected to the login screen before the explanation showed.)
       // A session left open elsewhere after the account was disabled or
       // deleted would otherwise sit there failing every request. Send it back
       // to the login screen, which is also where reactivating happens.

@@ -19,12 +19,13 @@ export const auth = async (req, res, next) => {
       return res.status(401).json({ message: 'User not found' });
     }
 
-    if (user.is_banned) {
-      return res.status(403).json({ message: 'Account has been banned' });
-    }
-
-    if (user.is_suspended) {
-      return res.status(403).json({ message: 'Account is suspended' });
+    // The wording matters: the app looks for "suspended or banned" to show
+    // its explanation dialog. The shorter messages used here before never
+    // matched, so a suspended member just saw every screen fail silently.
+    if (user.is_banned || user.is_suspended) {
+      return res.status(403).json({
+        message: 'Your account has been suspended or banned. Please contact d8lpa.community@gmail.com for more info.'
+      });
     }
 
     // Deleting or disabling an account has to invalidate the tokens already

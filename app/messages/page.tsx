@@ -402,7 +402,9 @@ function MessagesScreen() {
   const deliver = async (matchId: string, tempId: string, content: string) => {
     const result = await api.messages.send(matchId, content)
     if (result.data) {
-      setMessages((prev) => prev.map((m) => (m.id === tempId ? result.data : m)))
+      // "Seen" can arrive over the live connection before this reply does;
+      // don't let the reply put the message back to "Sent".
+      setMessages((prev) => prev.map((m) => (m.id === tempId ? { ...result.data, read: m.read || result.data.read } : m)))
       setConversations((prev) =>
         prev.map((c) =>
           c.match_id === matchId
@@ -524,6 +526,7 @@ function MessagesScreen() {
     }
     setShowDeleteDialog(false)
     setMessages([])
+    setAnnouncement("")
     setConversations((prev) =>
       prev.map((c) => (c.match_id === selectedConversation.match_id ? { ...c, last_message: null, has_messages: false } : c))
     )

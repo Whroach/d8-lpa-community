@@ -1150,9 +1150,9 @@ export default function SettingsPage() {
                 <Label htmlFor="disable-password" className="text-base">
                   Enter your password to confirm
                 </Label>
-                <Input
+                <PasswordInput
                   id="disable-password"
-                  type="password"
+                  
                   placeholder="••••••••"
                   value={disablePassword}
                   onChange={(e) => setDisablePassword(e.target.value)}
@@ -1240,9 +1240,9 @@ export default function SettingsPage() {
                 <Label htmlFor="delete-password" className="text-base">
                   Enter your password to confirm
                 </Label>
-                <Input
+                <PasswordInput
                   id="delete-password"
-                  type="password"
+                  
                   placeholder="••••••••"
                   value={deletePassword}
                   onChange={(e) => setDeletePassword(e.target.value)}
@@ -1422,9 +1422,9 @@ export default function SettingsPage() {
                 <Label htmlFor="current-password" className="text-base">
                   Current Password <span className="text-destructive">*</span>
                 </Label>
-                <Input
+                <PasswordInput
                   id="current-password"
-                  type="password"
+                  
                   placeholder="Enter your current password"
                   value={currentPassword}
                   onChange={(e) => setCurrentPassword(e.target.value)}
@@ -1437,9 +1437,9 @@ export default function SettingsPage() {
                 <Label htmlFor="new-password" className="text-base">
                   New Password <span className="text-destructive">*</span>
                 </Label>
-                <Input
+                <PasswordInput
                   id="new-password"
-                  type="password"
+                  
                   placeholder="Enter a new password"
                   value={newPassword}
                   onChange={(e) => setNewPassword(e.target.value)}
@@ -1455,9 +1455,9 @@ export default function SettingsPage() {
                 <Label htmlFor="confirm-password" className="text-base">
                   Confirm New Password <span className="text-destructive">*</span>
                 </Label>
-                <Input
+                <PasswordInput
                   id="confirm-password"
-                  type="password"
+                  
                   placeholder="Confirm your new password"
                   value={confirmPassword}
                   onChange={(e) => setConfirmPassword(e.target.value)}

@@ -161,14 +161,14 @@
   }
 
   /* Links inside running text are underlined, not colour-only. */
-  :where(p, li, label) > a {
+  :where(p, label) > a {
     text-decoration: underline;
     text-underline-offset: 0.2em;
   }
 
   /* Comfortable tap targets for anything clickable that is not laid out as
      a large control already. */
-  :where(button, [role='button'], [role='tab'], [role='menuitem'], select, summary) {
+  :where(button:not([role='checkbox']):not([role='switch']):not([role='radio']), [role='button'], [role='tab'], [role='menuitem'], select, summary) {
     min-height: 2.5rem;
   }
   :where(input[type='checkbox'], input[type='radio']) {

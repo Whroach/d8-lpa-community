@@ -239,7 +239,7 @@ export default function MatchesPage() {
   const renderMatchList = (matchList: Match[], isHistory: boolean) => {
     if (isLoading) {
       return (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4">
           {[1, 2, 3, 4, 5, 6].map((i) => (
             <div key={i} className="p-4 rounded-xl border border-border bg-card">
               <div className="flex items-start gap-4">
@@ -259,7 +259,7 @@ export default function MatchesPage() {
 
     if (matchList.length > 0) {
       return (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4">
           {matchList.map((match) => (
             <div
               key={match.id}
@@ -517,7 +517,7 @@ export default function MatchesPage() {
           <>
             {/* Profiles You Liked Content */}
             {isLoading ? (
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4">
                 {[1, 2, 3].map((i) => (
                   <div key={i} className="bg-card rounded-lg overflow-hidden border border-border">
                     <Skeleton className="aspect-[4/5] w-full" />
@@ -530,7 +530,7 @@ export default function MatchesPage() {
                 ))}
               </div>
             ) : likedProfiles.length > 0 ? (
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4">
                 {likedProfiles.map((profile) => (
                   <div
                     key={profile.id}

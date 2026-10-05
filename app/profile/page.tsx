@@ -613,7 +613,7 @@ function ProfilePage() {
             )}
 
             {/* Header */}
-            <div className="flex items-center justify-between mb-8">
+            <div className="flex flex-wrap items-center justify-between gap-3 mb-8">
               <div>
                 <h1 className="text-2xl md:text-3xl font-bold text-foreground">My Profile</h1>
             <p className="text-muted-foreground mt-1">
@@ -750,7 +750,7 @@ function ProfilePage() {
         </Card>
 
         {/* Quick Stats */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-6">
           <Link href="/matches">
             <Card className="bg-gradient-to-br from-primary/10 to-primary/5 border-primary/20 hover:shadow-md hover:border-primary/40 transition-all cursor-pointer">
               <CardContent className="p-5">

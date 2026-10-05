@@ -285,8 +285,8 @@ export default function BrowsePage() {
         <div className="p-4 md:p-6 lg:p-8">
         {/* Header */}
         <div className="mb-6">
-          <h1 className="text-2xl md:text-3xl font-bold text-foreground">Discover</h1>
-          <p className="text-muted-foreground mt-1">Find your perfect match</p>
+          <h1 className="text-2xl md:text-3xl font-bold text-foreground">Browse</h1>
+          <p className="text-muted-foreground mt-1">Meet other members. Choose a card to read more.</p>
         </div>
 
         {/* Filter Bar */}

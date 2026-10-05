@@ -253,7 +253,7 @@ function MessagesScreen() {
       initialSelectionDone.current = true
       const wanted = searchParams.get("match")
       const fromUrl = wanted && result.data.find((c: Conversation) => c.match_id === wanted)
-      const isWide = typeof window !== "undefined" && window.matchMedia("(min-width: 768px)").matches
+      const isWide = typeof window !== "undefined" && window.matchMedia("(min-width: 1024px)").matches
       if (fromUrl) selectConversation(fromUrl.match_id, { updateUrl: false })
       else if (isWide && result.data.length > 0) selectConversation(result.data[0].match_id, { updateUrl: false })
     }
@@ -595,8 +595,8 @@ function MessagesScreen() {
         <section
           aria-label="Your conversations"
           className={cn(
-            "w-full flex-col border-r border-border bg-card md:w-80 lg:w-96",
-            selectedConversation ? "hidden md:flex" : "flex"
+            "w-full flex-col border-r border-border bg-card lg:w-96",
+            selectedConversation ? "hidden lg:flex" : "flex"
           )}
         >
           <div className="border-b border-border p-4">
@@ -730,17 +730,17 @@ function MessagesScreen() {
         {/* Open conversation */}
         <section
           aria-label={other ? `Conversation with ${other.first_name}` : "Conversation"}
-          className={cn("min-w-0 flex-1 flex-col bg-background", !selectedConversation ? "hidden md:flex" : "flex")}
+          className={cn("min-w-0 flex-1 flex-col bg-background", !selectedConversation ? "hidden lg:flex" : "flex")}
         >
           {selectedConversation && other ? (
             <>
               <header className="flex items-center gap-2 border-b border-border bg-card p-3 md:gap-3 md:p-4">
-                <Button variant="ghost" onClick={() => selectConversation(null)} className="px-2 md:hidden">
+                <Button variant="ghost" onClick={() => selectConversation(null)} className="px-2 lg:hidden">
                   <ChevronLeft aria-hidden="true" />
                   Back
                 </Button>
 
-                <Avatar className="h-12 w-12 shrink-0">
+                <Avatar className="hidden h-12 w-12 shrink-0 sm:flex">
                   <AvatarImage src={avatarFor(other)} alt="" />
                   <AvatarFallback className="bg-primary/10 text-primary">{other.first_name?.[0] || "?"}</AvatarFallback>
                 </Avatar>

@@ -1,7 +1,5 @@
 "use client"
 
-import React from "react"
-
 import { useEffect, useState } from "react"
 import Link from "next/link"
 import { Search, MessageCircle, Users, Filter, MoreVertical, User, HeartOff, Ban, Flag, Heart, MapPin, ChevronUp, ChevronDown, History } from "lucide-react"
@@ -36,6 +34,8 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog"
 import { Textarea } from "@/components/ui/textarea"
+import { toast } from "sonner"
+import { LoadError } from "@/components/load-error"
 
 interface Match {
   id: string
@@ -66,8 +66,10 @@ export default function MatchesPage() {
   const [sortBy, setSortBy] = useState("recent")
   const [mainTab, setMainTab] = useState<"matches" | "liked">("matches")
   const [activeTab, setActiveTab] = useState("active")
-  const [dialogMode, setDialogMode] = useState<"block" | "report" | "report-sent" | null>(null)
+  const [dialogMode, setDialogMode] = useState<"block" | "report" | "report-sent" | "unmatch" | "unlike" | null>(null)
   const [pendingMatch, setPendingMatch] = useState<Match | null>(null)
+  const [pendingLike, setPendingLike] = useState<any | null>(null)
+  const [loadError, setLoadError] = useState<string | null>(null)
   const [reportReason, setReportReason] = useState("")
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [dialogError, setDialogError] = useState<string | null>(null)
@@ -75,6 +77,7 @@ export default function MatchesPage() {
   const closeDialog = () => {
     setDialogMode(null)
     setPendingMatch(null)
+    setPendingLike(null)
     setReportReason("")
     setDialogError(null)
   }
@@ -82,31 +85,52 @@ export default function MatchesPage() {
   useEffect(() => {
     // Both requests share isLoading, so wait for both before clearing it —
     // otherwise the faster one hides the skeleton while the other is pending.
-    Promise.all([loadMatches(), loadLikedProfiles()]).finally(() =>
-      setIsLoading(false)
-    )
+    void loadAll()
     if (typeof window !== "undefined") {
       localStorage.setItem("lastViewedMatches", new Date().toISOString())
       window.dispatchEvent(new Event("matchesViewed"))
     }
   }, [])
 
-  const loadLikedProfiles = async () => {
+  const loadAll = async () => {
+    setIsLoading(true)
+    setLoadError(null)
+    const [matchError, likedError] = await Promise.all([loadMatches(), loadLikedProfiles()])
+    setLoadError(matchError || likedError || null)
+    setIsLoading(false)
+  }
+
+  const loadLikedProfiles = async (): Promise<string | null> => {
     const result = await api.browse.getLikedProfiles()
     if (result.data) {
       setLikedProfiles(result.data)
+      return null
     }
+    return result.error || "Please try again."
   }
 
-  const handleUnlikeProfile = async (likeId: string, e: React.MouseEvent) => {
-    e.preventDefault()
-    e.stopPropagation()
-    const result = await api.browse.unlike(likeId)
-    if (!result.error) {
-      setLikedProfiles((prev) => prev.filter((p) => p.like_id !== likeId))
-      // Reload matches to remove from active matches if they were matched
-      await loadMatches()
+  // Removing a like asks first. There is no Undo on purpose: liking again
+  // would send the other member a second "someone likes you" notice.
+  const handleUnlikeProfile = (profile: any) => {
+    setPendingLike(profile)
+    setDialogMode("unlike")
+  }
+
+  const confirmUnlikeProfile = async () => {
+    if (!pendingLike) return
+    setIsSubmitting(true)
+    const result = await api.browse.unlike(pendingLike.like_id)
+    setIsSubmitting(false)
+    if (result.error) {
+      setDialogError(result.error)
+      return
     }
+    const name = pendingLike.first_name
+    setLikedProfiles((prev) => prev.filter((p) => p.like_id !== pendingLike.like_id))
+    closeDialog()
+    toast.success(`You no longer like ${name}`)
+    // If the two were matched, the match has moved to History.
+    await loadMatches()
   }
 
   useEffect(() => {
@@ -148,14 +172,16 @@ export default function MatchesPage() {
     setFilteredInactiveMatches(filteredInactive)
   }, [matches, inactiveMatches, searchQuery, sortBy])
 
-  const loadMatches = async () => {
+  const loadMatches = async (): Promise<string | null> => {
     const result = await api.matches.getAll()
     if (result.data) {
       setMatches(
         Array.isArray(result.data) ? result.data : result.data.active || []
       )
       setInactiveMatches(Array.isArray(result.data) ? [] : result.data.inactive || [])
+      return null
     }
+    return (result as { error?: string }).error || "Please try again."
   }
 
   const formatTimestamp = (timestamp?: string | null) => {
@@ -171,18 +197,31 @@ export default function MatchesPage() {
     return date.toLocaleDateString()
   }
 
-  const handleUnlike = async (matchId: string, e: React.MouseEvent) => {
-    e.preventDefault()
+  // Unmatching asks first. It cannot be undone from here: the server removes
+  // both members' likes, and only the other member can give theirs back.
+  const handleUnlike = (matchId: string, e: React.MouseEvent) => {
     e.stopPropagation()
-    const result = await api.matches.unmatch(matchId)
-    if (!result.error) {
-      // Move match from active to inactive
-      const match = matches.find((m) => m.id === matchId)
-      if (match) {
-        setMatches((prev) => prev.filter((m) => m.id !== matchId))
-        setInactiveMatches((prev) => [...prev, { ...match, is_active: false }])
-      }
+    const match = matches.find((m) => m.id === matchId)
+    if (!match) return
+    setPendingMatch(match)
+    setDialogMode("unmatch")
+  }
+
+  const confirmUnmatch = async () => {
+    if (!pendingMatch) return
+    setIsSubmitting(true)
+    const result = await api.matches.unmatch(pendingMatch.id)
+    setIsSubmitting(false)
+    if (result.error) {
+      setDialogError(result.error)
+      return
     }
+    const match = pendingMatch
+    setMatches((prev) => prev.filter((m) => m.id !== match.id))
+    setInactiveMatches((prev) => [...prev, { ...match, is_active: false }])
+    setLikedProfiles((prev) => prev.filter((p) => String(p.id) !== String(match.user.id)))
+    closeDialog()
+    toast.success(`You are no longer matched with ${match.user.first_name}`)
   }
 
   const findMatch = (matchId: string) =>
@@ -191,7 +230,6 @@ export default function MatchesPage() {
   // These used to use window.confirm / window.prompt, which are jarring,
   // unstyled, and suppressed outright by some mobile browsers.
   const handleBlock = (matchId: string, e: React.MouseEvent) => {
-    e.preventDefault()
     e.stopPropagation()
     const match = findMatch(matchId)
     if (!match) return
@@ -200,7 +238,6 @@ export default function MatchesPage() {
   }
 
   const handleReport = (matchId: string, e: React.MouseEvent) => {
-    e.preventDefault()
     e.stopPropagation()
     const match = findMatch(matchId)
     if (!match) return
@@ -217,6 +254,8 @@ export default function MatchesPage() {
     if (!result.error) {
       setMatches((prev) => prev.filter((m) => m.id !== pendingMatch.id))
       setInactiveMatches((prev) => prev.filter((m) => m.id !== pendingMatch.id))
+      setLikedProfiles((prev) => prev.filter((p) => String(p.id) !== String(pendingMatch.user.id)))
+      toast.success(`${pendingMatch.user.first_name} is blocked`)
       setDialogMode(null)
       setPendingMatch(null)
     } else {
@@ -263,6 +302,7 @@ export default function MatchesPage() {
           {matchList.map((match) => (
             <div
               key={match.id}
+              data-testid="match-card"
               className="group relative p-4 rounded-lg border border-border bg-card hover:shadow-lg hover:border-primary/40 transition-all duration-200"
             >
               {/* Three-dot menu */}
@@ -274,12 +314,12 @@ export default function MatchesPage() {
                         unmatch / block / report entirely. */}
                     <Button
                       variant="ghost"
-                      size="icon"
-                      className="h-9 w-9"
+                      size="sm"
                       aria-label={`Options for ${match.user.first_name}`}
                       onClick={(e) => e.stopPropagation()}
                     >
-                      <MoreVertical className="h-5 w-5" />
+                      <MoreVertical aria-hidden="true" />
+                      Options
                     </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end">
@@ -323,7 +363,7 @@ export default function MatchesPage() {
                     {match.user.first_name?.[0] || "?"}
                   </AvatarFallback>
                 </Avatar>
-                <div className="flex-1 min-w-0">
+                <div className="flex-1 min-w-0 pr-28">
                   <h3 className="font-semibold text-foreground truncate">
                     {match.user.first_name}
                     {match.user.age ? `, ${match.user.age}` : ""}
@@ -331,8 +371,8 @@ export default function MatchesPage() {
                   <p className="text-sm text-muted-foreground truncate mt-1">
                     {match.last_message || "Start a conversation!"}
                   </p>
-                  <p className="text-xs text-muted-foreground mt-2">
-                    {formatTimestamp(match.matched_at)}
+                  <p className="text-sm text-muted-foreground mt-2">
+                    Matched {formatTimestamp(match.matched_at).toLowerCase()}
                   </p>
                 </div>
               </div>
@@ -400,7 +440,7 @@ export default function MatchesPage() {
             <History className="h-12 w-12 text-muted-foreground/50 mx-auto mb-4" />
             <h3 className="text-lg font-medium text-foreground mb-2">No match history</h3>
             <p className="text-muted-foreground">
-              Unliked matches will appear here
+People you have unmatched will appear here
             </p>
           </>
         ) : (
@@ -459,6 +499,7 @@ export default function MatchesPage() {
             <div className="relative flex-1">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
+                aria-label="Search matches by first name"
                 placeholder="Search matches..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
@@ -466,7 +507,7 @@ export default function MatchesPage() {
               />
             </div>
             <Select value={sortBy} onValueChange={setSortBy}>
-              <SelectTrigger className="w-full sm:w-[180px] bg-background border-border">
+              <SelectTrigger aria-label="Sort matches" className="w-full sm:w-[200px] bg-background border-border">
                 <Filter className="h-4 w-4 mr-2" />
                 <SelectValue placeholder="Sort by" />
               </SelectTrigger>
@@ -479,15 +520,19 @@ export default function MatchesPage() {
         )}
 
         {/* Content based on main tab */}
-        {mainTab === "matches" ? (
+        {loadError && !isLoading ? (
+          <LoadError what="your matches" detail={loadError} onRetry={loadAll} />
+        ) : mainTab === "matches" ? (
           <>
             {/* Tabs for Active Matches and History */}
             <div className="mb-8">
               <div className="flex gap-3 mb-6">
                 <button
+                  type="button"
+                  aria-pressed={activeTab === "active"}
                   onClick={() => setActiveTab("active")}
                   className={cn(
-                    "flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium transition-all",
+                    "flex min-h-11 items-center gap-2 px-4 py-2 rounded-full text-base font-medium transition-all",
                     activeTab === "active"
                       ? "bg-primary text-primary-foreground"
                       : "bg-muted text-muted-foreground hover:bg-muted/80"
@@ -497,9 +542,11 @@ export default function MatchesPage() {
                   Active Matches ({matches.length})
                 </button>
                 <button
+                  type="button"
+                  aria-pressed={activeTab === "history"}
                   onClick={() => setActiveTab("history")}
                   className={cn(
-                    "flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium transition-all",
+                    "flex min-h-11 items-center gap-2 px-4 py-2 rounded-full text-base font-medium transition-all",
                     activeTab === "history"
                       ? "bg-primary text-primary-foreground"
                       : "bg-muted text-muted-foreground hover:bg-muted/80"
@@ -534,6 +581,7 @@ export default function MatchesPage() {
                 {likedProfiles.map((profile) => (
                   <div
                     key={profile.id}
+                    data-testid="liked-card"
                     className="bg-card rounded-lg overflow-hidden border border-border shadow-sm hover:shadow-lg hover:border-primary/30 transition-all"
                   >
                     {/* Profile Image */}
@@ -550,7 +598,7 @@ export default function MatchesPage() {
                         
                         {/* Liked badge */}
                         <div className="absolute top-3 right-3">
-                          <div className="bg-primary/90 backdrop-blur text-primary-foreground px-3 py-1.5 rounded-full text-xs font-semibold flex items-center gap-1">
+                          <div className="bg-primary text-primary-foreground px-3 py-1.5 rounded-full text-sm font-semibold flex items-center gap-1">
                             <Heart className="h-3 w-3 fill-current" />
                             {profile.type === 'superlike' ? 'Super Liked' : 'Liked'}
                           </div>
@@ -562,7 +610,7 @@ export default function MatchesPage() {
                             {profile.first_name}{profile.age ? `, ${profile.age}` : ''}
                           </h3>
                           {profile.location_city && (
-                            <div className="flex items-center gap-1 text-white/90 text-xs mt-2">
+                            <div className="flex items-center gap-1 text-white text-sm mt-2">
                               <MapPin className="h-3.5 w-3.5" />
                               <span>{profile.location_city}</span>
                             </div>
@@ -578,8 +626,8 @@ export default function MatchesPage() {
                           {profile.bio}
                         </p>
                       )}
-                      <p className="text-xs text-muted-foreground mb-3">
-                        Liked {formatTimestamp(profile.liked_at)}
+                      <p className="text-sm text-muted-foreground mb-3">
+                        Liked {formatTimestamp(profile.liked_at).toLowerCase()}
                       </p>
                       <div className="flex gap-2">
                         <Button
@@ -596,10 +644,12 @@ export default function MatchesPage() {
                         <Button
                           variant="outline"
                           size="sm"
-                          className="bg-transparent text-destructive hover:text-destructive hover:bg-destructive/10"
-                          onClick={(e) => handleUnlikeProfile(profile.like_id, e)}
+                          className="flex-1 bg-transparent"
+                          aria-label={`Remove like for ${profile.first_name}`}
+                          onClick={() => handleUnlikeProfile(profile)}
                         >
-                          <HeartOff className="h-4 w-4" />
+                          <HeartOff aria-hidden="true" />
+                          Remove like
                         </Button>
                       </div>
                     </div>
@@ -621,6 +671,54 @@ export default function MatchesPage() {
         {/* Block / Report dialogs */}
         <Dialog open={dialogMode !== null} onOpenChange={(open) => !open && closeDialog()}>
           <DialogContent className="sm:max-w-md">
+            {dialogMode === "unmatch" && (
+              <>
+                <DialogHeader>
+                  <DialogTitle>Unmatch with {pendingMatch?.user.first_name}?</DialogTitle>
+                  <DialogDescription>
+                    You will no longer be matched, and neither of you can send new messages.
+                    You can still read your past messages under History. If you both like
+                    each other again later, you will be matched again.
+                  </DialogDescription>
+                </DialogHeader>
+                {dialogError && (
+                  <p role="alert" className="text-destructive">{dialogError}</p>
+                )}
+                <div className="flex flex-col-reverse gap-2 pt-2 sm:flex-row sm:justify-end">
+                  <Button variant="outline" onClick={closeDialog} disabled={isSubmitting} autoFocus>
+                    Keep match
+                  </Button>
+                  <Button variant="destructive" onClick={confirmUnmatch} disabled={isSubmitting}>
+                    {isSubmitting ? "Unmatching..." : "Unmatch"}
+                  </Button>
+                </div>
+              </>
+            )}
+
+            {dialogMode === "unlike" && (
+              <>
+                <DialogHeader>
+                  <DialogTitle>Remove your like for {pendingLike?.first_name}?</DialogTitle>
+                  <DialogDescription>
+                    {pendingLike?.first_name} will not be told. If the two of you are matched,
+                    you will be unmatched and can no longer message each other. You can like
+                    them again from Browse.
+                  </DialogDescription>
+                </DialogHeader>
+                {dialogError && (
+                  <p role="alert" className="text-destructive">{dialogError}</p>
+                )}
+                <div className="flex flex-col-reverse gap-2 pt-2 sm:flex-row sm:justify-end">
+                  <Button variant="outline" onClick={closeDialog} disabled={isSubmitting} autoFocus>
+                    Keep like
+                  </Button>
+                  <Button variant="destructive" onClick={confirmUnlikeProfile} disabled={isSubmitting}>
+                    {isSubmitting ? "Removing..." : "Remove like"}
+                  </Button>
+                </div>
+              </>
+            )}
+
             {dialogMode === "block" && (
               <>
                 <DialogHeader>
@@ -634,7 +732,7 @@ export default function MatchesPage() {
                   </DialogDescription>
                 </DialogHeader>
                 {dialogError && (
-                  <p className="text-sm text-destructive">{dialogError}</p>
+                  <p role="alert" className="text-destructive">{dialogError}</p>
                 )}
                 <div className="flex justify-end gap-2 pt-2">
                   <Button variant="outline" onClick={closeDialog} disabled={isSubmitting}>
@@ -660,12 +758,13 @@ export default function MatchesPage() {
                 </DialogHeader>
                 <Textarea
                   rows={4}
+                  aria-label="What happened"
                   value={reportReason}
                   onChange={(e) => setReportReason(e.target.value)}
                   placeholder="Please describe the issue..."
                 />
                 {dialogError && (
-                  <p className="text-sm text-destructive">{dialogError}</p>
+                  <p role="alert" className="text-destructive">{dialogError}</p>
                 )}
                 <div className="flex justify-end gap-2 pt-2">
                   <Button variant="outline" onClick={closeDialog} disabled={isSubmitting}>
@@ -685,7 +784,7 @@ export default function MatchesPage() {
             {dialogMode === "report-sent" && (
               <div className="py-4 text-center space-y-3">
                 <Flag className="h-10 w-10 text-primary mx-auto" />
-                <h2 className="text-lg font-semibold">Report submitted</h2>
+                <DialogTitle className="text-lg font-semibold">Report submitted</DialogTitle>
                 <p className="text-sm text-muted-foreground">
                   Thank you for helping keep our community safe.
                 </p>

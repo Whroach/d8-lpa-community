@@ -1,345 +1,325 @@
 "use client"
 
-import { useEffect, useState } from "react"
-import { useRouter } from "next/navigation"
+import { useCallback, useEffect, useRef, useState } from "react"
+import Link from "next/link"
+import { toast } from "sonner"
 import { AppLayout } from "@/components/app-layout"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Skeleton } from "@/components/ui/skeleton"
-import { Badge } from "@/components/ui/badge"
-import { Separator } from "@/components/ui/separator"
+import { LoadError } from "@/components/load-error"
 import { api } from "@/lib/api"
-import { Bell, Trash2, CheckCircle2, Heart, MessageCircle, Users, Calendar, Shield } from "lucide-react"
+import { formatNotificationTime } from "@/lib/relative-time"
+import { Bell, Trash2, Check, CheckCheck, Heart, MessageCircle, Users, Calendar, Megaphone, Info, ChevronRight } from "lucide-react"
 import { cn } from "@/lib/utils"
 
 interface Notification {
   _id: string
-  user_id: string
-  type: 'match' | 'message' | 'like' | 'event' | 'admin'
+  type: "match" | "message" | "like" | "event" | "news" | "system" | string
   title: string
   message: string
   read: boolean
   created_at: string
   related_user?: string
   related_match?: string
-  avatar?: string
+  related_event?: string
 }
 
+const TYPE_LABEL: Record<string, string> = {
+  match: "Match",
+  like: "Like",
+  message: "Message",
+  event: "Event",
+  news: "News",
+  system: "Notice",
+}
+
+const TYPE_ICON: Record<string, typeof Bell> = {
+  match: Users,
+  like: Heart,
+  message: MessageCircle,
+  event: Calendar,
+  news: Megaphone,
+  system: Info,
+}
+
+/** Where a notification leads, and the words on its link. */
+function destination(n: Notification): { href: string; label: string } | null {
+  switch (n.type) {
+    case "message":
+      return { href: n.related_match ? `/messages?match=${n.related_match}` : "/messages", label: "Open the conversation" }
+    case "match":
+      return { href: "/matches", label: "See your matches" }
+    case "like":
+      return n.related_user
+        ? { href: `/profile/${n.related_user}`, label: "See their profile" }
+        : { href: "/browse", label: "Go to Browse" }
+    case "event":
+      return { href: n.related_event ? `/events?event=${n.related_event}` : "/events", label: "See the event" }
+    default:
+      return null
+  }
+}
+
+const UNDO_MS = 6000
+
 export default function NotificationsPage() {
-  const router = useRouter()
   const [notifications, setNotifications] = useState<Notification[]>([])
   const [isLoading, setIsLoading] = useState(true)
-  const [filter, setFilter] = useState<'all' | 'unread'>('all')
-  const [hasMarkedAsRead, setHasMarkedAsRead] = useState(false)
+  const [loadError, setLoadError] = useState<string | null>(null)
+  const [filter, setFilter] = useState<"all" | "unread">("all")
+  // Deletes wait a few seconds so "Undo" is real; they are sent when the timer
+  // runs out or when the member leaves the page.
+  const pendingDeletes = useRef(new Map<string, number>())
 
-  useEffect(() => {
-    loadNotifications()
-  }, [])
-
-  useEffect(() => {
-    // Mark all unread notifications as read when visiting this page (after loading)
-    if (!isLoading && !hasMarkedAsRead && notifications.length > 0) {
-      const unreadNotifications = notifications.filter((n) => !n.read)
-      if (unreadNotifications.length > 0) {
-        handleMarkAllAsRead()
-        setHasMarkedAsRead(true)
-      }
-    }
-  }, [isLoading, hasMarkedAsRead, notifications])
-
-  const loadNotifications = async () => {
+  const loadNotifications = useCallback(async () => {
     setIsLoading(true)
+    setLoadError(null)
     const result = await api.notifications.getAll()
-    if (result.data) {
+    if (result.error || !Array.isArray(result.data)) {
+      setLoadError(result.error || "Please try again.")
+    } else {
       setNotifications(result.data)
     }
     setIsLoading(false)
+  }, [])
+
+  useEffect(() => {
+    void loadNotifications()
+  }, [loadNotifications])
+
+  // Opening this page no longer marks everything read. A notification becomes
+  // read when the member opens it, presses "Mark as read", or "Mark all as read".
+  const announceRead = () => window.dispatchEvent(new Event("notificationsRead"))
+
+  const markRead = async (id: string, quiet = false) => {
+    setNotifications((prev) => prev.map((n) => (n._id === id ? { ...n, read: true } : n)))
+    const result = await api.notifications.markAsRead(id)
+    if (result.error) {
+      setNotifications((prev) => prev.map((n) => (n._id === id ? { ...n, read: false } : n)))
+      if (!quiet) toast.error("We could not mark that as read. Please try again.")
+      return
+    }
+    announceRead()
   }
 
-  const handleMarkAsRead = async (notificationId: string) => {
-    await api.notifications.markAsRead(notificationId)
-    setNotifications((prev) =>
-      prev.map((n) =>
-        n._id === notificationId ? { ...n, read: true } : n
-      )
-    )
-    // Emit event for sidebar to update badge count
-    window.dispatchEvent(new Event('notificationsRead'))
-  }
-
-  const handleDelete = async (notificationId: string) => {
-    await api.notifications.delete(notificationId)
-    setNotifications((prev) => prev.filter((n) => n._id !== notificationId))
-  }
-
-  const handleMarkAllAsRead = async () => {
-    await api.notifications.markAllAsRead()
+  const markAllRead = async () => {
+    const before = notifications
     setNotifications((prev) => prev.map((n) => ({ ...n, read: true })))
-    window.dispatchEvent(new Event('notificationsRead'))
+    const result = await api.notifications.markAllAsRead()
+    if (result.error) {
+      setNotifications(before)
+      toast.error("We could not mark everything as read. Please try again.")
+      return
+    }
+    toast.success("All notifications marked as read")
+    announceRead()
   }
 
-  const filteredNotifications = filter === 'unread'
-    ? notifications.filter((n) => !n.read)
-    : notifications
-
-  const getNotificationIcon = (type: string) => {
-    switch (type) {
-      case 'match':
-        return <Users className="h-5 w-5 text-pink-500" />
-      case 'like':
-        return <Heart className="h-5 w-5 text-red-500" />
-      case 'message':
-        return <MessageCircle className="h-5 w-5 text-blue-500" />
-      case 'event':
-        return <Calendar className="h-5 w-5 text-purple-500" />
-      case 'admin':
-        return <Shield className="h-5 w-5 text-orange-500" />
-      default:
-        return <Bell className="h-5 w-5 text-gray-500" />
+  const sendDelete = useCallback(async (id: string) => {
+    pendingDeletes.current.delete(id)
+    const result = await api.notifications.delete(id)
+    if (result.error) {
+      toast.error("We could not delete that notification.")
+      void loadNotifications()
     }
+    window.dispatchEvent(new Event("notificationsRead"))
+  }, [loadNotifications])
+
+  const remove = (notification: Notification) => {
+    const index = notifications.findIndex((n) => n._id === notification._id)
+    setNotifications((prev) => prev.filter((n) => n._id !== notification._id))
+    const timer = window.setTimeout(() => void sendDelete(notification._id), UNDO_MS)
+    pendingDeletes.current.set(notification._id, timer)
+    toast.success("Notification deleted", {
+      duration: UNDO_MS,
+      action: {
+        label: "Undo",
+        onClick: () => {
+          const pending = pendingDeletes.current.get(notification._id)
+          if (pending === undefined) return
+          window.clearTimeout(pending)
+          pendingDeletes.current.delete(notification._id)
+          setNotifications((prev) => {
+            if (prev.some((n) => n._id === notification._id)) return prev
+            const next = [...prev]
+            next.splice(Math.min(index, next.length), 0, notification)
+            return next
+          })
+        },
+      },
+    })
   }
 
-  const getNotificationBadgeColor = (type: string) => {
-    switch (type) {
-      case 'match':
-        return 'bg-pink-100 text-pink-800'
-      case 'like':
-        return 'bg-red-100 text-red-800'
-      case 'message':
-        return 'bg-blue-100 text-blue-800'
-      case 'event':
-        return 'bg-purple-100 text-purple-800'
-      case 'admin':
-        return 'bg-orange-100 text-orange-800'
-      default:
-        return 'bg-gray-100 text-gray-800'
+  // Leaving the page: send any delete still waiting for its Undo window.
+  useEffect(() => {
+    const pending = pendingDeletes.current
+    const flush = () => {
+      for (const [id, timer] of pending) {
+        window.clearTimeout(timer)
+        pending.delete(id)
+        void api.notifications.delete(id, true)
+      }
     }
-  }
-
-  const formatDate = (dateString: string) => {
-    if (!dateString) return 'Recently'
-    
-    const date = new Date(dateString)
-    
-    // Check if date is valid
-    if (isNaN(date.getTime())) {
-      return 'Recently'
+    window.addEventListener("pagehide", flush)
+    return () => {
+      window.removeEventListener("pagehide", flush)
+      flush()
     }
-    
-    const now = new Date()
-    const diffMs = now.getTime() - date.getTime()
-    
-    // Handle negative differences (future dates)
-    if (diffMs < 0) {
-      return 'Recently'
-    }
-    
-    const diffMins = Math.floor(diffMs / 60000)
-    const diffHours = Math.floor(diffMs / 3600000)
-    const diffDays = Math.floor(diffMs / 86400000)
-
-    // Recently - less than 10 minutes
-    if (diffMins < 10) return 'Recently'
-    
-    // Today - 10 minutes to 23 hours 50 minutes
-    if (diffHours < 23 || (diffHours === 23 && diffMins < 50)) return 'Today'
-    
-    // Yesterday - 24 to 48 hours
-    if (diffDays === 1) return 'Yesterday'
-    
-    // x Days ago - more than 48 hours
-    if (diffDays > 1) return `${diffDays} Days Ago`
-    
-    try {
-      return date.toLocaleDateString()
-    } catch {
-      return 'Recently'
-    }
-  }
+  }, [])
 
   const unreadCount = notifications.filter((n) => !n.read).length
-
-  // Cards were styled as clickable (cursor-pointer + hover lift) but had no
-  // handler, so tapping a "New Match" notification did nothing.
-  const notificationHref = (notification: Notification): string | null => {
-    switch (notification.type) {
-      case 'message':
-        return notification.related_match
-          ? `/messages?match=${notification.related_match}`
-          : '/messages'
-      case 'match':
-        return '/matches'
-      case 'like':
-        return notification.related_user
-          ? `/profile/${notification.related_user}`
-          : '/matches'
-      case 'event':
-        return '/events'
-      default:
-        return null
-    }
-  }
-
-  const handleOpenNotification = (notification: Notification) => {
-    const href = notificationHref(notification)
-    if (!href) return
-    if (!notification.read) {
-      handleMarkAsRead(notification._id)
-    }
-    router.push(href)
-  }
+  const shown = filter === "unread" ? notifications.filter((n) => !n.read) : notifications
 
   return (
     <AppLayout>
-        <div className="max-w-4xl mx-auto p-4 md:p-6">
-          {/* Header */}
-          <div className="mb-6">
-            <div className="flex items-center justify-between mb-4">
-              <div className="flex items-center gap-3">
-                <Bell className="h-8 w-8 text-primary" />
-                <h1 className="text-3xl font-bold">Notifications</h1>
-              </div>
-              {unreadCount > 0 && (
-                <Button
-                  variant="outline"
-                  onClick={handleMarkAllAsRead}
-                  className="text-primary hover:text-primary"
-                >
-                  Mark all as read
-                </Button>
-              )}
+      <div className="mx-auto max-w-3xl p-4 md:p-6">
+        <div className="mb-6">
+          <div className="mb-2 flex flex-wrap items-center justify-between gap-3">
+            <div className="flex items-center gap-3">
+              <Bell className="h-8 w-8 text-primary" aria-hidden="true" />
+              <h1 className="text-3xl font-bold">Notifications</h1>
             </div>
+            {unreadCount > 0 && (
+              <Button variant="outline" onClick={markAllRead}>
+                <CheckCheck aria-hidden="true" />
+                Mark all as read
+              </Button>
+            )}
+          </div>
+          <p className="text-muted-foreground" role="status" data-testid="unread-summary">
+            {isLoading || loadError
+              ? " "
+              : unreadCount > 0
+                ? `You have ${unreadCount} unread notification${unreadCount !== 1 ? "s" : ""}`
+                : "All caught up!"}
+          </p>
+        </div>
+
+        <div className="mb-6 flex gap-2" role="group" aria-label="Show">
+          <Button
+            variant={filter === "all" ? "default" : "outline"}
+            aria-pressed={filter === "all"}
+            onClick={() => setFilter("all")}
+          >
+            All ({notifications.length})
+          </Button>
+          <Button
+            variant={filter === "unread" ? "default" : "outline"}
+            aria-pressed={filter === "unread"}
+            onClick={() => setFilter("unread")}
+          >
+            Unread ({unreadCount})
+          </Button>
+        </div>
+
+        {isLoading ? (
+          <div className="space-y-3" aria-busy="true" aria-label="Loading notifications">
+            {[...Array(5)].map((_, i) => (
+              <Skeleton key={i} className="h-24 w-full rounded-lg" />
+            ))}
+          </div>
+        ) : loadError ? (
+          <LoadError what="your notifications" detail={loadError} onRetry={loadNotifications} />
+        ) : shown.length === 0 ? (
+          <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-border bg-card px-6 py-12 text-center">
+            <Bell className="mb-4 h-12 w-12 text-muted-foreground opacity-50" aria-hidden="true" />
+            <h2 className="mb-2 text-xl font-semibold">
+              {filter === "unread" ? "Nothing unread" : "No notifications yet"}
+            </h2>
             <p className="text-muted-foreground">
-              {unreadCount > 0
-                ? `You have ${unreadCount} unread notification${unreadCount !== 1 ? 's' : ''}`
-                : 'All caught up!'}
+              {filter === "unread"
+                ? "You have read everything. Choose All to see earlier notifications."
+                : "When you get a match, a message, a like or event news, it will show here."}
             </p>
           </div>
-
-          {/* Filter Tabs */}
-          <div className="flex gap-2 mb-6">
-            <Button
-              variant={filter === 'all' ? 'default' : 'outline'}
-              onClick={() => setFilter('all')}
-              className="gap-2"
-            >
-              All
-              {notifications.length > 0 && (
-                <Badge variant="secondary">{notifications.length}</Badge>
-              )}
-            </Button>
-            <Button
-              variant={filter === 'unread' ? 'default' : 'outline'}
-              onClick={() => setFilter('unread')}
-              className="gap-2"
-            >
-              Unread
-              {unreadCount > 0 && (
-                <Badge variant="secondary">{unreadCount}</Badge>
-              )}
-            </Button>
-          </div>
-
-          {/* Notifications List */}
-          {isLoading ? (
-            <div className="space-y-3">
-              {[...Array(5)].map((_, i) => (
-                <Skeleton key={i} className="h-24 w-full rounded-lg" />
-              ))}
-            </div>
-          ) : filteredNotifications.length === 0 ? (
-            <Card className="border-dashed">
-              <CardContent className="flex flex-col items-center justify-center py-12">
-                <Bell className="h-12 w-12 text-muted-foreground mb-4 opacity-50" />
-                <h3 className="text-lg font-semibold mb-2">No notifications</h3>
-                <p className="text-muted-foreground text-center">
-                  {filter === 'unread'
-                    ? "You're all caught up! No unread notifications."
-                    : 'No notifications yet. You will be notified here when you get matches, messages, likes, and more.'}
-                </p>
-              </CardContent>
-            </Card>
-          ) : (
-            <div className="space-y-3">
-              {filteredNotifications.map((notification) => {
-                const href = notificationHref(notification)
-                return (
-                <Card
+        ) : (
+          <ul className="space-y-3" aria-label="Notifications">
+            {shown.map((notification) => {
+              const dest = destination(notification)
+              const Icon = TYPE_ICON[notification.type] || Bell
+              const time = formatNotificationTime(notification.created_at)
+              return (
+                <li
                   key={notification._id}
-                  onClick={() => handleOpenNotification(notification)}
+                  data-testid="notification"
+                  data-unread={notification.read ? "false" : "true"}
                   className={cn(
-                    'transition-all',
-                    href && 'cursor-pointer hover:shadow-md',
-                    !notification.read && 'border-primary/50 bg-primary/5'
+                    "rounded-xl border bg-card p-4",
+                    notification.read ? "border-border" : "border-2 border-primary"
                   )}
                 >
-                  <CardContent className="p-4">
-                    <div className="flex gap-4">
-                      {/* Icon and Type Badge */}
-                      <div className="flex flex-col items-center gap-2">
-                        <div className="p-2 rounded-full bg-muted">
-                          {getNotificationIcon(notification.type)}
-                        </div>
-                        <Badge variant="secondary" className={cn('text-xs', getNotificationBadgeColor(notification.type))}>
-                          {notification.type.charAt(0).toUpperCase() + notification.type.slice(1)}
-                        </Badge>
+                  <div className="flex gap-3">
+                    <div className="mt-1 shrink-0 rounded-full bg-muted p-2">
+                      <Icon className="h-5 w-5 text-foreground" aria-hidden="true" />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <div className="flex flex-wrap items-center gap-2">
+                        {!notification.read && (
+                          <span className="rounded-full bg-primary px-2.5 py-0.5 text-sm font-semibold text-primary-foreground">
+                            New
+                          </span>
+                        )}
+                        <span className="text-sm font-medium text-muted-foreground">
+                          {TYPE_LABEL[notification.type] || "Notice"}
+                        </span>
+                        {time && (
+                          <time
+                            dateTime={time.iso}
+                            title={time.full}
+                            className="text-sm text-muted-foreground"
+                          >
+                            · {time.label}
+                          </time>
+                        )}
                       </div>
+                      <h2 className={cn("mt-1 text-lg", notification.read ? "font-semibold" : "font-bold")}>
+                        {notification.title}
+                      </h2>
+                      <p className="mt-1 break-words text-muted-foreground">{notification.message}</p>
 
-                      {/* Content */}
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-start justify-between gap-2">
-                          <div className="flex-1">
-                            <h3 className={cn('font-semibold', !notification.read && 'font-bold')}>
-                              {notification.title}
-                            </h3>
-                            <p className="text-sm text-muted-foreground line-clamp-2 mt-1">
-                              {notification.message}
-                            </p>
-                            <p className="text-xs text-muted-foreground mt-2">
-                              {formatDate(notification.created_at)}
-                            </p>
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* Actions */}
-                      <div className="flex gap-2">
+                      <div className="mt-3 flex flex-wrap items-center gap-2">
+                        {dest && (
+                          <Button asChild size="sm">
+                            <Link
+                              href={dest.href}
+                              onClick={() => {
+                                if (!notification.read) void markRead(notification._id, true)
+                              }}
+                            >
+                              {dest.label}
+                              <ChevronRight aria-hidden="true" />
+                            </Link>
+                          </Button>
+                        )}
                         {!notification.read && (
                           <Button
-                            variant="ghost"
+                            variant="outline"
                             size="sm"
-                            onClick={(e) => {
-                              e.stopPropagation()
-                              handleMarkAsRead(notification._id)
-                            }}
-                            aria-label="Mark as read"
-                            title="Mark as read"
+                            onClick={() => void markRead(notification._id)}
+                            aria-label={`Mark as read: ${notification.title}`}
                           >
-                            <CheckCircle2 className="h-4 w-4 text-primary" />
+                            <Check aria-hidden="true" />
+                            Mark as read
                           </Button>
                         )}
                         <Button
                           variant="ghost"
                           size="sm"
-                          onClick={(e) => {
-                            e.stopPropagation()
-                            handleDelete(notification._id)
-                          }}
-                          aria-label="Delete notification"
-                          title="Delete notification"
+                          onClick={() => remove(notification)}
+                          aria-label={`Delete: ${notification.title}`}
                         >
-                          <Trash2 className="h-4 w-4 text-destructive" />
+                          <Trash2 aria-hidden="true" />
+                          Delete
                         </Button>
                       </div>
                     </div>
-                  </CardContent>
-                </Card>
-                )
-              })}
-            </div>
-          )}
-        </div>
+                  </div>
+                </li>
+              )
+            })}
+          </ul>
+        )}
+      </div>
     </AppLayout>
   )
 }
-

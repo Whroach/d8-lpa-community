@@ -588,13 +588,15 @@ export const api = {
         method: "PUT",
       })
     },
-    delete: async (notificationId: string) => {
+    // keepalive lets the request finish even while the page is being left.
+    delete: async (notificationId: string, keepalive = false) => {
       if (USE_MOCK_DATA) {
         await delay(200)
         return { data: { success: true } }
       }
       return apiRequest<any>(`/notifications/${notificationId}`, {
         method: "DELETE",
+        keepalive,
       })
     },
     markAllAsRead: async () => {

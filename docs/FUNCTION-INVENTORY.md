@@ -4,6 +4,48 @@ Inventory of every user-facing function in the Next.js front end, written by rea
 
 Use it to write Playwright end-to-end tests and tick each row off in the `Status` / `Test` columns.
 
+## Status summary (updated 2026-10-04)
+
+452 existing functions were inventoried, plus 22 added on this branch.
+
+| Status | Count | Meaning |
+|---|---|---|
+| Works | 142 | Exercised by an automated browser test (existing functions and the new ones below) |
+| Works (API test only) | 37 | The server side is tested; the button itself is not clicked by a test |
+| Fixed | 58 | Was broken or misleading; fixed on this branch (test linked where there is one) |
+| Changed | 6 | Deliberately replaced or removed (explained in the row) |
+| Still broken | 7 | Known defect, not fixed yet |
+| Not verified | 224 | No automated test clicks this yet. Not known to be broken; most were looked at in the screenshot review |
+
+"Not verified" is the honest gap: mostly the onboarding form fields, the profile editor, Browse filters, and the admin screens' individual buttons.
+
+### Added on this branch
+
+| ID | Function | Status | Test |
+|---|---|---|---|
+| NEW-01 | Welcome tour on first sign-in; replay from Help | Works | [auth.spec](../tests/e2e/auth.spec.ts) |
+| NEW-02 | Help page with plain how-tos | Works | [community.spec](../tests/e2e/community.spec.ts) |
+| NEW-03 | Safety Centre (romance scams, meeting safely, block/report, privacy) | Works | [community.spec](../tests/e2e/community.spec.ts) |
+| NEW-04 | Private scam reminder under a received message that mentions money, gift cards, crypto or moving apps | Works | [chat.spec](../tests/e2e/chat.spec.ts) [lib.test](../tests/unit/lib.test.ts) |
+| NEW-05 | Typing indicator | Works | [chat.spec](../tests/e2e/chat.spec.ts) [sockets.test](../server/tests/sockets.test.js) |
+| NEW-06 | Read receipts ("Seen"), with a privacy switch | Works | [chat.spec](../tests/e2e/chat.spec.ts) [sockets.test](../server/tests/sockets.test.js) [core.test](../server/tests/core.test.js) |
+| NEW-07 | Online status, with a privacy switch | Works | [chat.spec](../tests/e2e/chat.spec.ts) [sockets.test](../server/tests/sockets.test.js) |
+| NEW-08 | Message drafts kept per conversation | Works | [chat.spec](../tests/e2e/chat.spec.ts) |
+| NEW-09 | Failed-send retry | Works | [chat.spec](../tests/e2e/chat.spec.ts) |
+| NEW-10 | Conversation starters from shared interests | Works | [chat.spec](../tests/e2e/chat.spec.ts) [lib.test](../tests/unit/lib.test.ts) |
+| NEW-11 | Saved profiles (private bookmark) and Saved page | Works | [community.spec](../tests/e2e/community.spec.ts) [core.test](../server/tests/core.test.js) |
+| NEW-12 | Block with Undo; Report with reasons - from profile and chat | Works | [chat.spec](../tests/e2e/chat.spec.ts) [community.spec](../tests/e2e/community.spec.ts) |
+| NEW-13 | Text-size setting (4 sizes, per device) | Works | [settings.spec](../tests/e2e/settings.spec.ts) |
+| NEW-14 | Quiet hours | Works | [chat.spec](../tests/e2e/chat.spec.ts) [settings.spec](../tests/e2e/settings.spec.ts) |
+| NEW-15 | Email summary opt-in and digest job (mail seam only) | Works | [settings.spec](../tests/e2e/settings.spec.ts) [digest.test](../server/tests/digest.test.js) |
+| NEW-16 | Events: add to calendar (.ics / Google) | Works | [community.spec](../tests/e2e/community.spec.ts) [lib.test](../tests/unit/lib.test.ts) |
+| NEW-17 | Events: who's going, and lift / meet-up notes | Works | [community.spec](../tests/e2e/community.spec.ts) [core.test](../server/tests/core.test.js) |
+| NEW-18 | Admin: member report queue with warn / suspend / ban / dismiss | Works | [community.spec](../tests/e2e/community.spec.ts) [core.test](../server/tests/core.test.js) |
+| NEW-19 | "Email confirmed" badge and "You both like" on profiles | Works | [community.spec](../tests/e2e/community.spec.ts) |
+| NEW-20 | Installable app (manifest, icons, offline page) | Not verified |  |
+| NEW-21 | Terms and Privacy page reachable before sign-in | Works | [auth.spec](../tests/e2e/auth.spec.ts) |
+| NEW-22 | Error, not-found, offline and load-error states instead of blank screens | Works | [settings.spec](../tests/e2e/settings.spec.ts) |
+
 ## Baseline - read this first
 
 - **Front end:** every `file:line` under `app/`, `components/` and `lib/` matches commit `560d254`. Those files were unmodified in the working tree for the whole review.
@@ -35,19 +77,19 @@ File: `app/signup/page.tsx`
 
 | ID | Function | Where (file:line) | How a test finds it (visible text / aria-label / role / placeholder, exactly as in the code) | API call it makes | Status | Test |
 |---|---|---|---|---|---|---|
-| SIGN-01 | Sign-up screen heading and tagline | app/signup/page.tsx:175 | Heading `Create your account`; text `Join D8-LPA and find your perfect match`; logo text `D8-LPA` | none | TBD | |
-| SIGN-02 | Email field with live format validation | app/signup/page.tsx:189 | Label `Email` (`#email`), placeholder `you@example.com`; error text `Please enter a valid email address` | none | TBD | |
-| SIGN-03 | Password field | app/signup/page.tsx:205 | Label `Password` (`#password`), placeholder `Create a strong password` | none | TBD | |
-| SIGN-04 | Show / hide password toggle | app/signup/page.tsx:216 | Icon-only button (eye icon) with **no accessible name**; only reachable as the `button[type="button"]` next to `#password` | none | TBD | |
-| SIGN-05 | Password requirement checklist (5 rules, each turns green when met) | app/signup/page.tsx:48, 224 | Appears once the password is non-empty: `At least 8 characters`, `Contains uppercase letter`, `Contains lowercase letter`, `Contains a number`, `Contains a special character (!@#$%^&*)` | none | TBD | |
-| SIGN-06 | Confirm password field with match indicator | app/signup/page.tsx:243 | Label `Confirm Password` (`#confirmPassword`), placeholder `Confirm your password`; `Passwords match` / `Passwords do not match`. No show-password toggle | none | TBD | |
-| SIGN-07 | Accept terms checkbox (required) | app/signup/page.tsx:271 | Checkbox `#terms`, label starts `I agree to the` | none | TBD | |
-| SIGN-08 | Terms of Service link | app/signup/page.tsx:279 | Link `Terms of Service` (href `/terms`) | none | TBD | |
-| SIGN-09 | Privacy Policy link | app/signup/page.tsx:283 | Link `Privacy Policy` (href `/privacy`) | none | TBD | |
-| SIGN-10 | Create Account submit (disabled until email valid, all 5 rules met, passwords match, terms ticked) | app/signup/page.tsx:289 | Button `Create Account`; while loading `Creating account...` | `POST /auth/signup` | TBD | |
-| SIGN-11 | Sign-up error banner | app/signup/page.tsx:182 | Red box with the server message, e.g. `Email already registered` | none | TBD | |
-| SIGN-12 | Straight to onboarding when verification is disabled | app/signup/page.tsx:83 | URL becomes `/onboarding` | none | TBD | |
-| SIGN-13 | Link back to login | app/signup/page.tsx:307 | Text `Already have an account?`; link `Sign in` | none | TBD | |
+| SIGN-01 | Sign-up screen heading and tagline | app/signup/page.tsx:175 | Heading `Create your account`; text `Join D8-LPA and find your perfect match`; logo text `D8-LPA` | none | Not verified |  |
+| SIGN-02 | Email field with live format validation | app/signup/page.tsx:189 | Label `Email` (`#email`), placeholder `you@example.com`; error text `Please enter a valid email address` | none | Works | [auth.spec](../tests/e2e/auth.spec.ts) |
+| SIGN-03 | Password field | app/signup/page.tsx:205 | Label `Password` (`#password`), placeholder `Create a strong password` | none | Works | [auth.spec](../tests/e2e/auth.spec.ts) |
+| SIGN-04 | Show / hide password toggle | app/signup/page.tsx:216 | Icon-only button (eye icon) with **no accessible name**; only reachable as the `button[type="button"]` next to `#password` | none | Fixed - now has an accessible name; confirm field gained Show/Hide | [screenshots](screenshots/) |
+| SIGN-05 | Password requirement checklist (5 rules, each turns green when met) | app/signup/page.tsx:48, 224 | Appears once the password is non-empty: `At least 8 characters`, `Contains uppercase letter`, `Contains lowercase letter`, `Contains a number`, `Contains a special character (!@#$%^&*)` | none | Not verified |  |
+| SIGN-06 | Confirm password field with match indicator | app/signup/page.tsx:243 | Label `Confirm Password` (`#confirmPassword`), placeholder `Confirm your password`; `Passwords match` / `Passwords do not match`. No show-password toggle | none | Works | [auth.spec](../tests/e2e/auth.spec.ts) |
+| SIGN-07 | Accept terms checkbox (required) | app/signup/page.tsx:271 | Checkbox `#terms`, label starts `I agree to the` | none | Works | [auth.spec](../tests/e2e/auth.spec.ts) |
+| SIGN-08 | Terms of Service link | app/signup/page.tsx:279 | Link `Terms of Service` (href `/terms`) | none | Fixed - links went to pages that did not exist; /terms added | [auth.spec](../tests/e2e/auth.spec.ts) |
+| SIGN-09 | Privacy Policy link | app/signup/page.tsx:283 | Link `Privacy Policy` (href `/privacy`) | none | Fixed - links went to pages that did not exist; /terms added | [auth.spec](../tests/e2e/auth.spec.ts) |
+| SIGN-10 | Create Account submit (disabled until email valid, all 5 rules met, passwords match, terms ticked) | app/signup/page.tsx:289 | Button `Create Account`; while loading `Creating account...` | `POST /auth/signup` | Works | [auth.spec](../tests/e2e/auth.spec.ts) |
+| SIGN-11 | Sign-up error banner | app/signup/page.tsx:182 | Red box with the server message, e.g. `Email already registered` | none | Fixed - stale error from another screen no longer shown | [auth.spec](../tests/e2e/auth.spec.ts) |
+| SIGN-12 | Straight to onboarding when verification is disabled | app/signup/page.tsx:83 | URL becomes `/onboarding` | none | Not verified |  |
+| SIGN-13 | Link back to login | app/signup/page.tsx:307 | Text `Already have an account?`; link `Sign in` | none | Not verified |  |
 
 ## 2. Email verification
 
@@ -55,15 +97,15 @@ File: `app/signup/page.tsx` (second step of the same page; only shown when `NEXT
 
 | ID | Function | Where (file:line) | How a test finds it (visible text / aria-label / role / placeholder, exactly as in the code) | API call it makes | Status | Test |
 |---|---|---|---|---|---|---|
-| VER-01 | Verification step shown after a successful sign-up | app/signup/page.tsx:79, 314 | Heading `Verify your email`; text `We sent a 6-digit code to` followed by the email in bold | none | TBD | |
-| VER-02 | Six single-digit code boxes (auto-advance, Backspace moves back) | app/signup/page.tsx:347 | Six `input[inputmode="numeric"][maxlength="1"]` with **no label or aria-label**; helper text `Enter the verification code:` | none | TBD | |
-| VER-03 | Verify Code submit (disabled until all six boxes filled) | app/signup/page.tsx:367 | Button `Verify Code`; while loading `Verifying...` | `POST /auth/verify-email` | TBD | |
-| VER-04 | Verification error banner | app/signup/page.tsx:338 | Red box, e.g. `Invalid verification code`, `Verification code expired` | none | TBD | |
-| VER-05 | Resend Code | app/signup/page.tsx:386 | Button `Resend Code`; while sending `Resending...` | `POST /auth/resend-verification` | TBD | |
-| VER-06 | 60-second resend cooldown | app/signup/page.tsx:405 | Text `Resend code in` + `{n}s`; the Resend button is hidden during the cooldown | none | TBD | |
-| VER-07 | Back to sign-up form | app/signup/page.tsx:316 | Button `Back to signup` | none | TBD | |
-| VER-08 | Help text under the form | app/signup/page.tsx:411 | `Didn't receive the code?`, `Check your spam folder`, `Make sure you entered the correct email`, `Try requesting a new code below`; italic `(In development mode, check the terminal where your server is running for the verification code)` | none | TBD | |
-| VER-09 | Success sends the member to onboarding | app/signup/page.tsx:153 | URL becomes `/onboarding` | none | TBD | |
+| VER-01 | Verification step shown after a successful sign-up | app/signup/page.tsx:79, 314 | Heading `Verify your email`; text `We sent a 6-digit code to` followed by the email in bold | none | Works | [auth.spec](../tests/e2e/auth.spec.ts) |
+| VER-02 | Six single-digit code boxes (auto-advance, Backspace moves back) | app/signup/page.tsx:347 | Six `input[inputmode="numeric"][maxlength="1"]` with **no label or aria-label**; helper text `Enter the verification code:` | none | Works | [auth.spec](../tests/e2e/auth.spec.ts) |
+| VER-03 | Verify Code submit (disabled until all six boxes filled) | app/signup/page.tsx:367 | Button `Verify Code`; while loading `Verifying...` | `POST /auth/verify-email` | Works | [auth.spec](../tests/e2e/auth.spec.ts) |
+| VER-04 | Verification error banner | app/signup/page.tsx:338 | Red box, e.g. `Invalid verification code`, `Verification code expired` | none | Not verified |  |
+| VER-05 | Resend Code | app/signup/page.tsx:386 | Button `Resend Code`; while sending `Resending...` | `POST /auth/resend-verification` | Works (API test only) | [auth.test](../server/tests/auth.test.js) |
+| VER-06 | 60-second resend cooldown | app/signup/page.tsx:405 | Text `Resend code in` + `{n}s`; the Resend button is hidden during the cooldown | none | Not verified |  |
+| VER-07 | Back to sign-up form | app/signup/page.tsx:316 | Button `Back to signup` | none | Still broken - going back and re-submitting answers "Email already registered" with no route back to the code screen |  |
+| VER-08 | Help text under the form | app/signup/page.tsx:411 | `Didn't receive the code?`, `Check your spam folder`, `Make sure you entered the correct email`, `Try requesting a new code below`; italic `(In development mode, check the terminal where your server is running for the verification code)` | none | Fixed - developer hint removed | [auth.spec](../tests/e2e/auth.spec.ts) |
+| VER-09 | Success sends the member to onboarding | app/signup/page.tsx:153 | URL becomes `/onboarding` | none | Works | [auth.spec](../tests/e2e/auth.spec.ts) |
 
 ## 3. Log in / Log out
 
@@ -71,23 +113,23 @@ Files: `app/login/page.tsx`, `app/page.tsx`, `components/app-sidebar.tsx`, `comp
 
 | ID | Function | Where (file:line) | How a test finds it (visible text / aria-label / role / placeholder, exactly as in the code) | API call it makes | Status | Test |
 |---|---|---|---|---|---|---|
-| AUTH-01 | Email field | app/login/page.tsx:106 | Label `Email` (`#email`), placeholder `you@example.com` | none | TBD | |
-| AUTH-02 | Password field | app/login/page.tsx:119 | Label `Password` (`#password`), placeholder `Enter your password` | none | TBD | |
-| AUTH-03 | Show / hide password toggle | app/login/page.tsx:130 | Button `aria-label="Show password"` / `aria-label="Hide password"` | none | TBD | |
-| AUTH-04 | Remember my email checkbox | app/login/page.tsx:143 | Checkbox `#remember`, label `Remember my email`; stored in `localStorage` key `db-lpa-remember-me` | none | TBD | |
-| AUTH-05 | Remembered email is pre-filled on the next visit | app/login/page.tsx:32 | `#email` has the saved value and `#remember` is checked | none | TBD | |
-| AUTH-06 | Forgot password link (normal mode) | app/login/page.tsx:161 | Link `Forgot password?` (href `/forgot-password`) | none | TBD | |
-| AUTH-07 | Forgot password button and "Feature Disabled" dialog (when email verification is disabled by env) | app/login/page.tsx:152, 195 | Button `Forgot password?`; dialog title `Feature Disabled`; text `Forgot Password has been disabled for now. Please contact support if you need assistance with your account.`; button `Close` (plus the built-in X, also named `Close`) | none | TBD | |
-| AUTH-08 | Sign In submit | app/login/page.tsx:170 | Button `Sign In`; while loading `Signing in...` | `POST /auth/login` | TBD | |
-| AUTH-09 | Login error banner | app/login/page.tsx:99 | Red box with the server message. Wrong email or password: `That email or password is not right. Please check both and try again.` (working-tree backend; the committed backend says `Invalid email` or `Invalid password`). Also `Your account has been suspended or banned. Please contact d8lpa.community@gmail.com for more info.` and `Your account has been deleted. Please contact d8lpa.community@gmail.com if you believe this is an error.` | none | TBD | |
-| AUTH-10 | Redirect after login: onboarding if not completed, otherwise My Profile | app/login/page.tsx:81 | URL becomes `/onboarding` or `/profile` | none | TBD | |
-| AUTH-11 | Logging in reactivates an account that was put on "Take a Break" | server/src/routes/auth.js:285 | Log in with a disabled account; it lands on `/profile` as normal | `POST /auth/login` | TBD | |
-| AUTH-12 | Link to sign up | app/login/page.tsx:188 | Text `Don't have an account?`; link `Sign up` | none | TBD | |
-| AUTH-13 | Root URL `/` splash and redirect | app/page.tsx:12 | Splash text `D8-LPA` with a spinner; after 500 ms URL becomes `/browse` (signed in) or `/login` | none | TBD | |
-| AUTH-14 | Log out, desktop sidebar expanded | components/app-sidebar.tsx:249 | Button `Logout` | none (client only) | TBD | |
-| AUTH-15 | Log out, desktop sidebar collapsed | components/app-sidebar.tsx:204 | Icon-only button with **no accessible name**; hover tooltip `Logout` | none (client only) | TBD | |
-| AUTH-16 | Log out, mobile | components/mobile-nav.tsx:158 | Button `Log Out` inside the `More` sheet | none (client only) | TBD | |
-| AUTH-17 | Any API call answering 401 clears the session and returns to login | lib/api.ts:54 | URL becomes `/login`; `localStorage` key `spark-auth` removed | n/a | TBD | |
+| AUTH-01 | Email field | app/login/page.tsx:106 | Label `Email` (`#email`), placeholder `you@example.com` | none | Works | [auth.spec](../tests/e2e/auth.spec.ts) |
+| AUTH-02 | Password field | app/login/page.tsx:119 | Label `Password` (`#password`), placeholder `Enter your password` | none | Works | [auth.spec](../tests/e2e/auth.spec.ts) |
+| AUTH-03 | Show / hide password toggle | app/login/page.tsx:130 | Button `aria-label="Show password"` / `aria-label="Hide password"` | none | Works | [auth.spec](../tests/e2e/auth.spec.ts) |
+| AUTH-04 | Remember my email checkbox | app/login/page.tsx:143 | Checkbox `#remember`, label `Remember my email`; stored in `localStorage` key `db-lpa-remember-me` | none | Not verified |  |
+| AUTH-05 | Remembered email is pre-filled on the next visit | app/login/page.tsx:32 | `#email` has the saved value and `#remember` is checked | none | Not verified |  |
+| AUTH-06 | Forgot password link (normal mode) | app/login/page.tsx:161 | Link `Forgot password?` (href `/forgot-password`) | none | Not verified |  |
+| AUTH-07 | Forgot password button and "Feature Disabled" dialog (when email verification is disabled by env) | app/login/page.tsx:152, 195 | Button `Forgot password?`; dialog title `Feature Disabled`; text `Forgot Password has been disabled for now. Please contact support if you need assistance with your account.`; button `Close` (plus the built-in X, also named `Close`) | none | Not verified |  |
+| AUTH-08 | Sign In submit | app/login/page.tsx:170 | Button `Sign In`; while loading `Signing in...` | `POST /auth/login` | Works | [auth.spec](../tests/e2e/auth.spec.ts) |
+| AUTH-09 | Login error banner | app/login/page.tsx:99 | Red box with the server message. Wrong email or password: `That email or password is not right. Please check both and try again.` (working-tree backend; the committed backend says `Invalid email` or `Invalid password`). Also `Your account has been suspended or banned. Please contact d8lpa.community@gmail.com for more info.` and `Your account has been deleted. Please contact d8lpa.community@gmail.com if you believe this is an error.` | none | Fixed - one message for wrong email or wrong password | [auth.spec](../tests/e2e/auth.spec.ts) [auth.test](../server/tests/auth.test.js) |
+| AUTH-10 | Redirect after login: onboarding if not completed, otherwise My Profile | app/login/page.tsx:81 | URL becomes `/onboarding` or `/profile` | none | Works | [auth.spec](../tests/e2e/auth.spec.ts) |
+| AUTH-11 | Logging in reactivates an account that was put on "Take a Break" | server/src/routes/auth.js:285 | Log in with a disabled account; it lands on `/profile` as normal | `POST /auth/login` | Works | [settings.spec](../tests/e2e/settings.spec.ts) [auth.test](../server/tests/auth.test.js) |
+| AUTH-12 | Link to sign up | app/login/page.tsx:188 | Text `Don't have an account?`; link `Sign up` | none | Not verified |  |
+| AUTH-13 | Root URL `/` splash and redirect | app/page.tsx:12 | Splash text `D8-LPA` with a spinner; after 500 ms URL becomes `/browse` (signed in) or `/login` | none | Not verified |  |
+| AUTH-14 | Log out, desktop sidebar expanded | components/app-sidebar.tsx:249 | Button `Logout` | none (client only) | Fixed - log out now also closes the live connection and clears badges | [auth.spec](../tests/e2e/auth.spec.ts) |
+| AUTH-15 | Log out, desktop sidebar collapsed | components/app-sidebar.tsx:204 | Icon-only button with **no accessible name**; hover tooltip `Logout` | none (client only) | Changed - collapsed icon-only sidebar removed |  |
+| AUTH-16 | Log out, mobile | components/mobile-nav.tsx:158 | Button `Log Out` inside the `More` sheet | none (client only) | Works | [auth.spec](../tests/e2e/auth.spec.ts) |
+| AUTH-17 | Any API call answering 401 clears the session and returns to login | lib/api.ts:54 | URL becomes `/login`; `localStorage` key `spark-auth` removed | n/a | Fixed - wrong password in Settings no longer signs the member out | [settings.spec](../tests/e2e/settings.spec.ts) [auth.test](../server/tests/auth.test.js) |
 
 ## 4. Forgot + reset password
 
@@ -95,19 +137,19 @@ Files: `app/forgot-password/page.tsx`, `app/reset-password/page.tsx`
 
 | ID | Function | Where (file:line) | How a test finds it (visible text / aria-label / role / placeholder, exactly as in the code) | API call it makes | Status | Test |
 |---|---|---|---|---|---|---|
-| PWD-01 | Back to login link (top of forgot-password page) | app/forgot-password/page.tsx:53 | Link `Back to login` | none | TBD | |
-| PWD-02 | Email field with live format validation | app/forgot-password/page.tsx:78 | Heading `Forgot password?`; label `Email` (`#email`), placeholder `you@example.com`; error `Please enter a valid email address` | none | TBD | |
-| PWD-03 | Send Reset Link submit (disabled until the email is valid) | app/forgot-password/page.tsx:93 | Button `Send Reset Link`; while loading `Sending...` | `POST /auth/forgot-password` | TBD | |
-| PWD-04 | Request error banner | app/forgot-password/page.tsx:71 | Red box with the server message | none | TBD | |
-| PWD-05 | "Check your email" confirmation | app/forgot-password/page.tsx:110 | Heading `Check your email`; text `We've sent a password reset link to` + the email | none | TBD | |
-| PWD-06 | Try again (returns to the form) | app/forgot-password/page.tsx:121 | Button `try again` (inline, lower case) | none | TBD | |
-| PWD-07 | Back to login button on the confirmation | app/forgot-password/page.tsx:128 | Button `Back to login` (the top link with the same text is also still present) | none | TBD | |
-| PWD-08 | Reset page opened without a `token` query parameter | app/reset-password/page.tsx:50 | Text `Invalid or expired reset link. Please request a new password reset.`; button `Request New Reset Link` (goes to `/forgot-password`) | none | TBD | |
-| PWD-09 | New password field with length validation | app/reset-password/page.tsx:100 | Heading `Reset your password`; label `New Password` (`#password`), placeholder `Enter new password`; error `Password must be at least 8 characters`. No show-password toggle | none | TBD | |
-| PWD-10 | Confirm password field with mismatch message | app/reset-password/page.tsx:116 | Label `Confirm Password` (`#confirmPassword`), placeholder `Confirm new password`; error `Passwords do not match`. No show-password toggle | none | TBD | |
-| PWD-11 | Reset Password submit | app/reset-password/page.tsx:131 | Button `Reset Password`; while loading `Resetting...` | `POST /auth/reset-password` | TBD | |
-| PWD-12 | Reset error banner | app/reset-password/page.tsx:93 | Red box: `Invalid or expired reset token`, `Password does not meet security requirements` | none | TBD | |
-| PWD-13 | Success message and automatic return to login after 2 seconds | app/reset-password/page.tsx:45, 148 | Heading `Password reset successfully!`; text `Redirecting to login...`; URL becomes `/login` | none | TBD | |
+| PWD-01 | Back to login link (top of forgot-password page) | app/forgot-password/page.tsx:53 | Link `Back to login` | none | Not verified |  |
+| PWD-02 | Email field with live format validation | app/forgot-password/page.tsx:78 | Heading `Forgot password?`; label `Email` (`#email`), placeholder `you@example.com`; error `Please enter a valid email address` | none | Works | [auth.spec](../tests/e2e/auth.spec.ts) |
+| PWD-03 | Send Reset Link submit (disabled until the email is valid) | app/forgot-password/page.tsx:93 | Button `Send Reset Link`; while loading `Sending...` | `POST /auth/forgot-password` | Works | [auth.spec](../tests/e2e/auth.spec.ts) |
+| PWD-04 | Request error banner | app/forgot-password/page.tsx:71 | Red box with the server message | none | Not verified |  |
+| PWD-05 | "Check your email" confirmation | app/forgot-password/page.tsx:110 | Heading `Check your email`; text `We've sent a password reset link to` + the email | none | Works | [auth.spec](../tests/e2e/auth.spec.ts) |
+| PWD-06 | Try again (returns to the form) | app/forgot-password/page.tsx:121 | Button `try again` (inline, lower case) | none | Not verified |  |
+| PWD-07 | Back to login button on the confirmation | app/forgot-password/page.tsx:128 | Button `Back to login` (the top link with the same text is also still present) | none | Not verified |  |
+| PWD-08 | Reset page opened without a `token` query parameter | app/reset-password/page.tsx:50 | Text `Invalid or expired reset link. Please request a new password reset.`; button `Request New Reset Link` (goes to `/forgot-password`) | none | Not verified |  |
+| PWD-09 | New password field with length validation | app/reset-password/page.tsx:100 | Heading `Reset your password`; label `New Password` (`#password`), placeholder `Enter new password`; error `Password must be at least 8 characters`. No show-password toggle | none | Fixed - form now applies the same rules as the server | [auth.spec](../tests/e2e/auth.spec.ts) |
+| PWD-10 | Confirm password field with mismatch message | app/reset-password/page.tsx:116 | Label `Confirm Password` (`#confirmPassword`), placeholder `Confirm new password`; error `Passwords do not match`. No show-password toggle | none | Works | [auth.spec](../tests/e2e/auth.spec.ts) |
+| PWD-11 | Reset Password submit | app/reset-password/page.tsx:131 | Button `Reset Password`; while loading `Resetting...` | `POST /auth/reset-password` | Works | [auth.spec](../tests/e2e/auth.spec.ts) |
+| PWD-12 | Reset error banner | app/reset-password/page.tsx:93 | Red box: `Invalid or expired reset token`, `Password does not meet security requirements` | none | Not verified |  |
+| PWD-13 | Success message and automatic return to login after 2 seconds | app/reset-password/page.tsx:45, 148 | Heading `Password reset successfully!`; text `Redirecting to login...`; URL becomes `/login` | none | Works | [auth.spec](../tests/e2e/auth.spec.ts) |
 
 ## 5. Onboarding
 
@@ -117,54 +159,54 @@ File: `app/onboarding/page.tsx` (three steps on one page; not wrapped in the pro
 
 | ID | Function | Where (file:line) | How a test finds it (visible text / aria-label / role / placeholder, exactly as in the code) | API call it makes | Status | Test |
 |---|---|---|---|---|---|---|
-| ONB-01 | Progress bar, step counter and step labels | app/onboarding/page.tsx:445 | `Step 1 of 3` (2, 3); `33% complete` / `67% complete` / `100% complete`; labels `Personal Info`, `Profile Setup`, `Get to Know Me` | none | TBD | |
-| ONB-02 | Step heading with Required / Optional chip | app/onboarding/page.tsx:397, 490 | Headings `Personal Info`, `Profile Setup`, `Get to Know Me`; chip `Required` (step 1) or `Optional` | none | TBD | |
-| ONB-03 | Error banner | app/onboarding/page.tsx:482 | Red box above the card with the message | none | TBD | |
-| ONB-04 | Back button (disabled on step 1) | app/onboarding/page.tsx:1347 | Button `Back` | none | TBD | |
-| ONB-05 | Next button (disabled until step 1 is valid) | app/onboarding/page.tsx:1369 | Button `Next` | none | TBD | |
-| ONB-06 | Skip to Profile (header; appears once step 1 has been passed) | app/onboarding/page.tsx:433 | Button `Skip to Profile` | `PUT /auth/complete-onboarding` | TBD | |
-| ONB-07 | Skip All (steps 2 and 3) | app/onboarding/page.tsx:1358 | Button `Skip All` | `PUT /auth/complete-onboarding` | TBD | |
-| ONB-08 | Complete Setup (step 3) | app/onboarding/page.tsx:1378 | Button `Complete Setup`; while loading `Completing...`; then URL `/profile` | `PUT /auth/complete-onboarding` | TBD | |
+| ONB-01 | Progress bar, step counter and step labels | app/onboarding/page.tsx:445 | `Step 1 of 3` (2, 3); `33% complete` / `67% complete` / `100% complete`; labels `Personal Info`, `Profile Setup`, `Get to Know Me` | none | Not verified |  |
+| ONB-02 | Step heading with Required / Optional chip | app/onboarding/page.tsx:397, 490 | Headings `Personal Info`, `Profile Setup`, `Get to Know Me`; chip `Required` (step 1) or `Optional` | none | Not verified |  |
+| ONB-03 | Error banner | app/onboarding/page.tsx:482 | Red box above the card with the message | none | Not verified |  |
+| ONB-04 | Back button (disabled on step 1) | app/onboarding/page.tsx:1347 | Button `Back` | none | Not verified |  |
+| ONB-05 | Next button (disabled until step 1 is valid) | app/onboarding/page.tsx:1369 | Button `Next` | none | Not verified |  |
+| ONB-06 | Skip to Profile (header; appears once step 1 has been passed) | app/onboarding/page.tsx:433 | Button `Skip to Profile` | `PUT /auth/complete-onboarding` | Not verified |  |
+| ONB-07 | Skip All (steps 2 and 3) | app/onboarding/page.tsx:1358 | Button `Skip All` | `PUT /auth/complete-onboarding` | Fixed - endless spinner fixed (shared isLoading flag no longer gates the app); UI flow not automated | [screenshots](screenshots/) |
+| ONB-08 | Complete Setup (step 3) | app/onboarding/page.tsx:1378 | Button `Complete Setup`; while loading `Completing...`; then URL `/profile` | `PUT /auth/complete-onboarding` | Works (API test only) | [auth.test](../server/tests/auth.test.js) |
 
 ### 5.1 Step 1 - Personal Info (required)
 
 | ID | Function | Where (file:line) | How a test finds it (visible text / aria-label / role / placeholder, exactly as in the code) | API call it makes | Status | Test |
 |---|---|---|---|---|---|---|
-| ONB-10 | First name (required) | app/onboarding/page.tsx:507 | Label `First Name *` (`#first_name`), placeholder `John` | none | TBD | |
-| ONB-11 | Last name (required) | app/onboarding/page.tsx:517 | Label `Last Name *` (`#last_name`), placeholder `Doe` | none | TBD | |
-| ONB-12 | Birthday with 18+ validation | app/onboarding/page.tsx:529 | Label `Birthday *` (`#birthdate`, `type="date"`, `max` = today minus 18 years); error `You must be at least 18 years old` | none | TBD | |
-| ONB-13 | Gender choice (4 buttons, single select) | app/onboarding/page.tsx:48, 544 | Buttons `Male`, `Female`, `Non-binary`, `Prefer not to say`; heading label `Gender *` not associated; the selected state is a CSS class only (no `aria-pressed`) | none | TBD | |
-| ONB-14 | State dropdown (required) | app/onboarding/page.tsx:565 | Combobox with placeholder `Select your state`; label `State *` not associated; 50 options | none | TBD | |
-| ONB-15 | District dropdown (required) | app/onboarding/page.tsx:584 | Combobox with placeholder `Select your district`; label `District Number *` not associated; options `District 1` to `District 14` | none | TBD | |
-| ONB-16 | Agree to Community Guidelines checkbox (required) | app/onboarding/page.tsx:639 | Checkbox `#guidelines`, label `I agree to the Community Guidelines *` | none | TBD | |
-| ONB-17 | Read Community Guidelines link | app/onboarding/page.tsx:648 | Button `Read Community Guidelines` | none | TBD | |
-| ONB-18 | Community Guidelines dialog (7 sections) and its close button | app/onboarding/page.tsx:1402 | Dialog title `D8-LPA Community Guidelines`; description `Please read and agree to our community guidelines`; section headings `1. Respect & Kindness` to `7. Consequences`; button `I Understand` (plus built-in X `Close`) | none | TBD | |
-| ONB-19 | LPA Membership ID field | app/onboarding/page.tsx:602 | **Not in the UI** - the whole block is commented out | none | TBD | |
+| ONB-10 | First name (required) | app/onboarding/page.tsx:507 | Label `First Name *` (`#first_name`), placeholder `John` | none | Not verified |  |
+| ONB-11 | Last name (required) | app/onboarding/page.tsx:517 | Label `Last Name *` (`#last_name`), placeholder `Doe` | none | Not verified |  |
+| ONB-12 | Birthday with 18+ validation | app/onboarding/page.tsx:529 | Label `Birthday *` (`#birthdate`, `type="date"`, `max` = today minus 18 years); error `You must be at least 18 years old` | none | Works (API test only) | [auth.test](../server/tests/auth.test.js) |
+| ONB-13 | Gender choice (4 buttons, single select) | app/onboarding/page.tsx:48, 544 | Buttons `Male`, `Female`, `Non-binary`, `Prefer not to say`; heading label `Gender *` not associated; the selected state is a CSS class only (no `aria-pressed`) | none | Not verified |  |
+| ONB-14 | State dropdown (required) | app/onboarding/page.tsx:565 | Combobox with placeholder `Select your state`; label `State *` not associated; 50 options | none | Not verified |  |
+| ONB-15 | District dropdown (required) | app/onboarding/page.tsx:584 | Combobox with placeholder `Select your district`; label `District Number *` not associated; options `District 1` to `District 14` | none | Not verified |  |
+| ONB-16 | Agree to Community Guidelines checkbox (required) | app/onboarding/page.tsx:639 | Checkbox `#guidelines`, label `I agree to the Community Guidelines *` | none | Not verified |  |
+| ONB-17 | Read Community Guidelines link | app/onboarding/page.tsx:648 | Button `Read Community Guidelines` | none | Not verified |  |
+| ONB-18 | Community Guidelines dialog (7 sections) and its close button | app/onboarding/page.tsx:1402 | Dialog title `D8-LPA Community Guidelines`; description `Please read and agree to our community guidelines`; section headings `1. Respect & Kindness` to `7. Consequences`; button `I Understand` (plus built-in X `Close`) | none | Not verified |  |
+| ONB-19 | LPA Membership ID field | app/onboarding/page.tsx:602 | **Not in the UI** - the whole block is commented out | none | Fixed - membership check called an address that did not exist | [auth.test](../server/tests/auth.test.js) |
 
 ### 5.2 Step 2 - Profile Setup (optional)
 
 | ID | Function | Where (file:line) | How a test finds it (visible text / aria-label / role / placeholder, exactly as in the code) | API call it makes | Status | Test |
 |---|---|---|---|---|---|---|
-| ONB-20 | Bio with 300-character counter | app/onboarding/page.tsx:665 | Label `Short bio about yourself` (`#bio`), placeholder `Tell others a bit about yourself...`; counter `{n}/300` | none | TBD | |
-| ONB-21 | Interest chips (16, multi-select) | app/onboarding/page.tsx:55, 699 | Label `Pick a few interests/hobbies` (not associated); buttons `Sports`, `Gaming`, `Reading`, `Travel`, `Cooking`, `Movies`, `Music`, `Photography`, `Art`, `Fitness`, `Yoga`, `Dancing`, `Hiking`, `Pets`, `Technology`, `Fashion` | none | TBD | |
-| ONB-22 | Selected-interests summary with remove chips | app/onboarding/page.tsx:682 | Text `Selected ({n}):`; each chip is a button whose text is the interest followed by `×` | none | TBD | |
-| ONB-23 | Add a custom interest (button or Enter) | app/onboarding/page.tsx:716 | Placeholder `Add custom interest...`; button `Add` (there are four `Add` buttons on this step - scope by the input) | none | TBD | |
-| ONB-24 | Looking For (Gender) chips; "Everyone" clears the others | app/onboarding/page.tsx:753 | Label `Looking For (Gender)`; helper `Select all that apply`; buttons `Women`, `Men`, `Non-binary`, `Everyone` | none | TBD | |
-| ONB-25 | What I'm Looking For dropdown | app/onboarding/page.tsx:60, 795 | Combobox with placeholder `Select what you're looking for...`; options `Serious relationship`, `Casual dating`, `Friendship`, `Networking`, `Not sure yet` | none | TBD | |
-| ONB-26 | Preferred age range (min / max) | app/onboarding/page.tsx:814 | Two `input[type="number"]` under label `Age Range You're Looking For`; small labels `Min Age` / `Max Age` not associated; summary `Age range: {min} - {max}` | none | TBD | |
-| ONB-27 | Life Goals dropdown | app/onboarding/page.tsx:68, 845 | Combobox with placeholder `Select your life goals...`; 7 options from `Building a family` to `Creative pursuits` | none | TBD | |
-| ONB-28 | Languages chips (12, multi-select) | app/onboarding/page.tsx:78, 864 | Label `Languages`; helper `Select all languages you speak`; buttons `English`, `Spanish`, `French`, `German`, `Italian`, `Portuguese`, `Chinese`, `Japanese`, `Korean`, `Arabic`, `Hindi`, `Russian` | none | TBD | |
-| ONB-29 | Cultural background | app/onboarding/page.tsx:891 | Label `Cultural Background` (`#cultural_background`), placeholder `e.g., Italian-American, South Asian, etc.` | none | TBD | |
-| ONB-30 | Religion dropdown | app/onboarding/page.tsx:93, 902 | Combobox with placeholder `Select your religion...`; 12 options from `Christianity` to `Other` | none | TBD | |
-| ONB-31 | Occupation | app/onboarding/page.tsx:921 | Label `Occupation` (`#occupation`), placeholder `e.g., Software Engineer, Teacher, Graphic Designer...` | none | TBD | |
-| ONB-32 | Education | app/onboarding/page.tsx:932 | Label `Education` (`#education`), placeholder `e.g., Bachelor's in Computer Science, High School...` | none | TBD | |
-| ONB-33 | Personal preferences with 500-character counter | app/onboarding/page.tsx:943 | Label `Personal Preferences` (`#personal_preferences`), placeholder starts `What are you looking for in a partner?`; counter `{n}/500` | none | TBD | |
-| ONB-34 | Favorite music chips (16), selected summary, custom entry | app/onboarding/page.tsx:108, 959 | Label `Favorite Music`; chip buttons `Pop` ... `K-pop`; `Selected ({n}):`; placeholder `Add custom music genre...`; button `Add` | none | TBD | |
-| ONB-35 | Favorite animals chips, selected summary, custom entry | app/onboarding/page.tsx:113, 1032 | Label `Favorite Animals`; chip buttons `Dogs` ... `Chickens`; placeholder `Add custom animal...`; button `Add` | none | TBD | |
-| ONB-36 | Pet peeves chips (16), selected summary, custom entry | app/onboarding/page.tsx:118, 1105 | Label `Pet Peeves`; chip buttons `Loud noises` ... `Attention seeking`; placeholder `Add custom pet peeve...`; button `Add` | none | TBD | |
-| ONB-37 | Profile picture upload | app/onboarding/page.tsx:1178 | Drop-zone text `Click to upload profile picture`; hidden `input[type="file"][accept="image/*"]` (use `setInputFiles`); note text starts `Note: If you do not upload a profile picture` | `POST /users/photos` (multipart, field `photo`) | TBD | |
-| ONB-38 | Remove the uploaded picture | app/onboarding/page.tsx:1209 | Icon-only trash button with **no accessible name**, on top of `img[alt="Profile"]` | none (local state only) | TBD | |
-| ONB-39 | Upload validation messages | app/onboarding/page.tsx:337 | Error banner `Please upload an image file` or `Only 1 profile photo allowed` | none | TBD | |
+| ONB-20 | Bio with 300-character counter | app/onboarding/page.tsx:665 | Label `Short bio about yourself` (`#bio`), placeholder `Tell others a bit about yourself...`; counter `{n}/300` | none | Not verified |  |
+| ONB-21 | Interest chips (16, multi-select) | app/onboarding/page.tsx:55, 699 | Label `Pick a few interests/hobbies` (not associated); buttons `Sports`, `Gaming`, `Reading`, `Travel`, `Cooking`, `Movies`, `Music`, `Photography`, `Art`, `Fitness`, `Yoga`, `Dancing`, `Hiking`, `Pets`, `Technology`, `Fashion` | none | Not verified |  |
+| ONB-22 | Selected-interests summary with remove chips | app/onboarding/page.tsx:682 | Text `Selected ({n}):`; each chip is a button whose text is the interest followed by `×` | none | Not verified |  |
+| ONB-23 | Add a custom interest (button or Enter) | app/onboarding/page.tsx:716 | Placeholder `Add custom interest...`; button `Add` (there are four `Add` buttons on this step - scope by the input) | none | Not verified |  |
+| ONB-24 | Looking For (Gender) chips; "Everyone" clears the others | app/onboarding/page.tsx:753 | Label `Looking For (Gender)`; helper `Select all that apply`; buttons `Women`, `Men`, `Non-binary`, `Everyone` | none | Fixed - "Non-binary" was stored with a hyphen and never matched | [core.test](../server/tests/core.test.js) |
+| ONB-25 | What I'm Looking For dropdown | app/onboarding/page.tsx:60, 795 | Combobox with placeholder `Select what you're looking for...`; options `Serious relationship`, `Casual dating`, `Friendship`, `Networking`, `Not sure yet` | none | Not verified |  |
+| ONB-26 | Preferred age range (min / max) | app/onboarding/page.tsx:814 | Two `input[type="number"]` under label `Age Range You're Looking For`; small labels `Min Age` / `Max Age` not associated; summary `Age range: {min} - {max}` | none | Fixed - age range was thrown away by the server | [auth.test](../server/tests/auth.test.js) |
+| ONB-27 | Life Goals dropdown | app/onboarding/page.tsx:68, 845 | Combobox with placeholder `Select your life goals...`; 7 options from `Building a family` to `Creative pursuits` | none | Not verified |  |
+| ONB-28 | Languages chips (12, multi-select) | app/onboarding/page.tsx:78, 864 | Label `Languages`; helper `Select all languages you speak`; buttons `English`, `Spanish`, `French`, `German`, `Italian`, `Portuguese`, `Chinese`, `Japanese`, `Korean`, `Arabic`, `Hindi`, `Russian` | none | Not verified |  |
+| ONB-29 | Cultural background | app/onboarding/page.tsx:891 | Label `Cultural Background` (`#cultural_background`), placeholder `e.g., Italian-American, South Asian, etc.` | none | Not verified |  |
+| ONB-30 | Religion dropdown | app/onboarding/page.tsx:93, 902 | Combobox with placeholder `Select your religion...`; 12 options from `Christianity` to `Other` | none | Not verified |  |
+| ONB-31 | Occupation | app/onboarding/page.tsx:921 | Label `Occupation` (`#occupation`), placeholder `e.g., Software Engineer, Teacher, Graphic Designer...` | none | Not verified |  |
+| ONB-32 | Education | app/onboarding/page.tsx:932 | Label `Education` (`#education`), placeholder `e.g., Bachelor's in Computer Science, High School...` | none | Not verified |  |
+| ONB-33 | Personal preferences with 500-character counter | app/onboarding/page.tsx:943 | Label `Personal Preferences` (`#personal_preferences`), placeholder starts `What are you looking for in a partner?`; counter `{n}/500` | none | Not verified |  |
+| ONB-34 | Favorite music chips (16), selected summary, custom entry | app/onboarding/page.tsx:108, 959 | Label `Favorite Music`; chip buttons `Pop` ... `K-pop`; `Selected ({n}):`; placeholder `Add custom music genre...`; button `Add` | none | Not verified |  |
+| ONB-35 | Favorite animals chips, selected summary, custom entry | app/onboarding/page.tsx:113, 1032 | Label `Favorite Animals`; chip buttons `Dogs` ... `Chickens`; placeholder `Add custom animal...`; button `Add` | none | Not verified |  |
+| ONB-36 | Pet peeves chips (16), selected summary, custom entry | app/onboarding/page.tsx:118, 1105 | Label `Pet Peeves`; chip buttons `Loud noises` ... `Attention seeking`; placeholder `Add custom pet peeve...`; button `Add` | none | Not verified |  |
+| ONB-37 | Profile picture upload | app/onboarding/page.tsx:1178 | Drop-zone text `Click to upload profile picture`; hidden `input[type="file"][accept="image/*"]` (use `setInputFiles`); note text starts `Note: If you do not upload a profile picture` | `POST /users/photos` (multipart, field `photo`) | Works (API test only) | [core.test](../server/tests/core.test.js) |
+| ONB-38 | Remove the uploaded picture | app/onboarding/page.tsx:1209 | Icon-only trash button with **no accessible name**, on top of `img[alt="Profile"]` | none (local state only) | Still broken - removing the picture clears the screen only; the upload stays on the profile |  |
+| ONB-39 | Upload validation messages | app/onboarding/page.tsx:337 | Error banner `Please upload an image file` or `Only 1 profile photo allowed` | none | Not verified |  |
 
 ### 5.3 Step 3 - Get to Know Me (optional)
 
@@ -172,14 +214,14 @@ Each prompt is a textarea with a `{n}/500` counter.
 
 | ID | Function | Where (file:line) | How a test finds it (visible text / aria-label / role / placeholder, exactly as in the code) | API call it makes | Status | Test |
 |---|---|---|---|---|---|---|
-| ONB-40 | Prompt: weirdly good at | app/onboarding/page.tsx:1230 | Label `I'm weirdly good at...` (`#prompt_good_at`), placeholder `e.g., Remembering song lyrics from the 90s` | none | TBD | |
-| ONB-41 | Prompt: perfect weekend | app/onboarding/page.tsx:1244 | Label `A perfect weekend looks like...` (`#prompt_weekend`), placeholder `e.g., Morning coffee, afternoon hike, evening movie marathon` | none | TBD | |
-| ONB-42 | Prompt: message me if | app/onboarding/page.tsx:1258 | Label `You should message me if...` (`#prompt_message`), placeholder `e.g., You want to debate the best pizza toppings` | none | TBD | |
-| ONB-43 | Prompt: ideal connection | app/onboarding/page.tsx:1274 | Label `My ideal type of connection is...` (`#hoping_to_find`), placeholder `e.g., Someone who loves spontaneous road trips and deep conversations` | none | TBD | |
-| ONB-44 | Prompt: great day | app/onboarding/page.tsx:1288 | Label `A great day for me includes...` (`#great_day`), placeholder `e.g., Good food, laughter, and quality time with someone special` | none | TBD | |
-| ONB-45 | Prompt: relationship values | app/onboarding/page.tsx:1302 | Label `In a relationship, I value...` (`#relationship_values`), placeholder `e.g., Honesty, humor, and supporting each other's dreams` | none | TBD | |
-| ONB-46 | Prompt: show I care | app/onboarding/page.tsx:1316 | Label `I show I care by...` (`#show_affection`), placeholder `e.g., Thoughtful messages, acts of service, and quality time` | none | TBD | |
-| ONB-47 | Prompt: vision for the future | app/onboarding/page.tsx:1330 | Label `My vision for the future is...` (`#build_with_person`), placeholder `e.g., A life full of adventure, growth, and meaningful moments together` | none | TBD | |
+| ONB-40 | Prompt: weirdly good at | app/onboarding/page.tsx:1230 | Label `I'm weirdly good at...` (`#prompt_good_at`), placeholder `e.g., Remembering song lyrics from the 90s` | none | Not verified |  |
+| ONB-41 | Prompt: perfect weekend | app/onboarding/page.tsx:1244 | Label `A perfect weekend looks like...` (`#prompt_weekend`), placeholder `e.g., Morning coffee, afternoon hike, evening movie marathon` | none | Not verified |  |
+| ONB-42 | Prompt: message me if | app/onboarding/page.tsx:1258 | Label `You should message me if...` (`#prompt_message`), placeholder `e.g., You want to debate the best pizza toppings` | none | Not verified |  |
+| ONB-43 | Prompt: ideal connection | app/onboarding/page.tsx:1274 | Label `My ideal type of connection is...` (`#hoping_to_find`), placeholder `e.g., Someone who loves spontaneous road trips and deep conversations` | none | Not verified |  |
+| ONB-44 | Prompt: great day | app/onboarding/page.tsx:1288 | Label `A great day for me includes...` (`#great_day`), placeholder `e.g., Good food, laughter, and quality time with someone special` | none | Not verified |  |
+| ONB-45 | Prompt: relationship values | app/onboarding/page.tsx:1302 | Label `In a relationship, I value...` (`#relationship_values`), placeholder `e.g., Honesty, humor, and supporting each other's dreams` | none | Not verified |  |
+| ONB-46 | Prompt: show I care | app/onboarding/page.tsx:1316 | Label `I show I care by...` (`#show_affection`), placeholder `e.g., Thoughtful messages, acts of service, and quality time` | none | Not verified |  |
+| ONB-47 | Prompt: vision for the future | app/onboarding/page.tsx:1330 | Label `My vision for the future is...` (`#build_with_person`), placeholder `e.g., A life full of adventure, growth, and meaningful moments together` | none | Not verified |  |
 
 ## 6. Navigation
 
@@ -189,19 +231,19 @@ File: `components/app-sidebar.tsx` (hidden below the `md` breakpoint)
 
 | ID | Function | Where (file:line) | How a test finds it (visible text / aria-label / role / placeholder, exactly as in the code) | API call it makes | Status | Test |
 |---|---|---|---|---|---|---|
-| NAV-01 | Logo | components/app-sidebar.tsx:73 | Text `D8-LPA` (not a link; text hidden when collapsed) | none | TBD | |
-| NAV-02 | Collapse / expand the sidebar (remembered in `localStorage` key `sidebar-storage`) | components/app-sidebar.tsx:82 | Icon-only chevron button with **no accessible name**; first `button` inside `aside` | none | TBD | |
-| NAV-03 | Profile link | components/app-sidebar.tsx:35, 103 | Link `Profile` (href `/profile`) | none | TBD | |
-| NAV-04 | Browse link | components/app-sidebar.tsx:36 | Link `Browse` (href `/browse`) | none | TBD | |
-| NAV-05 | Messages link with unread badge | components/app-sidebar.tsx:37 | Link `Messages` (href `/messages`); badge number inside the link | none | TBD | |
-| NAV-06 | Matches link with new-match badge | components/app-sidebar.tsx:38 | Link `Matches` (href `/matches`) | none | TBD | |
-| NAV-07 | Notifications link with unread badge | components/app-sidebar.tsx:39 | Link `Notifications` (href `/notifications`) | none | TBD | |
-| NAV-08 | Events link with badge | components/app-sidebar.tsx:40 | Link `Events` (href `/events`) | none | TBD | |
-| NAV-09 | Current page is highlighted | components/app-sidebar.tsx:98, 112 | Active link has classes `bg-primary text-white`; there is no `aria-current` | none | TBD | |
-| NAV-10 | Badge rules: capped at `99+` expanded and `9+` collapsed; clicking a link zeroes its badge locally | components/app-sidebar.tsx:106, 123, 133 | Badge text inside the link | none | TBD | |
-| NAV-11 | Collapsed mode: icons only, label in a hover tooltip | components/app-sidebar.tsx:120, 143 | Links have **no accessible name** when collapsed; tooltip text is the label, plus ` ({count})` when there is a badge; locate by `href` | none | TBD | |
-| NAV-12 | Admin link (only when `user.role` is `admin`) | components/app-sidebar.tsx:164, 222 | Link `Admin` (href `/admin`); icon-only with tooltip `Admin` when collapsed | none | TBD | |
-| NAV-13 | Settings link | components/app-sidebar.tsx:186, 237 | Link `Settings` (href `/settings`); icon-only with tooltip `Settings` when collapsed | none | TBD | |
+| NAV-01 | Logo | components/app-sidebar.tsx:73 | Text `D8-LPA` (not a link; text hidden when collapsed) | none | Works | [community.spec](../tests/e2e/community.spec.ts) [chat.spec](../tests/e2e/chat.spec.ts) |
+| NAV-02 | Collapse / expand the sidebar (remembered in `localStorage` key `sidebar-storage`) | components/app-sidebar.tsx:82 | Icon-only chevron button with **no accessible name**; first `button` inside `aside` | none | Changed - collapsed icon-only mode removed: every item always has a word beside it |  |
+| NAV-03 | Profile link | components/app-sidebar.tsx:35, 103 | Link `Profile` (href `/profile`) | none | Works | [community.spec](../tests/e2e/community.spec.ts) [chat.spec](../tests/e2e/chat.spec.ts) |
+| NAV-04 | Browse link | components/app-sidebar.tsx:36 | Link `Browse` (href `/browse`) | none | Works | [community.spec](../tests/e2e/community.spec.ts) [chat.spec](../tests/e2e/chat.spec.ts) |
+| NAV-05 | Messages link with unread badge | components/app-sidebar.tsx:37 | Link `Messages` (href `/messages`); badge number inside the link | none | Works | [community.spec](../tests/e2e/community.spec.ts) [chat.spec](../tests/e2e/chat.spec.ts) |
+| NAV-06 | Matches link with new-match badge | components/app-sidebar.tsx:38 | Link `Matches` (href `/matches`) | none | Works | [community.spec](../tests/e2e/community.spec.ts) [chat.spec](../tests/e2e/chat.spec.ts) |
+| NAV-07 | Notifications link with unread badge | components/app-sidebar.tsx:39 | Link `Notifications` (href `/notifications`) | none | Works | [community.spec](../tests/e2e/community.spec.ts) [chat.spec](../tests/e2e/chat.spec.ts) |
+| NAV-08 | Events link with badge | components/app-sidebar.tsx:40 | Link `Events` (href `/events`) | none | Works | [community.spec](../tests/e2e/community.spec.ts) [chat.spec](../tests/e2e/chat.spec.ts) |
+| NAV-09 | Current page is highlighted | components/app-sidebar.tsx:98, 112 | Active link has classes `bg-primary text-white`; there is no `aria-current` | none | Works | [community.spec](../tests/e2e/community.spec.ts) [chat.spec](../tests/e2e/chat.spec.ts) |
+| NAV-10 | Badge rules: capped at `99+` expanded and `9+` collapsed; clicking a link zeroes its badge locally | components/app-sidebar.tsx:106, 123, 133 | Badge text inside the link | none | Works | [community.spec](../tests/e2e/community.spec.ts) [chat.spec](../tests/e2e/chat.spec.ts) |
+| NAV-11 | Collapsed mode: icons only, label in a hover tooltip | components/app-sidebar.tsx:120, 143 | Links have **no accessible name** when collapsed; tooltip text is the label, plus ` ({count})` when there is a badge; locate by `href` | none | Changed - collapsed icon-only mode removed: every item always has a word beside it |  |
+| NAV-12 | Admin link (only when `user.role` is `admin`) | components/app-sidebar.tsx:164, 222 | Link `Admin` (href `/admin`); icon-only with tooltip `Admin` when collapsed | none | Not verified |  |
+| NAV-13 | Settings link | components/app-sidebar.tsx:186, 237 | Link `Settings` (href `/settings`); icon-only with tooltip `Settings` when collapsed | none | Works | [community.spec](../tests/e2e/community.spec.ts) [chat.spec](../tests/e2e/chat.spec.ts) |
 
 ### 6.2 Mobile bottom nav
 
@@ -209,18 +251,18 @@ File: `components/mobile-nav.tsx` (shown below the `md` breakpoint)
 
 | ID | Function | Where (file:line) | How a test finds it (visible text / aria-label / role / placeholder, exactly as in the code) | API call it makes | Status | Test |
 |---|---|---|---|---|---|---|
-| NAV-20 | Browse tab | components/mobile-nav.tsx:33, 74 | Link `Browse` | none | TBD | |
-| NAV-21 | Matches tab with badge | components/mobile-nav.tsx:34 | Link `Matches` | none | TBD | |
-| NAV-22 | Chat tab with unread badge | components/mobile-nav.tsx:35 | Link `Chat` (href `/messages`; the desktop label is `Messages`) | none | TBD | |
-| NAV-23 | Profile tab | components/mobile-nav.tsx:36 | Link `Profile` | none | TBD | |
-| NAV-24 | More button with combined events + notifications badge | components/mobile-nav.tsx:95 | Button `More` | none | TBD | |
-| NAV-25 | More sheet | components/mobile-nav.tsx:110 | Sheet title `More`; built-in X named `Close` | none | TBD | |
-| NAV-26 | Events item with badge | components/mobile-nav.tsx:40, 120 | Link `Events` inside the sheet | none | TBD | |
-| NAV-27 | Notifications item with badge | components/mobile-nav.tsx:41 | Link `Notifications` inside the sheet | none | TBD | |
-| NAV-28 | Settings item | components/mobile-nav.tsx:42 | Link `Settings` inside the sheet | none | TBD | |
-| NAV-29 | Admin item (admins only) | components/mobile-nav.tsx:142 | Link `Admin` inside the sheet | none | TBD | |
-| NAV-30 | Badge caps: `9+` on the tab bar, `99+` inside the sheet | components/mobile-nav.tsx:58, 133 | Badge text | none | TBD | |
-| NAV-31 | Current tab is highlighted | components/mobile-nav.tsx:81 | Active link has class `text-primary`; no `aria-current` | none | TBD | |
+| NAV-20 | Browse tab | components/mobile-nav.tsx:33, 74 | Link `Browse` | none | Works | [community.spec](../tests/e2e/community.spec.ts) [chat.spec](../tests/e2e/chat.spec.ts) |
+| NAV-21 | Matches tab with badge | components/mobile-nav.tsx:34 | Link `Matches` | none | Works | [community.spec](../tests/e2e/community.spec.ts) [chat.spec](../tests/e2e/chat.spec.ts) |
+| NAV-22 | Chat tab with unread badge | components/mobile-nav.tsx:35 | Link `Chat` (href `/messages`; the desktop label is `Messages`) | none | Works | [community.spec](../tests/e2e/community.spec.ts) [chat.spec](../tests/e2e/chat.spec.ts) |
+| NAV-23 | Profile tab | components/mobile-nav.tsx:36 | Link `Profile` | none | Works | [community.spec](../tests/e2e/community.spec.ts) [chat.spec](../tests/e2e/chat.spec.ts) |
+| NAV-24 | More button with combined events + notifications badge | components/mobile-nav.tsx:95 | Button `More` | none | Works | [community.spec](../tests/e2e/community.spec.ts) [chat.spec](../tests/e2e/chat.spec.ts) |
+| NAV-25 | More sheet | components/mobile-nav.tsx:110 | Sheet title `More`; built-in X named `Close` | none | Works | [community.spec](../tests/e2e/community.spec.ts) [chat.spec](../tests/e2e/chat.spec.ts) |
+| NAV-26 | Events item with badge | components/mobile-nav.tsx:40, 120 | Link `Events` inside the sheet | none | Works | [community.spec](../tests/e2e/community.spec.ts) [chat.spec](../tests/e2e/chat.spec.ts) |
+| NAV-27 | Notifications item with badge | components/mobile-nav.tsx:41 | Link `Notifications` inside the sheet | none | Works | [community.spec](../tests/e2e/community.spec.ts) [chat.spec](../tests/e2e/chat.spec.ts) |
+| NAV-28 | Settings item | components/mobile-nav.tsx:42 | Link `Settings` inside the sheet | none | Works | [community.spec](../tests/e2e/community.spec.ts) [chat.spec](../tests/e2e/chat.spec.ts) |
+| NAV-29 | Admin item (admins only) | components/mobile-nav.tsx:142 | Link `Admin` inside the sheet | none | Not verified |  |
+| NAV-30 | Badge caps: `9+` on the tab bar, `99+` inside the sheet | components/mobile-nav.tsx:58, 133 | Badge text | none | Works | [community.spec](../tests/e2e/community.spec.ts) [chat.spec](../tests/e2e/chat.spec.ts) |
+| NAV-31 | Current tab is highlighted | components/mobile-nav.tsx:81 | Active link has class `text-primary`; no `aria-current` | none | Works | [community.spec](../tests/e2e/community.spec.ts) [chat.spec](../tests/e2e/chat.spec.ts) |
 
 ## 7. Browse
 
@@ -228,24 +270,24 @@ File: `app/browse/page.tsx`
 
 | ID | Function | Where (file:line) | How a test finds it (visible text / aria-label / role / placeholder, exactly as in the code) | API call it makes | Status | Test |
 |---|---|---|---|---|---|---|
-| BRW-01 | Page heading | app/browse/page.tsx:288 | Heading `Discover`; text `Find your perfect match` | none | TBD | |
-| BRW-02 | Load profiles (6 skeleton cards while loading) | app/browse/page.tsx:103, 460 | Grid of profile cards replaces the skeletons | `GET /browse` | TBD | |
-| BRW-03 | State filter (multi-select) | app/browse/page.tsx:300 | Button `State`; menu of `menuitemcheckbox` items, one per US state (`Alabama` ... `Wyoming`) | none (client filter) | TBD | |
-| BRW-04 | District filter (multi-select) | app/browse/page.tsx:327 | Button `District`; items `District 1` to `District 15` | none (client filter) | TBD | |
-| BRW-05 | Activities filter (multi-select) | app/browse/page.tsx:72, 353 | Button `Activities`; 35 items written in lower case in the DOM (`art`, `astronomy`, ... `yoga`), shown capitalised by CSS | none (client filter) | TBD | |
-| BRW-06 | Count badge on each filter button | app/browse/page.tsx:305, 331, 358 | Number inside the `State` / `District` / `Activities` button | none | TBD | |
-| BRW-07 | Clear all filters | app/browse/page.tsx:381 | Button `Clear all` (only when a filter is active) | none | TBD | |
-| BRW-08 | Active-filter chips with a remove X | app/browse/page.tsx:394 | Chip text is the state name, `District {n}`, or the activity; the X inside each chip is an icon-only button with **no accessible name** | none | TBD | |
-| BRW-09 | Load-error banner with retry | app/browse/page.tsx:445 | Text `Something went wrong` + the error; button `Try again` | `GET /browse` | TBD | |
-| BRW-10 | Like / unlike error banner | app/browse/page.tsx:445 | Same banner, `Something went wrong` + the error, without the retry button | none | TBD | |
-| BRW-11 | Empty state, no filters | app/browse/page.tsx:477 | `No more profiles`; `Check back later for new matches!` | none | TBD | |
-| BRW-12 | Empty state, filters active | app/browse/page.tsx:481 | `No profiles match your filters`; `Try adjusting your filters to see more people`; button `Clear Filters` | none | TBD | |
-| BRW-13 | Profile card: photo, name and age, state and district, bio, up to 4 interest badges and a `+N` badge | app/browse/page.tsx:507 | Card image is a link to `/profile/{id}` whose image `alt` is the first name; heading `{first_name}, {age}`; location `{state}, District {n}` | none | TBD | |
-| BRW-14 | Like a member | app/browse/page.tsx:598 | Button `Like` on the card (spinner with no text while in flight) | `POST /browse/{userId}/like` | TBD | |
-| BRW-15 | Liked state and Unlike | app/browse/page.tsx:568 | Button `You Liked This User`; clicking opens a popover with button `Unlike` | `DELETE /browse/liked/{likeId}` | TBD | |
-| BRW-16 | "It's a match" dialog after a mutual like | app/browse/page.tsx:636 | Heading `It's a match!`; text `You and {name} liked each other. Say hello.`; link `Go to Matches`; button `Keep Browsing` | none | TBD | |
-| BRW-17 | Show more (12 at a time; also triggers on scroll) | app/browse/page.tsx:175, 622 | Button `Show more profiles` | none | TBD | |
-| BRW-18 | Results count | app/browse/page.tsx:631 | Text `Showing {x} of {y} profiles` | none | TBD | |
+| BRW-01 | Page heading | app/browse/page.tsx:288 | Heading `Discover`; text `Find your perfect match` | none | Fixed - heading renamed from "Discover" to match the menu | [screenshots](screenshots/) |
+| BRW-02 | Load profiles (6 skeleton cards while loading) | app/browse/page.tsx:103, 460 | Grid of profile cards replaces the skeletons | `GET /browse` | Works | [community.spec](../tests/e2e/community.spec.ts) |
+| BRW-03 | State filter (multi-select) | app/browse/page.tsx:300 | Button `State`; menu of `menuitemcheckbox` items, one per US state (`Alabama` ... `Wyoming`) | none (client filter) | Not verified |  |
+| BRW-04 | District filter (multi-select) | app/browse/page.tsx:327 | Button `District`; items `District 1` to `District 15` | none (client filter) | Not verified |  |
+| BRW-05 | Activities filter (multi-select) | app/browse/page.tsx:72, 353 | Button `Activities`; 35 items written in lower case in the DOM (`art`, `astronomy`, ... `yoga`), shown capitalised by CSS | none (client filter) | Not verified |  |
+| BRW-06 | Count badge on each filter button | app/browse/page.tsx:305, 331, 358 | Number inside the `State` / `District` / `Activities` button | none | Not verified |  |
+| BRW-07 | Clear all filters | app/browse/page.tsx:381 | Button `Clear all` (only when a filter is active) | none | Not verified |  |
+| BRW-08 | Active-filter chips with a remove X | app/browse/page.tsx:394 | Chip text is the state name, `District {n}`, or the activity; the X inside each chip is an icon-only button with **no accessible name** | none | Not verified |  |
+| BRW-09 | Load-error banner with retry | app/browse/page.tsx:445 | Text `Something went wrong` + the error; button `Try again` | `GET /browse` | Not verified |  |
+| BRW-10 | Like / unlike error banner | app/browse/page.tsx:445 | Same banner, `Something went wrong` + the error, without the retry button | none | Not verified |  |
+| BRW-11 | Empty state, no filters | app/browse/page.tsx:477 | `No more profiles`; `Check back later for new matches!` | none | Not verified |  |
+| BRW-12 | Empty state, filters active | app/browse/page.tsx:481 | `No profiles match your filters`; `Try adjusting your filters to see more people`; button `Clear Filters` | none | Not verified |  |
+| BRW-13 | Profile card: photo, name and age, state and district, bio, up to 4 interest badges and a `+N` badge | app/browse/page.tsx:507 | Card image is a link to `/profile/{id}` whose image `alt` is the first name; heading `{first_name}, {age}`; location `{state}, District {n}` | none | Works | [community.spec](../tests/e2e/community.spec.ts) |
+| BRW-14 | Like a member | app/browse/page.tsx:598 | Button `Like` on the card (spinner with no text while in flight) | `POST /browse/{userId}/like` | Works | [community.spec](../tests/e2e/community.spec.ts) |
+| BRW-15 | Liked state and Unlike | app/browse/page.tsx:568 | Button `You Liked This User`; clicking opens a popover with button `Unlike` | `DELETE /browse/liked/{likeId}` | Not verified |  |
+| BRW-16 | "It's a match" dialog after a mutual like | app/browse/page.tsx:636 | Heading `It's a match!`; text `You and {name} liked each other. Say hello.`; link `Go to Matches`; button `Keep Browsing` | none | Not verified |  |
+| BRW-17 | Show more (12 at a time; also triggers on scroll) | app/browse/page.tsx:175, 622 | Button `Show more profiles` | none | Not verified |  |
+| BRW-18 | Results count | app/browse/page.tsx:631 | Text `Showing {x} of {y} profiles` | none | Not verified |  |
 
 ## 8. Profile view (other member)
 
@@ -253,27 +295,27 @@ File: `app/profile/[id]/page.tsx`
 
 | ID | Function | Where (file:line) | How a test finds it (visible text / aria-label / role / placeholder, exactly as in the code) | API call it makes | Status | Test |
 |---|---|---|---|---|---|---|
-| PRV-01 | Load the member (skeleton while loading); also loads my likes and matches to set the button states | app/profile/[id]/page.tsx:45, 85, 163 | Heading (h1) with the member's first name | `GET /users/{id}`, `GET /browse/liked`, `GET /matches` | TBD | |
-| PRV-02 | Not-found state | app/profile/[id]/page.tsx:182 | `Profile not found`; `This user may have deleted their account.`; button `Go Back` | none | TBD | |
-| PRV-03 | Back button | app/profile/[id]/page.tsx:205 | Button `Back` (browser history back) | none | TBD | |
-| PRV-04 | Main photo, or a person icon when there are no photos | app/profile/[id]/page.tsx:217 | Image with `alt` = first name | none | TBD | |
-| PRV-05 | Header facts: age, city and state, district | app/profile/[id]/page.tsx:239 | Age number; `{city}, {state}`; `District {n}` | none | TBD | |
-| PRV-06 | Like / unlike toggle | app/profile/[id]/page.tsx:142, 268 | Button `Like` (not liked) or `Liked` (liked) | `POST /browse/{id}/like` then `GET /browse/liked`; `DELETE /browse/liked/{likeId}` | TBD | |
-| PRV-07 | Message button (only when matched) | app/profile/[id]/page.tsx:128, 262 | Button `Message`; goes to `/messages?match={matchId}` | none | TBD | |
-| PRV-08 | More menu | app/profile/[id]/page.tsx:287 | Icon-only (three dots) button with **no accessible name**; menu item `Report` | none | TBD | |
-| PRV-09 | Report dialog | app/profile/[id]/page.tsx:495, 509 | Heading `Report {first_name}`; text `Tell us what happened. Reports are private and reviewed by our team.`; label `Reason` (`#report-reason`), placeholder `Please describe the issue...` | none | TBD | |
-| PRV-10 | Report dialog: Cancel | app/profile/[id]/page.tsx:531 | Button `Cancel` | none | TBD | |
-| PRV-11 | Report dialog: Submit (disabled while the reason is empty) | app/profile/[id]/page.tsx:132, 534 | Button `Submit Report`; while sending `Submitting...` | `POST /browse/{id}/report` | TBD | |
-| PRV-12 | Report submitted confirmation | app/profile/[id]/page.tsx:497 | `Report submitted`; `Thank you. Our team will review this and take action if needed.`; button `Close` (plus built-in X `Close`) | none | TBD | |
-| PRV-13 | About section | app/profile/[id]/page.tsx:312 | Heading `About`; bio text or `No bio added yet` | none | TBD | |
-| PRV-14 | Photo Gallery grid (only with 2+ photos; first 6, `+N` on the sixth) | app/profile/[id]/page.tsx:320 | Heading `Photo Gallery`; images `alt="Photo {n}"`; tiles are clickable `div`s, not buttons | none | TBD | |
-| PRV-15 | Photo viewer: close, previous, next, jump dots | app/profile/[id]/page.tsx:435 | All four kinds of control are icon-only buttons with **no accessible name** (the built-in dialog X named `Close` is also present); image `alt="Photo {n}"` | none | TBD | |
-| PRV-16 | Details: occupation, education, LPA Member ID, state | app/profile/[id]/page.tsx:368 | Heading `Details`; labels `Occupation`, `Education`, `LPA Member ID`, `State` (each shown only when it has a value) | none | TBD | |
-| PRV-17 | Interests list | app/profile/[id]/page.tsx:414 | Heading `Interests`; badges, or `No interests added yet` | none | TBD | |
-| PRV-18 | Favorites: music, animals, pet peeves | app/profile/[id]/page.tsx:548 | Heading `Favorites`; sub-headings contain `Favorite Music`, `Favorite Animals`, `Pet Peeves`; empty text `Not specified` | none | TBD | |
-| PRV-19 | What I'm Looking For: connection type, life goals, languages | app/profile/[id]/page.tsx:599 | Heading `What I'm Looking For`; labels `Connection Type`, `Life Goals`, `Languages`; empty text `Not specified` | none | TBD | |
-| PRV-20 | Get to Know Me prompts | app/profile/[id]/page.tsx:656 | Heading `Get to Know Me`; `I'm weirdly good at...`, `My perfect weekend...`, `Message me if...`; empty text `Not answered yet` | none | TBD | |
-| PRV-21 | About You & Your Future answers | app/profile/[id]/page.tsx:683 | Heading `About You & Your Future`; five question headings starting `What are you hoping to find on this site?`; empty text `Not answered yet` | none | TBD | |
+| PRV-01 | Load the member (skeleton while loading); also loads my likes and matches to set the button states | app/profile/[id]/page.tsx:45, 85, 163 | Heading (h1) with the member's first name | `GET /users/{id}`, `GET /browse/liked`, `GET /matches` | Fixed - age was computed from a birth date other members should not receive; one request instead of three | [community.spec](../tests/e2e/community.spec.ts) |
+| PRV-02 | Not-found state | app/profile/[id]/page.tsx:182 | `Profile not found`; `This user may have deleted their account.`; button `Go Back` | none | Fixed - load failures and "not available" are now told apart | [community.spec](../tests/e2e/community.spec.ts) |
+| PRV-03 | Back button | app/profile/[id]/page.tsx:205 | Button `Back` (browser history back) | none | Not verified |  |
+| PRV-04 | Main photo, or a person icon when there are no photos | app/profile/[id]/page.tsx:217 | Image with `alt` = first name | none | Works | [community.spec](../tests/e2e/community.spec.ts) |
+| PRV-05 | Header facts: age, city and state, district | app/profile/[id]/page.tsx:239 | Age number; `{city}, {state}`; `District {n}` | none | Fixed - age was computed from a birth date other members should not receive; one request instead of three | [community.spec](../tests/e2e/community.spec.ts) |
+| PRV-06 | Like / unlike toggle | app/profile/[id]/page.tsx:142, 268 | Button `Like` (not liked) or `Liked` (liked) | `POST /browse/{id}/like` then `GET /browse/liked`; `DELETE /browse/liked/{likeId}` | Fixed - like result was ignored; a new match was silent | [community.spec](../tests/e2e/community.spec.ts) |
+| PRV-07 | Message button (only when matched) | app/profile/[id]/page.tsx:128, 262 | Button `Message`; goes to `/messages?match={matchId}` | none | Works | [community.spec](../tests/e2e/community.spec.ts) |
+| PRV-08 | More menu | app/profile/[id]/page.tsx:287 | Icon-only (three dots) button with **no accessible name**; menu item `Report` | none | Changed - hidden "..." menu replaced by visible Save / Report / Block buttons | [community.spec](../tests/e2e/community.spec.ts) |
+| PRV-09 | Report dialog | app/profile/[id]/page.tsx:495, 509 | Heading `Report {first_name}`; text `Tell us what happened. Reports are private and reviewed by our team.`; label `Reason` (`#report-reason`), placeholder `Please describe the issue...` | none | Fixed - shared report dialog with reasons; failures are shown; block added | [community.spec](../tests/e2e/community.spec.ts) |
+| PRV-10 | Report dialog: Cancel | app/profile/[id]/page.tsx:531 | Button `Cancel` | none | Fixed - shared report dialog with reasons; failures are shown; block added | [community.spec](../tests/e2e/community.spec.ts) |
+| PRV-11 | Report dialog: Submit (disabled while the reason is empty) | app/profile/[id]/page.tsx:132, 534 | Button `Submit Report`; while sending `Submitting...` | `POST /browse/{id}/report` | Fixed - shared report dialog with reasons; failures are shown; block added | [community.spec](../tests/e2e/community.spec.ts) |
+| PRV-12 | Report submitted confirmation | app/profile/[id]/page.tsx:497 | `Report submitted`; `Thank you. Our team will review this and take action if needed.`; button `Close` (plus built-in X `Close`) | none | Fixed - shared report dialog with reasons; failures are shown; block added | [community.spec](../tests/e2e/community.spec.ts) |
+| PRV-13 | About section | app/profile/[id]/page.tsx:312 | Heading `About`; bio text or `No bio added yet` | none | Not verified |  |
+| PRV-14 | Photo Gallery grid (only with 2+ photos; first 6, `+N` on the sixth) | app/profile/[id]/page.tsx:320 | Heading `Photo Gallery`; images `alt="Photo {n}"`; tiles are clickable `div`s, not buttons | none | Not verified |  |
+| PRV-15 | Photo viewer: close, previous, next, jump dots | app/profile/[id]/page.tsx:435 | All four kinds of control are icon-only buttons with **no accessible name** (the built-in dialog X named `Close` is also present); image `alt="Photo {n}"` | none | Not verified |  |
+| PRV-16 | Details: occupation, education, LPA Member ID, state | app/profile/[id]/page.tsx:368 | Heading `Details`; labels `Occupation`, `Education`, `LPA Member ID`, `State` (each shown only when it has a value) | none | Not verified |  |
+| PRV-17 | Interests list | app/profile/[id]/page.tsx:414 | Heading `Interests`; badges, or `No interests added yet` | none | Not verified |  |
+| PRV-18 | Favorites: music, animals, pet peeves | app/profile/[id]/page.tsx:548 | Heading `Favorites`; sub-headings contain `Favorite Music`, `Favorite Animals`, `Pet Peeves`; empty text `Not specified` | none | Not verified |  |
+| PRV-19 | What I'm Looking For: connection type, life goals, languages | app/profile/[id]/page.tsx:599 | Heading `What I'm Looking For`; labels `Connection Type`, `Life Goals`, `Languages`; empty text `Not specified` | none | Not verified |  |
+| PRV-20 | Get to Know Me prompts | app/profile/[id]/page.tsx:656 | Heading `Get to Know Me`; `I'm weirdly good at...`, `My perfect weekend...`, `Message me if...`; empty text `Not answered yet` | none | Not verified |  |
+| PRV-21 | About You & Your Future answers | app/profile/[id]/page.tsx:683 | Heading `About You & Your Future`; five question headings starting `What are you hoping to find on this site?`; empty text `Not answered yet` | none | Not verified |  |
 
 ## 9. My profile
 
@@ -283,65 +325,65 @@ File: `app/profile/page.tsx`
 
 | ID | Function | Where (file:line) | How a test finds it (visible text / aria-label / role / placeholder, exactly as in the code) | API call it makes | Status | Test |
 |---|---|---|---|---|---|---|
-| PRO-01 | Load my profile | app/profile/page.tsx:227, 593 | Spinner with text `Loading profile...`, then heading `My Profile` and text `Manage your dating profile` | `GET /users/profile` | TBD | |
-| PRO-02 | "Complete Your Profile" banner (only when onboarding is not completed) | app/profile/page.tsx:603 | `Complete Your Profile`; `Add more details to your profile to increase your visibility and get more matches.` | none | TBD | |
-| PRO-03 | Preview button | app/profile/page.tsx:624 | Button `Preview` | none | TBD | |
-| PRO-04 | Enter edit mode | app/profile/page.tsx:629 | Button `Edit` | none | TBD | |
-| PRO-05 | Cancel edit mode | app/profile/page.tsx:426, 635 | Button `Cancel` | none | TBD | |
-| PRO-06 | Save profile | app/profile/page.tsx:372, 638 | Button `Save` (spinner icon while saving) | `PUT /users/profile`, then `GET /users/profile` | TBD | |
-| PRO-07 | Save error banner | app/profile/page.tsx:651 | `We couldn't save your profile` + the error | none | TBD | |
-| PRO-08 | Header card: main photo, name and age, district, state, occupation | app/profile/page.tsx:662 | Heading `{first} {last}, {age}`; `District #{value}`; image `alt` = first name | none | TBD | |
-| PRO-09 | Camera button on the main photo (edit mode) opens the photo manager | app/profile/page.tsx:677 | Icon-only button with **no accessible name** | none | TBD | |
-| PRO-10 | District number (edit mode) | app/profile/page.tsx:696 | Text `District #` next to an input with placeholder `e.g. 5` (no label) | none | TBD | |
-| PRO-11 | State (edit mode, free text) | app/profile/page.tsx:713 | Input with placeholder `State` (no label) | none | TBD | |
-| PRO-12 | Occupation in the header (edit mode) | app/profile/page.tsx:731 | Input with placeholder `Occupation (optional)` (no label) | none | TBD | |
-| PRO-13 | Stat card: Total Matches (links to Matches) | app/profile/page.tsx:754 | Link containing `Total Matches` and a number | `GET /matches` | TBD | |
-| PRO-14 | Stat card: New Messages (links to Messages) | app/profile/page.tsx:770 | Link containing `New Messages` and a number | `GET /messages` | TBD | |
-| PRO-15 | Stat card: Upcoming Events (links to Events) | app/profile/page.tsx:786 | Link containing `Upcoming Events` and a number | `GET /events` | TBD | |
-| PRO-16 | About / bio with 500-character counter | app/profile/page.tsx:806 | Card title `About`; edit mode: textarea with placeholder `Tell others about yourself...` (no label), counter `{n}/500` | none | TBD | |
-| PRO-17 | Details: occupation | app/profile/page.tsx:896 | Label `Occupation` (not associated); edit mode input with placeholder `Enter your occupation`; view mode value or `Not specified` | none | TBD | |
-| PRO-18 | Details: education dropdown | app/profile/page.tsx:915 | Label `Education` (not associated); combobox with placeholder `Select your education level`; options `High school`, `Some college`, `Bachelors`, `Masters`, `Doctorate`, `Trade school`, `Other` | none | TBD | |
-| PRO-19 | Interests: selected list with remove X (max 10) | app/profile/page.tsx:951 | Text `Select up to 10 interests or add your own`; `Your Interests ({n}/10)`; each badge has an icon-only X button with **no accessible name** | none | TBD | |
-| PRO-20 | Interests: add a custom one (button or Enter) | app/profile/page.tsx:975 | Text `Add Custom Interest`; placeholder `Type an interest and press Enter`; button `Add` | none | TBD | |
-| PRO-21 | Interests: suggested badges | app/profile/page.tsx:171, 1001 | Text `Suggested Interests`; clickable badges (not buttons) `Travel`, `Music`, ... `Food` | none | TBD | |
-| PRO-22 | What I'm Looking For (multi-select badges) | app/profile/page.tsx:78, 1040 | Label `What I'm Looking For`; badges `Serious relationship`, `Casual dating`, `Friendship`, `Not sure yet`, `Prefer not to say`; view mode empty text `Not specified` | none | TBD | |
-| PRO-23 | Life Goals (multi-select badges) | app/profile/page.tsx:86, 1082 | Label `Life Goals`; badges `Career focused`, `Family oriented`, `Adventure seeker`, `Personal growth`, `Work-life balance`, `Making a difference`, `Prefer not to say` | none | TBD | |
-| PRO-24 | Languages (multi-select badges) | app/profile/page.tsx:141, 1124 | Label `Languages`; 13 badges `English` ... `Other` | none | TBD | |
-| PRO-25 | Cultural background | app/profile/page.tsx:1160 | Label `Cultural Background` (not associated); input placeholder `Enter your cultural background`; view empty text `Not specified` | none | TBD | |
-| PRO-26 | Religion dropdown | app/profile/page.tsx:157, 1176 | Label `Religion` (not associated); combobox placeholder `Select your religion`; 11 options `Christian` ... `Prefer not to say` | none | TBD | |
-| PRO-27 | Personal preferences with 500-character counter | app/profile/page.tsx:1202 | Label `Personal Preferences`; textarea placeholder `Share what you value in a partner and relationship...`; counter `{n}/500` | none | TBD | |
-| PRO-28 | Favorite music: badges, custom entries (Enter only), remove custom | app/profile/page.tsx:96, 1238 | Label `Favorite Music`; 15 badges `Pop` ... `Folk`; text `Or add custom:`; placeholder `Add custom music genre or artist...`; custom badges show the value followed by `✕` | none | TBD | |
-| PRO-29 | Favorite animals: badges, custom entries (Enter only) | app/profile/page.tsx:114, 1316 | Label `Favorite Animals`; 9 badges `Dogs` ... `Snakes`; placeholder `Add custom animal...` | none | TBD | |
-| PRO-30 | Pet peeves: badges, custom entries (Enter only) | app/profile/page.tsx:126, 1394 | Label `Pet Peeves`; 12 badges `Lateness` ... `Being fake`; placeholder `Add custom pet peeve...` | none | TBD | |
-| PRO-31 | Prompt: weirdly good at (250 characters) | app/profile/page.tsx:1478 | Label `I'm weirdly good at...` (not associated); placeholder `Share something you're uniquely good at...`; view empty text `Not answered yet` | none | TBD | |
-| PRO-32 | Prompt: perfect weekend (250) | app/profile/page.tsx:1496 | Label `My perfect weekend...`; placeholder `Describe your ideal weekend...` | none | TBD | |
-| PRO-33 | Prompt: message me if (250) | app/profile/page.tsx:1514 | Label `Message me if...`; placeholder `What should someone mention when they message you?` | none | TBD | |
-| PRO-34 | Question: hoping to find (250) | app/profile/page.tsx:1536 | Label `What are you hoping to find on this site?`; placeholder `Share what you're looking for...` | none | TBD | |
-| PRO-35 | Question: great day (250) | app/profile/page.tsx:1554 | Label `What does a great day look like for you?`; placeholder `Describe your ideal day...` | none | TBD | |
-| PRO-36 | Question: relationship values (250) | app/profile/page.tsx:1572 | Label `What values matter most to you in a relationship?`; placeholder `Share the values that are important to you...` | none | TBD | |
-| PRO-37 | Question: appreciation or affection (250) | app/profile/page.tsx:1590 | Label `How do you like to show appreciation or affection?`; placeholder `Describe how you express care and appreciation...` | none | TBD | |
-| PRO-38 | Question: life to build (250) | app/profile/page.tsx:1608 | Label `What kind of life do you want to build with the right person?`; placeholder `Share your vision for the future...` | none | TBD | |
-| PRO-39 | Profile preview dialog | app/profile/page.tsx:1745, 1768 | Text `Profile Preview`; shows name and age, state, occupation, bio, `Looking for`, `Interests` (6 + `+N`); close X is icon-only with **no accessible name** (built-in X named `Close` is also present); photo arrows and dots have **no accessible name** | none | TBD | |
+| PRO-01 | Load my profile | app/profile/page.tsx:227, 593 | Spinner with text `Loading profile...`, then heading `My Profile` and text `Manage your dating profile` | `GET /users/profile` | Works | [auth.spec](../tests/e2e/auth.spec.ts) |
+| PRO-02 | "Complete Your Profile" banner (only when onboarding is not completed) | app/profile/page.tsx:603 | `Complete Your Profile`; `Add more details to your profile to increase your visibility and get more matches.` | none | Not verified |  |
+| PRO-03 | Preview button | app/profile/page.tsx:624 | Button `Preview` | none | Not verified |  |
+| PRO-04 | Enter edit mode | app/profile/page.tsx:629 | Button `Edit` | none | Not verified |  |
+| PRO-05 | Cancel edit mode | app/profile/page.tsx:426, 635 | Button `Cancel` | none | Still broken - Cancel leaves edit mode but keeps the unsaved text, which the next Save stores |  |
+| PRO-06 | Save profile | app/profile/page.tsx:372, 638 | Button `Save` (spinner icon while saving) | `PUT /users/profile`, then `GET /users/profile` | Not verified |  |
+| PRO-07 | Save error banner | app/profile/page.tsx:651 | `We couldn't save your profile` + the error | none | Not verified |  |
+| PRO-08 | Header card: main photo, name and age, district, state, occupation | app/profile/page.tsx:662 | Heading `{first} {last}, {age}`; `District #{value}`; image `alt` = first name | none | Fixed - district shown as "District #district_3" | [screenshots](screenshots/) |
+| PRO-09 | Camera button on the main photo (edit mode) opens the photo manager | app/profile/page.tsx:677 | Icon-only button with **no accessible name** | none | Not verified |  |
+| PRO-10 | District number (edit mode) | app/profile/page.tsx:696 | Text `District #` next to an input with placeholder `e.g. 5` (no label) | none | Not verified |  |
+| PRO-11 | State (edit mode, free text) | app/profile/page.tsx:713 | Input with placeholder `State` (no label) | none | Not verified |  |
+| PRO-12 | Occupation in the header (edit mode) | app/profile/page.tsx:731 | Input with placeholder `Occupation (optional)` (no label) | none | Not verified |  |
+| PRO-13 | Stat card: Total Matches (links to Matches) | app/profile/page.tsx:754 | Link containing `Total Matches` and a number | `GET /matches` | Not verified |  |
+| PRO-14 | Stat card: New Messages (links to Messages) | app/profile/page.tsx:770 | Link containing `New Messages` and a number | `GET /messages` | Not verified |  |
+| PRO-15 | Stat card: Upcoming Events (links to Events) | app/profile/page.tsx:786 | Link containing `Upcoming Events` and a number | `GET /events` | Not verified |  |
+| PRO-16 | About / bio with 500-character counter | app/profile/page.tsx:806 | Card title `About`; edit mode: textarea with placeholder `Tell others about yourself...` (no label), counter `{n}/500` | none | Not verified |  |
+| PRO-17 | Details: occupation | app/profile/page.tsx:896 | Label `Occupation` (not associated); edit mode input with placeholder `Enter your occupation`; view mode value or `Not specified` | none | Not verified |  |
+| PRO-18 | Details: education dropdown | app/profile/page.tsx:915 | Label `Education` (not associated); combobox with placeholder `Select your education level`; options `High school`, `Some college`, `Bachelors`, `Masters`, `Doctorate`, `Trade school`, `Other` | none | Not verified |  |
+| PRO-19 | Interests: selected list with remove X (max 10) | app/profile/page.tsx:951 | Text `Select up to 10 interests or add your own`; `Your Interests ({n}/10)`; each badge has an icon-only X button with **no accessible name** | none | Not verified |  |
+| PRO-20 | Interests: add a custom one (button or Enter) | app/profile/page.tsx:975 | Text `Add Custom Interest`; placeholder `Type an interest and press Enter`; button `Add` | none | Not verified |  |
+| PRO-21 | Interests: suggested badges | app/profile/page.tsx:171, 1001 | Text `Suggested Interests`; clickable badges (not buttons) `Travel`, `Music`, ... `Food` | none | Not verified |  |
+| PRO-22 | What I'm Looking For (multi-select badges) | app/profile/page.tsx:78, 1040 | Label `What I'm Looking For`; badges `Serious relationship`, `Casual dating`, `Friendship`, `Not sure yet`, `Prefer not to say`; view mode empty text `Not specified` | none | Not verified |  |
+| PRO-23 | Life Goals (multi-select badges) | app/profile/page.tsx:86, 1082 | Label `Life Goals`; badges `Career focused`, `Family oriented`, `Adventure seeker`, `Personal growth`, `Work-life balance`, `Making a difference`, `Prefer not to say` | none | Not verified |  |
+| PRO-24 | Languages (multi-select badges) | app/profile/page.tsx:141, 1124 | Label `Languages`; 13 badges `English` ... `Other` | none | Not verified |  |
+| PRO-25 | Cultural background | app/profile/page.tsx:1160 | Label `Cultural Background` (not associated); input placeholder `Enter your cultural background`; view empty text `Not specified` | none | Not verified |  |
+| PRO-26 | Religion dropdown | app/profile/page.tsx:157, 1176 | Label `Religion` (not associated); combobox placeholder `Select your religion`; 11 options `Christian` ... `Prefer not to say` | none | Not verified |  |
+| PRO-27 | Personal preferences with 500-character counter | app/profile/page.tsx:1202 | Label `Personal Preferences`; textarea placeholder `Share what you value in a partner and relationship...`; counter `{n}/500` | none | Not verified |  |
+| PRO-28 | Favorite music: badges, custom entries (Enter only), remove custom | app/profile/page.tsx:96, 1238 | Label `Favorite Music`; 15 badges `Pop` ... `Folk`; text `Or add custom:`; placeholder `Add custom music genre or artist...`; custom badges show the value followed by `✕` | none | Not verified |  |
+| PRO-29 | Favorite animals: badges, custom entries (Enter only) | app/profile/page.tsx:114, 1316 | Label `Favorite Animals`; 9 badges `Dogs` ... `Snakes`; placeholder `Add custom animal...` | none | Not verified |  |
+| PRO-30 | Pet peeves: badges, custom entries (Enter only) | app/profile/page.tsx:126, 1394 | Label `Pet Peeves`; 12 badges `Lateness` ... `Being fake`; placeholder `Add custom pet peeve...` | none | Not verified |  |
+| PRO-31 | Prompt: weirdly good at (250 characters) | app/profile/page.tsx:1478 | Label `I'm weirdly good at...` (not associated); placeholder `Share something you're uniquely good at...`; view empty text `Not answered yet` | none | Not verified |  |
+| PRO-32 | Prompt: perfect weekend (250) | app/profile/page.tsx:1496 | Label `My perfect weekend...`; placeholder `Describe your ideal weekend...` | none | Not verified |  |
+| PRO-33 | Prompt: message me if (250) | app/profile/page.tsx:1514 | Label `Message me if...`; placeholder `What should someone mention when they message you?` | none | Not verified |  |
+| PRO-34 | Question: hoping to find (250) | app/profile/page.tsx:1536 | Label `What are you hoping to find on this site?`; placeholder `Share what you're looking for...` | none | Not verified |  |
+| PRO-35 | Question: great day (250) | app/profile/page.tsx:1554 | Label `What does a great day look like for you?`; placeholder `Describe your ideal day...` | none | Not verified |  |
+| PRO-36 | Question: relationship values (250) | app/profile/page.tsx:1572 | Label `What values matter most to you in a relationship?`; placeholder `Share the values that are important to you...` | none | Not verified |  |
+| PRO-37 | Question: appreciation or affection (250) | app/profile/page.tsx:1590 | Label `How do you like to show appreciation or affection?`; placeholder `Describe how you express care and appreciation...` | none | Not verified |  |
+| PRO-38 | Question: life to build (250) | app/profile/page.tsx:1608 | Label `What kind of life do you want to build with the right person?`; placeholder `Share your vision for the future...` | none | Not verified |  |
+| PRO-39 | Profile preview dialog | app/profile/page.tsx:1745, 1768 | Text `Profile Preview`; shows name and age, state, occupation, bio, `Looking for`, `Interests` (6 + `+N`); close X is icon-only with **no accessible name** (built-in X named `Close` is also present); photo arrows and dots have **no accessible name** | none | Not verified |  |
 
 ### 9.2 Photos
 
 | ID | Function | Where (file:line) | How a test finds it (visible text / aria-label / role / placeholder, exactly as in the code) | API call it makes | Status | Test |
 |---|---|---|---|---|---|---|
-| PRO-50 | Photos card and Manage Photos button | app/profile/page.tsx:831 | Card title `Photos`; button `Manage Photos` (available without edit mode) | none | TBD | |
-| PRO-51 | Empty state: add your first photo | app/profile/page.tsx:847 | Button containing `Add your first photo` and `Members with photos get far more responses` | none | TBD | |
-| PRO-52 | Photo grid (first 6; blurred `+N` tile when more than 6); any tile opens the manager | app/profile/page.tsx:858 | Images `alt="Photo {n}"`; tiles are clickable `div`s | none | TBD | |
-| PRO-53 | Photo manager dialog | app/profile/page.tsx:1627 | Dialog title `Manage Photos`; text starts `Your first photo is your main profile picture.` | none | TBD | |
-| PRO-54 | Add a photo (up to 10) | app/profile/page.tsx:529, 1693 | Button `Add Photo`; while uploading `Uploading...`. The file input is created in script and never attached to the page, so use `page.waitForEvent('filechooser')` | `POST /users/photos` (multipart, field `photo`) | TBD | |
-| PRO-55 | Upload validation messages | app/profile/page.tsx:540 | `That file is not a photo. Please choose a JPG or PNG image.`; `That photo is too large. Please choose an image under 5MB.`; `You can have up to 10 photos. Remove one to add another.` | none | TBD | |
-| PRO-56 | Remove a photo | app/profile/page.tsx:513, 1660 | Button `aria-label="Remove photo {n}"` | `DELETE /users/photos` (body `{ url }`) | TBD | |
-| PRO-57 | Move a photo earlier | app/profile/page.tsx:504, 1669 | Button `aria-label="Move photo {n} earlier"` (disabled on the first) | `PUT /users/profile` (body `{ photos }`) then `PUT /users/profile-picture` | TBD | |
-| PRO-58 | Move a photo later | app/profile/page.tsx:1677 | Button `aria-label="Move photo {n} later"` (disabled on the last) | `PUT /users/profile` then `PUT /users/profile-picture` | TBD | |
-| PRO-59 | Drag-and-drop reorder | app/profile/page.tsx:481, 1639 | Each tile is `draggable`; saves on drop | `PUT /users/profile` then `PUT /users/profile-picture` | TBD | |
-| PRO-60 | "Main" badge on the first photo | app/profile/page.tsx:1686 | Text `Main` | none | TBD | |
-| PRO-61 | Save status line | app/profile/page.tsx:1726 | `Saving...` then `All changes saved` | none | TBD | |
-| PRO-62 | Upload / save error line | app/profile/page.tsx:1719 | Red text with the error inside the dialog | none | TBD | |
-| PRO-63 | Empty-manager hint | app/profile/page.tsx:1713 | Text starts `You have no photos yet.` | none | TBD | |
-| PRO-64 | Done (close the manager) | app/profile/page.tsx:1736 | Button `Done` | none | TBD | |
+| PRO-50 | Photos card and Manage Photos button | app/profile/page.tsx:831 | Card title `Photos`; button `Manage Photos` (available without edit mode) | none | Not verified |  |
+| PRO-51 | Empty state: add your first photo | app/profile/page.tsx:847 | Button containing `Add your first photo` and `Members with photos get far more responses` | none | Not verified |  |
+| PRO-52 | Photo grid (first 6; blurred `+N` tile when more than 6); any tile opens the manager | app/profile/page.tsx:858 | Images `alt="Photo {n}"`; tiles are clickable `div`s | none | Not verified |  |
+| PRO-53 | Photo manager dialog | app/profile/page.tsx:1627 | Dialog title `Manage Photos`; text starts `Your first photo is your main profile picture.` | none | Not verified |  |
+| PRO-54 | Add a photo (up to 10) | app/profile/page.tsx:529, 1693 | Button `Add Photo`; while uploading `Uploading...`. The file input is created in script and never attached to the page, so use `page.waitForEvent('filechooser')` | `POST /users/photos` (multipart, field `photo`) | Works (API test only) | [core.test](../server/tests/core.test.js) |
+| PRO-55 | Upload validation messages | app/profile/page.tsx:540 | `That file is not a photo. Please choose a JPG or PNG image.`; `That photo is too large. Please choose an image under 5MB.`; `You can have up to 10 photos. Remove one to add another.` | none | Not verified |  |
+| PRO-56 | Remove a photo | app/profile/page.tsx:513, 1660 | Button `aria-label="Remove photo {n}"` | `DELETE /users/photos` (body `{ url }`) | Works (API test only) | [core.test](../server/tests/core.test.js) |
+| PRO-57 | Move a photo earlier | app/profile/page.tsx:504, 1669 | Button `aria-label="Move photo {n} earlier"` (disabled on the first) | `PUT /users/profile` (body `{ photos }`) then `PUT /users/profile-picture` | Works (API test only) | [core.test](../server/tests/core.test.js) |
+| PRO-58 | Move a photo later | app/profile/page.tsx:1677 | Button `aria-label="Move photo {n} later"` (disabled on the last) | `PUT /users/profile` then `PUT /users/profile-picture` | Works (API test only) | [core.test](../server/tests/core.test.js) |
+| PRO-59 | Drag-and-drop reorder | app/profile/page.tsx:481, 1639 | Each tile is `draggable`; saves on drop | `PUT /users/profile` then `PUT /users/profile-picture` | Not verified |  |
+| PRO-60 | "Main" badge on the first photo | app/profile/page.tsx:1686 | Text `Main` | none | Works (API test only) | [core.test](../server/tests/core.test.js) |
+| PRO-61 | Save status line | app/profile/page.tsx:1726 | `Saving...` then `All changes saved` | none | Not verified |  |
+| PRO-62 | Upload / save error line | app/profile/page.tsx:1719 | Red text with the error inside the dialog | none | Not verified |  |
+| PRO-63 | Empty-manager hint | app/profile/page.tsx:1713 | Text starts `You have no photos yet.` | none | Not verified |  |
+| PRO-64 | Done (close the manager) | app/profile/page.tsx:1736 | Button `Done` | none | Not verified |  |
 
 ## 10. Matches
 
@@ -349,35 +391,35 @@ File: `app/matches/page.tsx`
 
 | ID | Function | Where (file:line) | How a test finds it (visible text / aria-label / role / placeholder, exactly as in the code) | API call it makes | Status | Test |
 |---|---|---|---|---|---|---|
-| MAT-01 | Page heading and counts | app/matches/page.tsx:432 | Heading `Matches & Likes`; text `{n} active match` or `{n} active matches`, then `• {m} profiles you liked` | none | TBD | |
-| MAT-02 | Load matches and liked profiles (skeletons while loading); visiting clears the Matches nav badge | app/matches/page.tsx:82 | Cards replace the skeletons; `localStorage` key `lastViewedMatches` is set | `GET /matches`, `GET /browse/liked` | TBD | |
-| MAT-03 | Main tab: Matches | app/matches/page.tsx:444 | Tab `Matches` | none | TBD | |
-| MAT-04 | Main tab: Profiles You Liked | app/matches/page.tsx:448 | Tab `Profiles You Liked` | none | TBD | |
-| MAT-05 | Search matches by first name | app/matches/page.tsx:461 | Placeholder `Search matches...` | none | TBD | |
-| MAT-06 | Sort matches | app/matches/page.tsx:468 | Combobox (no label); options `Most Recent`, `Alphabetical` | none | TBD | |
-| MAT-07 | Sub-tab: Active Matches | app/matches/page.tsx:487 | Button `Active Matches ({n})` (a plain button, not `role="tab"`) | none | TBD | |
-| MAT-08 | Sub-tab: History | app/matches/page.tsx:499 | Button `History ({n})` | none | TBD | |
-| MAT-09 | Match card: avatar, name and age, last message, matched date | app/matches/page.tsx:316 | Heading `{first_name}, {age}`; last message or `Start a conversation!`; `Today` / `Yesterday` / `{n} days ago` / a date | none | TBD | |
-| MAT-10 | Card: open the member's profile | app/matches/page.tsx:340 | Link `Profile` (href `/profile/{id}`) | none | TBD | |
-| MAT-11 | Card: message (active matches) | app/matches/page.tsx:352 | Link `Message` (href `/messages?match={matchId}`) | none | TBD | |
-| MAT-12 | Card: view chat (history) | app/matches/page.tsx:364 | Link `View Chat` (href `/messages?match={matchId}`) | none | TBD | |
-| MAT-13 | Card options menu | app/matches/page.tsx:275 | Button `aria-label="Options for {first_name}"` | none | TBD | |
-| MAT-14 | Menu: Unmatch (active matches only; no confirmation) | app/matches/page.tsx:174, 288 | Menu item `Unmatch`; the card moves to History | `DELETE /matches/{matchId}` | TBD | |
-| MAT-15 | Menu: Block | app/matches/page.tsx:298 | Menu item `Block` | none | TBD | |
-| MAT-16 | Block dialog: confirm | app/matches/page.tsx:212, 624 | Title `Block {first_name}?`; text starts `They will be removed from your matches`; button `Block`; while sending `Blocking...` | `POST /browse/{userId}/block` | TBD | |
-| MAT-17 | Block dialog: cancel | app/matches/page.tsx:640 | Button `Cancel` | none | TBD | |
-| MAT-18 | Menu: Report | app/matches/page.tsx:305 | Menu item `Report` | none | TBD | |
-| MAT-19 | Report dialog: reason and submit | app/matches/page.tsx:227, 650 | Title `Report {first_name}`; textarea placeholder `Please describe the issue...` (no label); button `Submit Report`; while sending `Submitting...` | `POST /browse/{userId}/report` | TBD | |
-| MAT-20 | Report dialog: cancel | app/matches/page.tsx:671 | Button `Cancel` | none | TBD | |
-| MAT-21 | Report submitted confirmation | app/matches/page.tsx:685 | `Report submitted`; `Thank you for helping keep our community safe.`; button `Close` (plus built-in X `Close`) | none | TBD | |
-| MAT-22 | Error text inside the block / report dialog | app/matches/page.tsx:636, 667 | Red text with the server message | none | TBD | |
-| MAT-23 | Empty state: no active matches | app/matches/page.tsx:407 | `No matches yet`; `Start browsing profiles to find your matches`; link `Start Browsing` | none | TBD | |
-| MAT-24 | Empty state: no history | app/matches/page.tsx:399 | `No match history`; `Unliked matches will appear here` | none | TBD | |
-| MAT-25 | Empty state: search with no results | app/matches/page.tsx:384 | `No results found`; `No matches found for "{query}"` | none | TBD | |
-| MAT-26 | Liked-profile card: photo, Liked / Super Liked badge, name and age, city, bio, liked date | app/matches/page.tsx:534 | Image link to `/profile/{id}` (`alt` = first name); badge `Liked` or `Super Liked`; text `Liked Today` etc. | none | TBD | |
-| MAT-27 | Liked card: open profile | app/matches/page.tsx:585 | Link `Profile` | none | TBD | |
-| MAT-28 | Liked card: unlike (no confirmation) | app/matches/page.tsx:101, 596 | Icon-only (crossed heart) button with **no accessible name** | `DELETE /browse/liked/{likeId}`, then `GET /matches` | TBD | |
-| MAT-29 | Empty state: no likes | app/matches/page.tsx:610 | `No likes yet`; `Start browsing to like profiles`; link `Browse Profiles` | none | TBD | |
+| MAT-01 | Page heading and counts | app/matches/page.tsx:432 | Heading `Matches & Likes`; text `{n} active match` or `{n} active matches`, then `• {m} profiles you liked` | none | Works | [community.spec](../tests/e2e/community.spec.ts) |
+| MAT-02 | Load matches and liked profiles (skeletons while loading); visiting clears the Matches nav badge | app/matches/page.tsx:82 | Cards replace the skeletons; `localStorage` key `lastViewedMatches` is set | `GET /matches`, `GET /browse/liked` | Works | [community.spec](../tests/e2e/community.spec.ts) |
+| MAT-03 | Main tab: Matches | app/matches/page.tsx:444 | Tab `Matches` | none | Works | [community.spec](../tests/e2e/community.spec.ts) |
+| MAT-04 | Main tab: Profiles You Liked | app/matches/page.tsx:448 | Tab `Profiles You Liked` | none | Not verified |  |
+| MAT-05 | Search matches by first name | app/matches/page.tsx:461 | Placeholder `Search matches...` | none | Not verified |  |
+| MAT-06 | Sort matches | app/matches/page.tsx:468 | Combobox (no label); options `Most Recent`, `Alphabetical` | none | Not verified |  |
+| MAT-07 | Sub-tab: Active Matches | app/matches/page.tsx:487 | Button `Active Matches ({n})` (a plain button, not `role="tab"`) | none | Not verified |  |
+| MAT-08 | Sub-tab: History | app/matches/page.tsx:499 | Button `History ({n})` | none | Not verified |  |
+| MAT-09 | Match card: avatar, name and age, last message, matched date | app/matches/page.tsx:316 | Heading `{first_name}, {age}`; last message or `Start a conversation!`; `Today` / `Yesterday` / `{n} days ago` / a date | none | Works | [community.spec](../tests/e2e/community.spec.ts) |
+| MAT-10 | Card: open the member's profile | app/matches/page.tsx:340 | Link `Profile` (href `/profile/{id}`) | none | Not verified |  |
+| MAT-11 | Card: message (active matches) | app/matches/page.tsx:352 | Link `Message` (href `/messages?match={matchId}`) | none | Not verified |  |
+| MAT-12 | Card: view chat (history) | app/matches/page.tsx:364 | Link `View Chat` (href `/messages?match={matchId}`) | none | Not verified |  |
+| MAT-13 | Card options menu | app/matches/page.tsx:275 | Button `aria-label="Options for {first_name}"` | none | Not verified |  |
+| MAT-14 | Menu: Unmatch (active matches only; no confirmation) | app/matches/page.tsx:174, 288 | Menu item `Unmatch`; the card moves to History | `DELETE /matches/{matchId}` | Still broken - no confirmation before unmatch / unlike on this page (the chat screen does confirm) |  |
+| MAT-15 | Menu: Block | app/matches/page.tsx:298 | Menu item `Block` | none | Works (API test only) | [core.test](../server/tests/core.test.js) |
+| MAT-16 | Block dialog: confirm | app/matches/page.tsx:212, 624 | Title `Block {first_name}?`; text starts `They will be removed from your matches`; button `Block`; while sending `Blocking...` | `POST /browse/{userId}/block` | Works (API test only) | [core.test](../server/tests/core.test.js) |
+| MAT-17 | Block dialog: cancel | app/matches/page.tsx:640 | Button `Cancel` | none | Not verified |  |
+| MAT-18 | Menu: Report | app/matches/page.tsx:305 | Menu item `Report` | none | Works (API test only) | [core.test](../server/tests/core.test.js) |
+| MAT-19 | Report dialog: reason and submit | app/matches/page.tsx:227, 650 | Title `Report {first_name}`; textarea placeholder `Please describe the issue...` (no label); button `Submit Report`; while sending `Submitting...` | `POST /browse/{userId}/report` | Works (API test only) | [core.test](../server/tests/core.test.js) |
+| MAT-20 | Report dialog: cancel | app/matches/page.tsx:671 | Button `Cancel` | none | Not verified |  |
+| MAT-21 | Report submitted confirmation | app/matches/page.tsx:685 | `Report submitted`; `Thank you for helping keep our community safe.`; button `Close` (plus built-in X `Close`) | none | Not verified |  |
+| MAT-22 | Error text inside the block / report dialog | app/matches/page.tsx:636, 667 | Red text with the server message | none | Not verified |  |
+| MAT-23 | Empty state: no active matches | app/matches/page.tsx:407 | `No matches yet`; `Start browsing profiles to find your matches`; link `Start Browsing` | none | Not verified |  |
+| MAT-24 | Empty state: no history | app/matches/page.tsx:399 | `No match history`; `Unliked matches will appear here` | none | Not verified |  |
+| MAT-25 | Empty state: search with no results | app/matches/page.tsx:384 | `No results found`; `No matches found for "{query}"` | none | Not verified |  |
+| MAT-26 | Liked-profile card: photo, Liked / Super Liked badge, name and age, city, bio, liked date | app/matches/page.tsx:534 | Image link to `/profile/{id}` (`alt` = first name); badge `Liked` or `Super Liked`; text `Liked Today` etc. | none | Not verified |  |
+| MAT-27 | Liked card: open profile | app/matches/page.tsx:585 | Link `Profile` | none | Not verified |  |
+| MAT-28 | Liked card: unlike (no confirmation) | app/matches/page.tsx:101, 596 | Icon-only (crossed heart) button with **no accessible name** | `DELETE /browse/liked/{likeId}`, then `GET /matches` | Still broken - no confirmation before unmatch / unlike on this page (the chat screen does confirm) |  |
+| MAT-29 | Empty state: no likes | app/matches/page.tsx:610 | `No likes yet`; `Start browsing to like profiles`; link `Browse Profiles` | none | Not verified |  |
 
 ## 11. Messages / chat
 
@@ -385,49 +427,49 @@ File: `app/messages/page.tsx`
 
 | ID | Function | Where (file:line) | How a test finds it (visible text / aria-label / role / placeholder, exactly as in the code) | API call it makes | Status | Test |
 |---|---|---|---|---|---|---|
-| MSG-01 | Load the conversation list (skeleton rows while loading) | app/messages/page.tsx:286, 643 | Heading `Messages`; one button per conversation | `GET /messages` | TBD | |
-| MSG-02 | Search conversations by first name | app/messages/page.tsx:632 | Placeholder `Search conversations...` | none | TBD | |
-| MSG-03 | Conversation row: avatar, name, last message, time, unread count | app/messages/page.tsx:657 | Button containing the first name; preview text or `Start a conversation`; time like `5m`, `2h`, `3d`; unread number on the avatar | none | TBD | |
-| MSG-04 | Select a conversation (URL becomes `/messages?match={id}`, unread badge cleared) | app/messages/page.tsx:412 | Click the row; chat header shows the name | `GET /messages/{matchId}` | TBD | |
-| MSG-05 | Deep link `?match={id}` and auto-select of the first conversation on load | app/messages/page.tsx:246, 292 | Open `/messages?match={id}`; that thread is shown | `GET /messages/{matchId}` | TBD | |
-| MSG-06 | Empty state: no conversations | app/messages/page.tsx:713 | `No conversations yet`; `Match with someone to start chatting` | none | TBD | |
-| MSG-07 | Empty state: search with no results | app/messages/page.tsx:705 | `No results for "{query}"` | none | TBD | |
-| MSG-08 | Placeholder when nothing is selected (desktop) | app/messages/page.tsx:1083 | `Select a conversation`; `Choose a chat from the sidebar to start messaging` | none | TBD | |
-| MSG-09 | Chat header: avatar and name | app/messages/page.tsx:742 | Heading (h2) with the first name | none | TBD | |
-| MSG-10 | Back to the list (mobile only) | app/messages/page.tsx:733 | Icon-only chevron button with **no accessible name**; first button in the chat header | none | TBD | |
-| MSG-11 | Chat options menu | app/messages/page.tsx:757 | Icon-only (three dots) button with **no accessible name**; last button in the chat header | none | TBD | |
-| MSG-12 | Menu: View Profile | app/messages/page.tsx:764 | Menu item `View Profile`; goes to `/profile/{userId}` | none | TBD | |
-| MSG-13 | Menu: Unmatch (hidden once unmatched) | app/messages/page.tsx:767 | Menu item `Unmatch` | none | TBD | |
-| MSG-14 | Unmatch dialog: confirm | app/messages/page.tsx:547, 1153 | Title `Unmatch with {first_name}?`; text starts `You will still be able to read your past messages`; button `Unmatch`; while sending `Unmatching...` | `DELETE /matches/{matchId}` | TBD | |
-| MSG-15 | Unmatch dialog: cancel | app/messages/page.tsx:1166 | Button `Cancel` | none | TBD | |
-| MSG-16 | Menu: Delete Conversation | app/messages/page.tsx:772 | Menu item `Delete Conversation` | none | TBD | |
-| MSG-17 | Delete Conversation dialog: confirm | app/messages/page.tsx:510, 1192 | Title `Delete Conversation`; text `Are you sure you want to delete this conversation with {first_name}?`; note starts `Note: This will only delete the conversation on your end.`; button `Delete Conversation`; while sending `Deleting...` | `DELETE /messages/{matchId}` | TBD | |
-| MSG-18 | Delete Conversation dialog: cancel | app/messages/page.tsx:1213 | Button `Cancel` | none | TBD | |
-| MSG-19 | Menu: Report & Block | app/messages/page.tsx:778 | Menu item `Report & Block` | none | TBD | |
-| MSG-20 | Report & Block dialog: reason | app/messages/page.tsx:1098 | Title `Report & Block User`; text `Report {first_name} for inappropriate behavior`; label `Reason for reporting (optional)` (`#report-reason`), placeholder `Please describe the issue...` | none | TBD | |
-| MSG-21 | Report & Block dialog: "just block" checkbox | app/messages/page.tsx:1121 | Checkbox `#block-only`, label `Just block without reporting` | none | TBD | |
-| MSG-22 | Report & Block dialog: confirm | app/messages/page.tsx:578, 1142 | Button `Report & Block`, or `Block User` when the checkbox is ticked | `POST /browse/{userId}/report` (only when a reason is typed and the checkbox is off), then `POST /browse/{userId}/block` | TBD | |
-| MSG-23 | Report & Block dialog: cancel | app/messages/page.tsx:1132 | Button `Cancel` | none | TBD | |
-| MSG-24 | Load a thread (also marks it read on the server) | app/messages/page.tsx:317 | Message bubbles appear | `GET /messages/{matchId}` | TBD | |
-| MSG-25 | Date dividers | app/messages/page.tsx:499, 804 | `Today`, `Yesterday`, or e.g. `Monday, Sep 28` | none | TBD | |
-| MSG-26 | Message bubble: own on the right, theirs on the left with avatar on the last of a run; time under the text | app/messages/page.tsx:829 | Message text; time like `09:41 PM` | none | TBD | |
-| MSG-27 | Empty thread | app/messages/page.tsx:794 | `No messages yet. Start the conversation!` | none | TBD | |
-| MSG-28 | Message input | app/messages/page.tsx:1058 | Placeholder `Type a message...` (no label) | none | TBD | |
-| MSG-29 | Send (button or Enter; disabled when empty) | app/messages/page.tsx:423, 1065 | Button with screen-reader name `Send message` | `POST /messages/{matchId}` | TBD | |
-| MSG-30 | Send failure: bubble removed, text restored, error shown | app/messages/page.tsx:463, 1010 | Red line above the input with the error, or `Your message could not be sent. Please try again.` | none | TBD | |
-| MSG-31 | Emoji picker | app/messages/page.tsx:114, 1017 | Button with screen-reader name `Add emoji`; popover text `Emojis`; groups `Smileys`, `Gestures`, `Fun`; each emoji is a button whose name is the emoji itself; picking one appends it and closes the popover | none | TBD | |
-| MSG-32 | Edit my message: open the editor | app/messages/page.tsx:329, 959 | Button `Edit` under my own bubble | none | TBD | |
-| MSG-33 | Edit my message: save (button or Enter) | app/messages/page.tsx:341, 899 | Label `Edit your message` (`#edit-{messageId}`); button `Save Changes`; while saving `Saving...` | `PUT /messages/{matchId}/{messageId}` | TBD | |
-| MSG-34 | Edit my message: cancel (button or Escape) | app/messages/page.tsx:336, 890 | Button `Cancel` | none | TBD | |
-| MSG-35 | "Edited" marker | app/messages/page.tsx:948 | Text `Edited` next to the time | none | TBD | |
-| MSG-36 | Unsend my message: open the confirmation | app/messages/page.tsx:968 | Button `Unsend` under my own bubble | none | TBD | |
-| MSG-37 | Unsend dialog: confirm | app/messages/page.tsx:378, 1243 | Title `Unsend Message`; text starts `This removes the message text for both of you.`; a preview of the message; button `Unsend`; while sending `Unsending...` | `DELETE /messages/{matchId}/{messageId}` | TBD | |
-| MSG-38 | Unsend dialog: cancel | app/messages/page.tsx:1269 | Button `Cancel` | none | TBD | |
-| MSG-39 | Unsent tombstone | app/messages/page.tsx:926 | `You unsent a message` or `{first_name} unsent a message` | none | TBD | |
-| MSG-40 | Unmatched thread is read-only | app/messages/page.tsx:998 | Text `No Longer Matched - You can view past messages but cannot send new ones`; no input, no `Edit` / `Unsend` buttons | none | TBD | |
-| MSG-41 | Incoming message arrives live (second browser context) | app/messages/page.tsx:155 | New bubble appears without reload; list preview and unread count update | socket event `new-message` | TBD | |
-| MSG-42 | Edit / unsend by the other person arrives live | app/messages/page.tsx:199 | Bubble text changes in place, or becomes the tombstone | socket event `message-updated` | TBD | |
-| MSG-43 | Mobile layout: the list hides while a thread is open, and the reverse | app/messages/page.tsx:623, 725 | At a mobile viewport only one of the two panes is visible | none | TBD | |
+| MSG-01 | Load the conversation list (skeleton rows while loading) | app/messages/page.tsx:286, 643 | Heading `Messages`; one button per conversation | `GET /messages` | Works | [chat.spec](../tests/e2e/chat.spec.ts) [sockets.test](../server/tests/sockets.test.js) |
+| MSG-02 | Search conversations by first name | app/messages/page.tsx:632 | Placeholder `Search conversations...` | none | Not verified |  |
+| MSG-03 | Conversation row: avatar, name, last message, time, unread count | app/messages/page.tsx:657 | Button containing the first name; preview text or `Start a conversation`; time like `5m`, `2h`, `3d`; unread number on the avatar | none | Works | [chat.spec](../tests/e2e/chat.spec.ts) [sockets.test](../server/tests/sockets.test.js) |
+| MSG-04 | Select a conversation (URL becomes `/messages?match={id}`, unread badge cleared) | app/messages/page.tsx:412 | Click the row; chat header shows the name | `GET /messages/{matchId}` | Works | [chat.spec](../tests/e2e/chat.spec.ts) [sockets.test](../server/tests/sockets.test.js) |
+| MSG-05 | Deep link `?match={id}` and auto-select of the first conversation on load | app/messages/page.tsx:246, 292 | Open `/messages?match={id}`; that thread is shown | `GET /messages/{matchId}` | Fixed - a chat no longer re-opens itself when the list changes | [chat.spec](../tests/e2e/chat.spec.ts) |
+| MSG-06 | Empty state: no conversations | app/messages/page.tsx:713 | `No conversations yet`; `Match with someone to start chatting` | none | Not verified |  |
+| MSG-07 | Empty state: search with no results | app/messages/page.tsx:705 | `No results for "{query}"` | none | Not verified |  |
+| MSG-08 | Placeholder when nothing is selected (desktop) | app/messages/page.tsx:1083 | `Select a conversation`; `Choose a chat from the sidebar to start messaging` | none | Not verified |  |
+| MSG-09 | Chat header: avatar and name | app/messages/page.tsx:742 | Heading (h2) with the first name | none | Works | [chat.spec](../tests/e2e/chat.spec.ts) [sockets.test](../server/tests/sockets.test.js) |
+| MSG-10 | Back to the list (mobile only) | app/messages/page.tsx:733 | Icon-only chevron button with **no accessible name**; first button in the chat header | none | Not verified |  |
+| MSG-11 | Chat options menu | app/messages/page.tsx:757 | Icon-only (three dots) button with **no accessible name**; last button in the chat header | none | Works | [chat.spec](../tests/e2e/chat.spec.ts) [sockets.test](../server/tests/sockets.test.js) |
+| MSG-12 | Menu: View Profile | app/messages/page.tsx:764 | Menu item `View Profile`; goes to `/profile/{userId}` | none | Not verified |  |
+| MSG-13 | Menu: Unmatch (hidden once unmatched) | app/messages/page.tsx:767 | Menu item `Unmatch` | none | Works | [chat.spec](../tests/e2e/chat.spec.ts) [sockets.test](../server/tests/sockets.test.js) |
+| MSG-14 | Unmatch dialog: confirm | app/messages/page.tsx:547, 1153 | Title `Unmatch with {first_name}?`; text starts `You will still be able to read your past messages`; button `Unmatch`; while sending `Unmatching...` | `DELETE /matches/{matchId}` | Works | [chat.spec](../tests/e2e/chat.spec.ts) [sockets.test](../server/tests/sockets.test.js) |
+| MSG-15 | Unmatch dialog: cancel | app/messages/page.tsx:1166 | Button `Cancel` | none | Not verified |  |
+| MSG-16 | Menu: Delete Conversation | app/messages/page.tsx:772 | Menu item `Delete Conversation` | none | Fixed - renamed "Clear conversation"; failures shown; stays cleared after reload | [chat.spec](../tests/e2e/chat.spec.ts) |
+| MSG-17 | Delete Conversation dialog: confirm | app/messages/page.tsx:510, 1192 | Title `Delete Conversation`; text `Are you sure you want to delete this conversation with {first_name}?`; note starts `Note: This will only delete the conversation on your end.`; button `Delete Conversation`; while sending `Deleting...` | `DELETE /messages/{matchId}` | Fixed - renamed "Clear conversation"; failures shown; stays cleared after reload | [chat.spec](../tests/e2e/chat.spec.ts) |
+| MSG-18 | Delete Conversation dialog: cancel | app/messages/page.tsx:1213 | Button `Cancel` | none | Not verified |  |
+| MSG-19 | Menu: Report & Block | app/messages/page.tsx:778 | Menu item `Report & Block` | none | Fixed - Report and Block are separate; a report is always filed; block has Undo | [chat.spec](../tests/e2e/chat.spec.ts) |
+| MSG-20 | Report & Block dialog: reason | app/messages/page.tsx:1098 | Title `Report & Block User`; text `Report {first_name} for inappropriate behavior`; label `Reason for reporting (optional)` (`#report-reason`), placeholder `Please describe the issue...` | none | Fixed - Report and Block are separate; a report is always filed; block has Undo | [chat.spec](../tests/e2e/chat.spec.ts) |
+| MSG-21 | Report & Block dialog: "just block" checkbox | app/messages/page.tsx:1121 | Checkbox `#block-only`, label `Just block without reporting` | none | Fixed - Report and Block are separate; a report is always filed; block has Undo | [chat.spec](../tests/e2e/chat.spec.ts) |
+| MSG-22 | Report & Block dialog: confirm | app/messages/page.tsx:578, 1142 | Button `Report & Block`, or `Block User` when the checkbox is ticked | `POST /browse/{userId}/report` (only when a reason is typed and the checkbox is off), then `POST /browse/{userId}/block` | Fixed - Report and Block are separate; a report is always filed; block has Undo | [chat.spec](../tests/e2e/chat.spec.ts) |
+| MSG-23 | Report & Block dialog: cancel | app/messages/page.tsx:1132 | Button `Cancel` | none | Fixed - Report and Block are separate; a report is always filed; block has Undo | [chat.spec](../tests/e2e/chat.spec.ts) |
+| MSG-24 | Load a thread (also marks it read on the server) | app/messages/page.tsx:317 | Message bubbles appear | `GET /messages/{matchId}` | Works | [chat.spec](../tests/e2e/chat.spec.ts) [sockets.test](../server/tests/sockets.test.js) |
+| MSG-25 | Date dividers | app/messages/page.tsx:499, 804 | `Today`, `Yesterday`, or e.g. `Monday, Sep 28` | none | Works | [chat.spec](../tests/e2e/chat.spec.ts) [sockets.test](../server/tests/sockets.test.js) |
+| MSG-26 | Message bubble: own on the right, theirs on the left with avatar on the last of a run; time under the text | app/messages/page.tsx:829 | Message text; time like `09:41 PM` | none | Works | [chat.spec](../tests/e2e/chat.spec.ts) [sockets.test](../server/tests/sockets.test.js) |
+| MSG-27 | Empty thread | app/messages/page.tsx:794 | `No messages yet. Start the conversation!` | none | Fixed - empty chat now offers conversation starters | [chat.spec](../tests/e2e/chat.spec.ts) |
+| MSG-28 | Message input | app/messages/page.tsx:1058 | Placeholder `Type a message...` (no label) | none | Works | [chat.spec](../tests/e2e/chat.spec.ts) [sockets.test](../server/tests/sockets.test.js) |
+| MSG-29 | Send (button or Enter; disabled when empty) | app/messages/page.tsx:423, 1065 | Button with screen-reader name `Send message` | `POST /messages/{matchId}` | Works | [chat.spec](../tests/e2e/chat.spec.ts) [sockets.test](../server/tests/sockets.test.js) |
+| MSG-30 | Send failure: bubble removed, text restored, error shown | app/messages/page.tsx:463, 1010 | Red line above the input with the error, or `Your message could not be sent. Please try again.` | none | Fixed - failed message stays in the thread with Try again | [chat.spec](../tests/e2e/chat.spec.ts) |
+| MSG-31 | Emoji picker | app/messages/page.tsx:114, 1017 | Button with screen-reader name `Add emoji`; popover text `Emojis`; groups `Smileys`, `Gestures`, `Fun`; each emoji is a button whose name is the emoji itself; picking one appends it and closes the popover | none | Not verified |  |
+| MSG-32 | Edit my message: open the editor | app/messages/page.tsx:329, 959 | Button `Edit` under my own bubble | none | Works | [chat.spec](../tests/e2e/chat.spec.ts) [sockets.test](../server/tests/sockets.test.js) |
+| MSG-33 | Edit my message: save (button or Enter) | app/messages/page.tsx:341, 899 | Label `Edit your message` (`#edit-{messageId}`); button `Save Changes`; while saving `Saving...` | `PUT /messages/{matchId}/{messageId}` | Works | [chat.spec](../tests/e2e/chat.spec.ts) [sockets.test](../server/tests/sockets.test.js) |
+| MSG-34 | Edit my message: cancel (button or Escape) | app/messages/page.tsx:336, 890 | Button `Cancel` | none | Not verified |  |
+| MSG-35 | "Edited" marker | app/messages/page.tsx:948 | Text `Edited` next to the time | none | Works | [chat.spec](../tests/e2e/chat.spec.ts) [sockets.test](../server/tests/sockets.test.js) |
+| MSG-36 | Unsend my message: open the confirmation | app/messages/page.tsx:968 | Button `Unsend` under my own bubble | none | Works | [chat.spec](../tests/e2e/chat.spec.ts) [sockets.test](../server/tests/sockets.test.js) |
+| MSG-37 | Unsend dialog: confirm | app/messages/page.tsx:378, 1243 | Title `Unsend Message`; text starts `This removes the message text for both of you.`; a preview of the message; button `Unsend`; while sending `Unsending...` | `DELETE /messages/{matchId}/{messageId}` | Works | [chat.spec](../tests/e2e/chat.spec.ts) [sockets.test](../server/tests/sockets.test.js) |
+| MSG-38 | Unsend dialog: cancel | app/messages/page.tsx:1269 | Button `Cancel` | none | Not verified |  |
+| MSG-39 | Unsent tombstone | app/messages/page.tsx:926 | `You unsent a message` or `{first_name} unsent a message` | none | Works | [chat.spec](../tests/e2e/chat.spec.ts) [sockets.test](../server/tests/sockets.test.js) |
+| MSG-40 | Unmatched thread is read-only | app/messages/page.tsx:998 | Text `No Longer Matched - You can view past messages but cannot send new ones`; no input, no `Edit` / `Unsend` buttons | none | Works | [chat.spec](../tests/e2e/chat.spec.ts) [sockets.test](../server/tests/sockets.test.js) |
+| MSG-41 | Incoming message arrives live (second browser context) | app/messages/page.tsx:155 | New bubble appears without reload; list preview and unread count update | socket event `new-message` | Works | [chat.spec](../tests/e2e/chat.spec.ts) [sockets.test](../server/tests/sockets.test.js) |
+| MSG-42 | Edit / unsend by the other person arrives live | app/messages/page.tsx:199 | Bubble text changes in place, or becomes the tombstone | socket event `message-updated` | Works | [chat.spec](../tests/e2e/chat.spec.ts) [sockets.test](../server/tests/sockets.test.js) |
+| MSG-43 | Mobile layout: the list hides while a thread is open, and the reverse | app/messages/page.tsx:623, 725 | At a mobile viewport only one of the two panes is visible | none | Fixed - two-pane layout only from 1024px | [screenshots](screenshots/) |
 
 ## 12. Notifications
 
@@ -435,19 +477,19 @@ File: `app/notifications/page.tsx`
 
 | ID | Function | Where (file:line) | How a test finds it (visible text / aria-label / role / placeholder, exactly as in the code) | API call it makes | Status | Test |
 |---|---|---|---|---|---|---|
-| NOT-01 | Load notifications (5 skeleton rows while loading) | app/notifications/page.tsx:50, 244 | Heading `Notifications`; one card per notification | `GET /notifications` | TBD | |
-| NOT-02 | Opening the page marks everything read automatically | app/notifications/page.tsx:39 | After load the summary reads `All caught up!` and the nav badge clears | `PUT /notifications/mark-all-read` | TBD | |
-| NOT-03 | Unread summary line | app/notifications/page.tsx:212 | `You have {n} unread notification` / `notifications`, or `All caught up!` | none | TBD | |
-| NOT-04 | Mark all as read button (only while something is unread) | app/notifications/page.tsx:202 | Button `Mark all as read` | `PUT /notifications/mark-all-read` | TBD | |
-| NOT-05 | Filter: All, with count | app/notifications/page.tsx:221 | Button `All` followed by the count | none | TBD | |
-| NOT-06 | Filter: Unread, with count | app/notifications/page.tsx:231 | Button `Unread` followed by the count | none | TBD | |
-| NOT-07 | Notification card: icon, type badge, title, message, relative date | app/notifications/page.tsx:267 | Type badge is the server type capitalised (`Match`, `Like`, `Message`, `Event`, `News`, `System`); date `Recently`, `Today`, `Yesterday`, `{n} Days Ago` | none | TBD | |
-| NOT-08 | Click a card to open what it is about (message thread, Matches, the liker's profile, Events) | app/notifications/page.tsx:164, 183 | Click the card (a `div`, not a link or button); URL becomes `/messages?match={id}`, `/matches`, `/profile/{id}` or `/events`. `News` and `System` cards do nothing | `PUT /notifications/{id}/read` when unread | TBD | |
-| NOT-09 | Mark one notification read | app/notifications/page.tsx:308 | Button `aria-label="Mark as read"` (only on unread cards) | `PUT /notifications/{id}/read` | TBD | |
-| NOT-10 | Delete one notification (no confirmation) | app/notifications/page.tsx:321 | Button `aria-label="Delete notification"` | `DELETE /notifications/{id}` | TBD | |
-| NOT-11 | Empty state, All | app/notifications/page.tsx:250 | `No notifications`; `No notifications yet. You will be notified here when you get matches, messages, likes, and more.` | none | TBD | |
-| NOT-12 | Empty state, Unread | app/notifications/page.tsx:256 | `No notifications`; `You're all caught up! No unread notifications.` | none | TBD | |
-| NOT-13 | Unread cards are visually distinct | app/notifications/page.tsx:273, 292 | Unread card has classes `border-primary/50 bg-primary/5` and a bold title | none | TBD | |
+| NOT-01 | Load notifications (5 skeleton rows while loading) | app/notifications/page.tsx:50, 244 | Heading `Notifications`; one card per notification | `GET /notifications` | Works | [community.spec](../tests/e2e/community.spec.ts) |
+| NOT-02 | Opening the page marks everything read automatically | app/notifications/page.tsx:39 | After load the summary reads `All caught up!` and the nav badge clears | `PUT /notifications/mark-all-read` | Still broken - opening the page still marks everything read at once, so "Unread" is empty by the time it is seen |  |
+| NOT-03 | Unread summary line | app/notifications/page.tsx:212 | `You have {n} unread notification` / `notifications`, or `All caught up!` | none | Not verified |  |
+| NOT-04 | Mark all as read button (only while something is unread) | app/notifications/page.tsx:202 | Button `Mark all as read` | `PUT /notifications/mark-all-read` | Works (API test only) | [core.test](../server/tests/core.test.js) |
+| NOT-05 | Filter: All, with count | app/notifications/page.tsx:221 | Button `All` followed by the count | none | Not verified |  |
+| NOT-06 | Filter: Unread, with count | app/notifications/page.tsx:231 | Button `Unread` followed by the count | none | Not verified |  |
+| NOT-07 | Notification card: icon, type badge, title, message, relative date | app/notifications/page.tsx:267 | Type badge is the server type capitalised (`Match`, `Like`, `Message`, `Event`, `News`, `System`); date `Recently`, `Today`, `Yesterday`, `{n} Days Ago` | none | Works | [community.spec](../tests/e2e/community.spec.ts) |
+| NOT-08 | Click a card to open what it is about (message thread, Matches, the liker's profile, Events) | app/notifications/page.tsx:164, 183 | Click the card (a `div`, not a link or button); URL becomes `/messages?match={id}`, `/matches`, `/profile/{id}` or `/events`. `News` and `System` cards do nothing | `PUT /notifications/{id}/read` when unread | Not verified |  |
+| NOT-09 | Mark one notification read | app/notifications/page.tsx:308 | Button `aria-label="Mark as read"` (only on unread cards) | `PUT /notifications/{id}/read` | Works (API test only) | [core.test](../server/tests/core.test.js) |
+| NOT-10 | Delete one notification (no confirmation) | app/notifications/page.tsx:321 | Button `aria-label="Delete notification"` | `DELETE /notifications/{id}` | Works (API test only) | [core.test](../server/tests/core.test.js) |
+| NOT-11 | Empty state, All | app/notifications/page.tsx:250 | `No notifications`; `No notifications yet. You will be notified here when you get matches, messages, likes, and more.` | none | Not verified |  |
+| NOT-12 | Empty state, Unread | app/notifications/page.tsx:256 | `No notifications`; `You're all caught up! No unread notifications.` | none | Not verified |  |
+| NOT-13 | Unread cards are visually distinct | app/notifications/page.tsx:273, 292 | Unread card has classes `border-primary/50 bg-primary/5` and a bold title | none | Not verified |  |
 
 ## 13. Events
 
@@ -455,29 +497,29 @@ File: `app/events/page.tsx`
 
 | ID | Function | Where (file:line) | How a test finds it (visible text / aria-label / role / placeholder, exactly as in the code) | API call it makes | Status | Test |
 |---|---|---|---|---|---|---|
-| EVT-01 | Load events (full-page spinner while loading) | app/events/page.tsx:170, 237 | Text `Loading events...`, then heading `Events` and text `Meet new people at local events` | `GET /events` | TBD | |
-| EVT-02 | Visiting clears the Events badge and marks event notifications read | app/events/page.tsx:102 | Events nav badge disappears | `GET /notifications`, then `PUT /notifications/{id}/read` for each unread event notification | TBD | |
-| EVT-03 | Tab: Upcoming Events | app/events/page.tsx:263 | Button `Upcoming Events` | none | TBD | |
-| EVT-04 | Tab: Past Events | app/events/page.tsx:269 | Button `Past Events` | none | TBD | |
-| EVT-05 | Search by title or location | app/events/page.tsx:282 | Placeholder `Search events...` | none | TBD | |
-| EVT-06 | Filters button with active-filter count | app/events/page.tsx:289 | Button `Filters` (count badge inside when filters are set) | none | TBD | |
-| EVT-07 | Filter: event type | app/events/page.tsx:44, 313 | In the popover: label `Event Type` (not associated); combobox with options `All Types`, `Local Chapter`, `Regional`, `National` | none | TBD | |
-| EVT-08 | Filter: from date | app/events/page.tsx:333 | Label `From` (not associated); first `input[type="date"]` in the popover | none | TBD | |
-| EVT-09 | Filter: to date | app/events/page.tsx:342 | Label `To` (not associated); second `input[type="date"]` in the popover | none | TBD | |
-| EVT-10 | Apply Filters (closes the popover; filters already apply live) | app/events/page.tsx:354 | Button `Apply Filters` | none | TBD | |
-| EVT-11 | Clear all filters (inside the popover) | app/events/page.tsx:305 | Button `Clear all` | none | TBD | |
-| EVT-12 | Active-filter chips with a remove X | app/events/page.tsx:363 | Chip text: the type label, `From: {date}`, `To: {date}`; the X is an icon-only button with **no accessible name** | none | TBD | |
-| EVT-13 | Event card: image or calendar placeholder, badges, title, date, time, location, attendance | app/events/page.tsx:397 | Heading with the title; badges for the category, `Cancelled`, `Attending`; text `{n} attending` or `{n} / {max} attending`. The card is a clickable `div` | none | TBD | |
-| EVT-14 | Event details dialog | app/events/page.tsx:505 | Dialog title = event title; description; `{date} at {time}`; location; attendance; built-in X `Close` | none | TBD | |
-| EVT-15 | Join an event | app/events/page.tsx:179, 585 | Button `Join Event` | `POST /events/{id}/join` | TBD | |
-| EVT-16 | Leave an event | app/events/page.tsx:585 | Button `Leave Event` | `POST /events/{id}/leave` | TBD | |
-| EVT-17 | Join / leave error inside the dialog | app/events/page.tsx:570 | Red text: `Event is full`, `Event has been cancelled`, `Already joined this event` | none | TBD | |
-| EVT-18 | Cancelled event is read-only | app/events/page.tsx:576 | Text `This event has been cancelled.`; no join button | none | TBD | |
-| EVT-19 | Past event is read-only | app/events/page.tsx:580 | Text `This event has already taken place.`; no join button | none | TBD | |
-| EVT-20 | "Attending" highlight on joined events | app/events/page.tsx:401, 444 | Badge `Attending`; card has class `ring-2 ring-primary` | none | TBD | |
-| EVT-21 | Empty state: upcoming | app/events/page.tsx:491 | `No upcoming events`; `Check back later for upcoming events` | none | TBD | |
-| EVT-22 | Empty state: past | app/events/page.tsx:494 | `No past events`; `Past events will appear here` | none | TBD | |
-| EVT-23 | Empty state: search with no results | app/events/page.tsx:482 | `No events found`; `No events match "{query}"` | none | TBD | |
+| EVT-01 | Load events (full-page spinner while loading) | app/events/page.tsx:170, 237 | Text `Loading events...`, then heading `Events` and text `Meet new people at local events` | `GET /events` | Works | [community.spec](../tests/e2e/community.spec.ts) |
+| EVT-02 | Visiting clears the Events badge and marks event notifications read | app/events/page.tsx:102 | Events nav badge disappears | `GET /notifications`, then `PUT /notifications/{id}/read` for each unread event notification | Not verified |  |
+| EVT-03 | Tab: Upcoming Events | app/events/page.tsx:263 | Button `Upcoming Events` | none | Not verified |  |
+| EVT-04 | Tab: Past Events | app/events/page.tsx:269 | Button `Past Events` | none | Not verified |  |
+| EVT-05 | Search by title or location | app/events/page.tsx:282 | Placeholder `Search events...` | none | Not verified |  |
+| EVT-06 | Filters button with active-filter count | app/events/page.tsx:289 | Button `Filters` (count badge inside when filters are set) | none | Not verified |  |
+| EVT-07 | Filter: event type | app/events/page.tsx:44, 313 | In the popover: label `Event Type` (not associated); combobox with options `All Types`, `Local Chapter`, `Regional`, `National` | none | Fixed - filter compared a field that does not exist and hid every event | [community.spec](../tests/e2e/community.spec.ts) |
+| EVT-08 | Filter: from date | app/events/page.tsx:333 | Label `From` (not associated); first `input[type="date"]` in the popover | none | Not verified |  |
+| EVT-09 | Filter: to date | app/events/page.tsx:342 | Label `To` (not associated); second `input[type="date"]` in the popover | none | Not verified |  |
+| EVT-10 | Apply Filters (closes the popover; filters already apply live) | app/events/page.tsx:354 | Button `Apply Filters` | none | Not verified |  |
+| EVT-11 | Clear all filters (inside the popover) | app/events/page.tsx:305 | Button `Clear all` | none | Not verified |  |
+| EVT-12 | Active-filter chips with a remove X | app/events/page.tsx:363 | Chip text: the type label, `From: {date}`, `To: {date}`; the X is an icon-only button with **no accessible name** | none | Not verified |  |
+| EVT-13 | Event card: image or calendar placeholder, badges, title, date, time, location, attendance | app/events/page.tsx:397 | Heading with the title; badges for the category, `Cancelled`, `Attending`; text `{n} attending` or `{n} / {max} attending`. The card is a clickable `div` | none | Works | [community.spec](../tests/e2e/community.spec.ts) |
+| EVT-14 | Event details dialog | app/events/page.tsx:505 | Dialog title = event title; description; `{date} at {time}`; location; attendance; built-in X `Close` | none | Works | [community.spec](../tests/e2e/community.spec.ts) |
+| EVT-15 | Join an event | app/events/page.tsx:179, 585 | Button `Join Event` | `POST /events/{id}/join` | Works | [community.spec](../tests/e2e/community.spec.ts) |
+| EVT-16 | Leave an event | app/events/page.tsx:585 | Button `Leave Event` | `POST /events/{id}/leave` | Works | [community.spec](../tests/e2e/community.spec.ts) |
+| EVT-17 | Join / leave error inside the dialog | app/events/page.tsx:570 | Red text: `Event is full`, `Event has been cancelled`, `Already joined this event` | none | Not verified |  |
+| EVT-18 | Cancelled event is read-only | app/events/page.tsx:576 | Text `This event has been cancelled.`; no join button | none | Works (API test only) | [core.test](../server/tests/core.test.js) |
+| EVT-19 | Past event is read-only | app/events/page.tsx:580 | Text `This event has already taken place.`; no join button | none | Not verified |  |
+| EVT-20 | "Attending" highlight on joined events | app/events/page.tsx:401, 444 | Badge `Attending`; card has class `ring-2 ring-primary` | none | Not verified |  |
+| EVT-21 | Empty state: upcoming | app/events/page.tsx:491 | `No upcoming events`; `Check back later for upcoming events` | none | Not verified |  |
+| EVT-22 | Empty state: past | app/events/page.tsx:494 | `No past events`; `Past events will appear here` | none | Not verified |  |
+| EVT-23 | Empty state: search with no results | app/events/page.tsx:482 | `No events found`; `No events match "{query}"` | none | Not verified |  |
 
 ## 14. Settings
 
@@ -485,49 +527,49 @@ File: `app/settings/page.tsx`. Toggles, Looking For and the age range are only s
 
 | ID | Function | Where (file:line) | How a test finds it (visible text / aria-label / role / placeholder, exactly as in the code) | API call it makes | Status | Test |
 |---|---|---|---|---|---|---|
-| SET-01 | Load my settings | app/settings/page.tsx:125 | Heading `Settings`; text `Manage your app preferences`; switches reflect the saved values | `GET /settings` | TBD | |
-| SET-02 | Save Changes (appears after any change) | app/settings/page.tsx:157, 426 | Button `Save Changes`; while saving `Saving...` | `PUT /settings` | TBD | |
-| SET-03 | "Saved" confirmation (3 seconds) | app/settings/page.tsx:446 | Text `Saved` | none | TBD | |
-| SET-04 | Save error toast | app/settings/page.tsx:164 | Toast with the server message | none | TBD | |
-| SET-05 | Notification toggle: New Matches | app/settings/page.tsx:466 | Switch `#matches`, label `New Matches`; help `Get notified when you match with someone`; state text `On` / `Off` | none until Save | TBD | |
-| SET-06 | Notification toggle: Messages | app/settings/page.tsx:485 | Switch `#messages`, label `Messages`; help `Get notified when you receive a message` | none until Save | TBD | |
-| SET-07 | Notification toggle: Likes | app/settings/page.tsx:504 | Switch `#likes`, label `Likes`; help `Get notified when someone likes your profile` | none until Save | TBD | |
-| SET-08 | Notification toggle: Events | app/settings/page.tsx:523 | Switch `#events`, label `Events`; help `Get notified about event updates` | none until Save | TBD | |
-| SET-09 | Notification toggle: Admin Announcements | app/settings/page.tsx:542 | Switch `#admin_news`, label `Admin Announcements`; help `Get notified about admin news and announcements` | none until Save | TBD | |
-| SET-10 | Notification Sound toggle (takes effect immediately; plays the chime when switched on) | app/settings/page.tsx:319, 561 | Switch `#sound`, label `Notification Sound`; help starts `Play a chime when a message or alert arrives` | none until Save | TBD | |
-| SET-11 | Test the chime (disabled while sound is off) | app/settings/page.tsx:331, 570 | Button `Test` | none | TBD | |
-| SET-12 | Looking For: Women | app/settings/page.tsx:607 | Checkbox `#lookingFor-female`, label `Women`; card title `Looking For`; help `Choose who you want to see in Browse` | none until Save | TBD | |
-| SET-13 | Looking For: Men | app/settings/page.tsx:609 | Checkbox `#lookingFor-male`, label `Men` | none until Save | TBD | |
-| SET-14 | Looking For: Non-binary | app/settings/page.tsx:610 | Checkbox `#lookingFor-non-binary`, label `Non-binary` | none until Save | TBD | |
-| SET-15 | Looking For: Everyone (clears the other three) | app/settings/page.tsx:349, 611 | Checkbox `#lookingFor-everyone`, label `Everyone`; note `Selecting "Everyone" will clear other selections.` | none until Save | TBD | |
-| SET-16 | Age range: minimum | app/settings/page.tsx:659 | Label `Minimum Age` (`#ageMin`, `type="number"`) | none until Save | TBD | |
-| SET-17 | Age range: maximum, and summary line | app/settings/page.tsx:671 | Label `Maximum Age` (`#ageMax`, `type="number"`); text `Age range: {min} - {max}` | none until Save | TBD | |
-| SET-18 | Privacy: Profile Visibility | app/settings/page.tsx:701 | Switch `#profileVisible`, label `Profile Visibility`; help starts `Make your profile visible in Browse.` | none until Save | TBD | |
-| SET-19 | Privacy: Selective Mode | app/settings/page.tsx:720 | Switch `#selectiveMode`, label `Selective Mode`; help starts `Only show your profile to users you have liked.` | none until Save | TBD | |
-| SET-20 | View Blocked Users | app/settings/page.tsx:391, 753 | Button `View Blocked Users` | `GET /browse/blocked-list` | TBD | |
-| SET-21 | Blocked Users dialog: list | app/settings/page.tsx:1034 | Dialog title `Blocked Users`; description `You have blocked {n} user` / `users`; each row `{first} {last}` and `Blocked on {date}`; only the built-in X `Close` closes it | none | TBD | |
-| SET-22 | Unblock a member | app/settings/page.tsx:396, 1085 | Button `Unblock`; while sending `Unblocking...` | `DELETE /browse/{userId}/unblock` | TBD | |
-| SET-23 | Blocked Users dialog: empty state | app/settings/page.tsx:1042, 1052 | Description `You haven't blocked anyone yet`; text `No blocked users` | none | TBD | |
-| SET-24 | Blocked Users error toasts | app/settings/page.tsx:380, 402 | Toast starting `Error loading blocked users` or `Error unblocking user` | none | TBD | |
-| SET-25 | Contact Us email link | app/settings/page.tsx:779 | Card title `Contact Us`; text `Email Support`; link `d8lpa.community@gmail.com` (`mailto:`) | none | TBD | |
-| SET-26 | Terms & Privacy Policy row | app/settings/page.tsx:799 | Button `Terms & Privacy Policy` | none | TBD | |
-| SET-27 | Terms & Privacy Policy dialog | app/settings/page.tsx:1112 | Dialog title `Terms & Privacy Policy`; headings `Terms of Service`, `Privacy Policy`; text `Last updated: February 2026`; button `Close` (plus built-in X `Close`) | none | TBD | |
-| SET-28 | Change Password row | app/settings/page.tsx:809 | Button `Change Password` | none | TBD | |
-| SET-29 | Change Password dialog: current password | app/settings/page.tsx:1225, 1257 | Dialog title `Change Your Password`; label `Current Password *` (`#current-password`), placeholder `Enter your current password`. No show-password toggle | none | TBD | |
-| SET-30 | Change Password dialog: new password with length hint | app/settings/page.tsx:1272 | Label `New Password *` (`#new-password`), placeholder `Enter a new password (min 8 characters)`; hint `Password must be at least 8 characters`. No show-password toggle | none | TBD | |
-| SET-31 | Change Password dialog: confirm with match indicator | app/settings/page.tsx:1290 | Label `Confirm New Password *` (`#confirm-password`), placeholder `Confirm your new password`; `Passwords match` / `Passwords do not match`. No show-password toggle | none | TBD | |
-| SET-32 | Change Password dialog: client-side validation messages | app/settings/page.tsx:244 | Red box: `Current password is required`, `New password is required`, `New password must be at least 8 characters`, `New passwords do not match`, `New password must be different from current password` | none | TBD | |
-| SET-33 | Change Password dialog: submit | app/settings/page.tsx:239, 1324 | Button `Change Password`; while sending `Changing...`; success box `Password changed successfully!`, dialog closes after 2 seconds | `POST /auth/change-password` | TBD | |
-| SET-34 | Change Password dialog: server error | app/settings/page.tsx:1246 | Red box with the server message, e.g. `Your current password is not right. Please try again.` (working-tree backend; the committed backend says `Current password is incorrect` and signs the member out, see defect 38) | none | TBD | |
-| SET-35 | Change Password dialog: cancel | app/settings/page.tsx:1317 | Button `Cancel` | none | TBD | |
-| SET-36 | Version footer | app/settings/page.tsx:855 | Text `D8-LPA v1.0.0` | none | TBD | |
+| SET-01 | Load my settings | app/settings/page.tsx:125 | Heading `Settings`; text `Manage your app preferences`; switches reflect the saved values | `GET /settings` | Fixed - a failed load no longer shows defaults that could be saved over the real settings | [settings.spec](../tests/e2e/settings.spec.ts) |
+| SET-02 | Save Changes (appears after any change) | app/settings/page.tsx:157, 426 | Button `Save Changes`; while saving `Saving...` | `PUT /settings` | Changed - no Save button: every change saves itself | [settings.spec](../tests/e2e/settings.spec.ts) |
+| SET-03 | "Saved" confirmation (3 seconds) | app/settings/page.tsx:446 | Text `Saved` | none | Works | [settings.spec](../tests/e2e/settings.spec.ts) |
+| SET-04 | Save error toast | app/settings/page.tsx:164 | Toast with the server message | none | Fixed - a failed load no longer shows defaults that could be saved over the real settings | [settings.spec](../tests/e2e/settings.spec.ts) |
+| SET-05 | Notification toggle: New Matches | app/settings/page.tsx:466 | Switch `#matches`, label `New Matches`; help `Get notified when you match with someone`; state text `On` / `Off` | none until Save | Works | [settings.spec](../tests/e2e/settings.spec.ts) |
+| SET-06 | Notification toggle: Messages | app/settings/page.tsx:485 | Switch `#messages`, label `Messages`; help `Get notified when you receive a message` | none until Save | Works | [settings.spec](../tests/e2e/settings.spec.ts) |
+| SET-07 | Notification toggle: Likes | app/settings/page.tsx:504 | Switch `#likes`, label `Likes`; help `Get notified when someone likes your profile` | none until Save | Works | [settings.spec](../tests/e2e/settings.spec.ts) |
+| SET-08 | Notification toggle: Events | app/settings/page.tsx:523 | Switch `#events`, label `Events`; help `Get notified about event updates` | none until Save | Works | [settings.spec](../tests/e2e/settings.spec.ts) |
+| SET-09 | Notification toggle: Admin Announcements | app/settings/page.tsx:542 | Switch `#admin_news`, label `Admin Announcements`; help `Get notified about admin news and announcements` | none until Save | Works | [settings.spec](../tests/e2e/settings.spec.ts) |
+| SET-10 | Notification Sound toggle (takes effect immediately; plays the chime when switched on) | app/settings/page.tsx:319, 561 | Switch `#sound`, label `Notification Sound`; help starts `Play a chime when a message or alert arrives` | none until Save | Works | [settings.spec](../tests/e2e/settings.spec.ts) |
+| SET-11 | Test the chime (disabled while sound is off) | app/settings/page.tsx:331, 570 | Button `Test` | none | Not verified |  |
+| SET-12 | Looking For: Women | app/settings/page.tsx:607 | Checkbox `#lookingFor-female`, label `Women`; card title `Looking For`; help `Choose who you want to see in Browse` | none until Save | Works | [settings.spec](../tests/e2e/settings.spec.ts) |
+| SET-13 | Looking For: Men | app/settings/page.tsx:609 | Checkbox `#lookingFor-male`, label `Men` | none until Save | Works | [settings.spec](../tests/e2e/settings.spec.ts) |
+| SET-14 | Looking For: Non-binary | app/settings/page.tsx:610 | Checkbox `#lookingFor-non-binary`, label `Non-binary` | none until Save | Fixed - "Non-binary" was dropped / never matched | [settings.spec](../tests/e2e/settings.spec.ts) |
+| SET-15 | Looking For: Everyone (clears the other three) | app/settings/page.tsx:349, 611 | Checkbox `#lookingFor-everyone`, label `Everyone`; note `Selecting "Everyone" will clear other selections.` | none until Save | Works | [settings.spec](../tests/e2e/settings.spec.ts) |
+| SET-16 | Age range: minimum | app/settings/page.tsx:659 | Label `Minimum Age` (`#ageMin`, `type="number"`) | none until Save | Fixed - boxes fought the keyboard | [settings.spec](../tests/e2e/settings.spec.ts) |
+| SET-17 | Age range: maximum, and summary line | app/settings/page.tsx:671 | Label `Maximum Age` (`#ageMax`, `type="number"`); text `Age range: {min} - {max}` | none until Save | Fixed - boxes fought the keyboard | [settings.spec](../tests/e2e/settings.spec.ts) |
+| SET-18 | Privacy: Profile Visibility | app/settings/page.tsx:701 | Switch `#profileVisible`, label `Profile Visibility`; help starts `Make your profile visible in Browse.` | none until Save | Works | [settings.spec](../tests/e2e/settings.spec.ts) |
+| SET-19 | Privacy: Selective Mode | app/settings/page.tsx:720 | Switch `#selectiveMode`, label `Selective Mode`; help starts `Only show your profile to users you have liked.` | none until Save | Works | [settings.spec](../tests/e2e/settings.spec.ts) |
+| SET-20 | View Blocked Users | app/settings/page.tsx:391, 753 | Button `View Blocked Users` | `GET /browse/blocked-list` | Works | [settings.spec](../tests/e2e/settings.spec.ts) |
+| SET-21 | Blocked Users dialog: list | app/settings/page.tsx:1034 | Dialog title `Blocked Users`; description `You have blocked {n} user` / `users`; each row `{first} {last}` and `Blocked on {date}`; only the built-in X `Close` closes it | none | Works | [settings.spec](../tests/e2e/settings.spec.ts) |
+| SET-22 | Unblock a member | app/settings/page.tsx:396, 1085 | Button `Unblock`; while sending `Unblocking...` | `DELETE /browse/{userId}/unblock` | Works | [settings.spec](../tests/e2e/settings.spec.ts) |
+| SET-23 | Blocked Users dialog: empty state | app/settings/page.tsx:1042, 1052 | Description `You haven't blocked anyone yet`; text `No blocked users` | none | Not verified |  |
+| SET-24 | Blocked Users error toasts | app/settings/page.tsx:380, 402 | Toast starting `Error loading blocked users` or `Error unblocking user` | none | Not verified |  |
+| SET-25 | Contact Us email link | app/settings/page.tsx:779 | Card title `Contact Us`; text `Email Support`; link `d8lpa.community@gmail.com` (`mailto:`) | none | Not verified |  |
+| SET-26 | Terms & Privacy Policy row | app/settings/page.tsx:799 | Button `Terms & Privacy Policy` | none | Not verified |  |
+| SET-27 | Terms & Privacy Policy dialog | app/settings/page.tsx:1112 | Dialog title `Terms & Privacy Policy`; headings `Terms of Service`, `Privacy Policy`; text `Last updated: February 2026`; button `Close` (plus built-in X `Close`) | none | Not verified |  |
+| SET-28 | Change Password row | app/settings/page.tsx:809 | Button `Change Password` | none | Works | [settings.spec](../tests/e2e/settings.spec.ts) |
+| SET-29 | Change Password dialog: current password | app/settings/page.tsx:1225, 1257 | Dialog title `Change Your Password`; label `Current Password *` (`#current-password`), placeholder `Enter your current password`. No show-password toggle | none | Works | [settings.spec](../tests/e2e/settings.spec.ts) |
+| SET-30 | Change Password dialog: new password with length hint | app/settings/page.tsx:1272 | Label `New Password *` (`#new-password`), placeholder `Enter a new password (min 8 characters)`; hint `Password must be at least 8 characters`. No show-password toggle | none | Fixed - rules now match the server | [settings.spec](../tests/e2e/settings.spec.ts) |
+| SET-31 | Change Password dialog: confirm with match indicator | app/settings/page.tsx:1290 | Label `Confirm New Password *` (`#confirm-password`), placeholder `Confirm your new password`; `Passwords match` / `Passwords do not match`. No show-password toggle | none | Works | [settings.spec](../tests/e2e/settings.spec.ts) |
+| SET-32 | Change Password dialog: client-side validation messages | app/settings/page.tsx:244 | Red box: `Current password is required`, `New password is required`, `New password must be at least 8 characters`, `New passwords do not match`, `New password must be different from current password` | none | Fixed - rules now match the server | [settings.spec](../tests/e2e/settings.spec.ts) |
+| SET-33 | Change Password dialog: submit | app/settings/page.tsx:239, 1324 | Button `Change Password`; while sending `Changing...`; success box `Password changed successfully!`, dialog closes after 2 seconds | `POST /auth/change-password` | Works | [settings.spec](../tests/e2e/settings.spec.ts) |
+| SET-34 | Change Password dialog: server error | app/settings/page.tsx:1246 | Red box with the server message, e.g. `Your current password is not right. Please try again.` (working-tree backend; the committed backend says `Current password is incorrect` and signs the member out, see defect 38) | none | Fixed - changing password used to lock the member out (double hashing) | [settings.spec](../tests/e2e/settings.spec.ts) [auth.test](../server/tests/auth.test.js) |
+| SET-35 | Change Password dialog: cancel | app/settings/page.tsx:1317 | Button `Cancel` | none | Not verified |  |
+| SET-36 | Version footer | app/settings/page.tsx:855 | Text `D8-LPA v1.0.0` | none | Not verified |  |
 
 ## 15. Theme
 
 | ID | Function | Where (file:line) | How a test finds it (visible text / aria-label / role / placeholder, exactly as in the code) | API call it makes | Status | Test |
 |---|---|---|---|---|---|---|
-| THM-01 | Dark / light theme switch | components/theme-provider.tsx:9; app/layout.tsx:44; app/settings/page.tsx:98 | **Not in the UI.** `ThemeProvider` is defined but never mounted in `app/layout.tsx`; the settings page holds `theme: "light"` in state but renders no control for it. `dark:` classes exist in the pages but nothing sets the `dark` class | none | TBD | |
-| THM-02 | Favicon follows the operating-system colour scheme | app/layout.tsx:19 | `<link rel="icon">` entries with `media="(prefers-color-scheme: light)"` / `dark` | none | TBD | |
+| THM-01 | Dark / light theme switch | components/theme-provider.tsx:9; app/layout.tsx:44; app/settings/page.tsx:98 | **Not in the UI.** `ThemeProvider` is defined but never mounted in `app/layout.tsx`; the settings page holds `theme: "light"` in state but renders no control for it. `dark:` classes exist in the pages but nothing sets the `dark` class | none | Fixed - there was no theme switch; Light / Dark / Same as my device added | [settings.spec](../tests/e2e/settings.spec.ts) |
+| THM-02 | Favicon follows the operating-system colour scheme | app/layout.tsx:19 | `<link rel="icon">` entries with `media="(prefers-color-scheme: light)"` / `dark` | none | Changed - single icon set for the installable app |  |
 
 ## 16. Account (take a break / delete)
 
@@ -535,20 +577,20 @@ File: `app/settings/page.tsx` ("More" card)
 
 | ID | Function | Where (file:line) | How a test finds it (visible text / aria-label / role / placeholder, exactly as in the code) | API call it makes | Status | Test |
 |---|---|---|---|---|---|---|
-| ACC-01 | Take a Break row | app/settings/page.tsx:826 | Button containing `Take a Break (Disable Account)` and `Hide your profile. Log back in any time to reactivate.` | none | TBD | |
-| ACC-02 | Disable dialog: reason (optional) | app/settings/page.tsx:860, 877 | Dialog title `Disable Your Account`; note starts `Note: You can reactivate your account anytime`; label `Why are you disabling your account? (optional)` (`#disable-reason`), placeholder `Help us improve by telling us why...` | none | TBD | |
-| ACC-03 | Disable dialog: password | app/settings/page.tsx:889 | Label `Enter your password to confirm` (`#disable-password`), placeholder `••••••••`. No show-password toggle | none | TBD | |
-| ACC-04 | Disable dialog: "I'm sure" checkbox | app/settings/page.tsx:902 | Checkbox `#disable-confirm`, label `I understand that my profile will be hidden and I'm 100% sure I want to disable my account` | none | TBD | |
-| ACC-05 | Disable dialog: confirm (disabled until password typed and box ticked) | app/settings/page.tsx:175, 924 | Button `Disable Account`; while sending `Disabling...`; toast `Your account has been disabled. You will be logged out.`; URL becomes `/login` | `POST /settings/disable` | TBD | |
-| ACC-06 | Disable dialog: cancel | app/settings/page.tsx:913 | Button `Cancel` | none | TBD | |
-| ACC-07 | A disabled account is signed out of other open sessions on their next request | lib/api.ts:73; server/src/middleware/auth.js:38 | In a second context any API call redirects to `/login` | n/a | TBD | |
-| ACC-08 | Delete Account row | app/settings/page.tsx:841 | Button `Delete Account` (red) | none | TBD | |
-| ACC-09 | Delete dialog: warning and reason (optional) | app/settings/page.tsx:944, 967 | Dialog title `Delete Your Account`; text `This will permanently delete your account and all associated data. This action cannot be undone.`; link `d8lpa.community@gmail.com`; label `Why are you deleting your account? (optional)` (`#delete-reason`) | none | TBD | |
-| ACC-10 | Delete dialog: password | app/settings/page.tsx:979 | Label `Enter your password to confirm` (`#delete-password`), placeholder `••••••••`. No show-password toggle | none | TBD | |
-| ACC-11 | Delete dialog: "I'm sure" checkbox | app/settings/page.tsx:992 | Checkbox `#delete-confirm`, label `I understand this is permanent and I'm 100% sure I want to delete my account` | none | TBD | |
-| ACC-12 | Delete dialog: confirm (disabled until password typed and box ticked) | app/settings/page.tsx:207, 1014 | Button `Delete Account Permanently`; while sending `Deleting...`; toast `Your account has been deleted. You will be logged out.`; URL becomes `/login` | `POST /settings/delete` | TBD | |
-| ACC-13 | Delete dialog: cancel | app/settings/page.tsx:1003 | Button `Cancel` | none | TBD | |
-| ACC-14 | A deleted account can no longer log in | server/src/routes/auth.js:278 | Login error `Your account has been deleted. Please contact d8lpa.community@gmail.com if you believe this is an error.` | `POST /auth/login` | TBD | |
+| ACC-01 | Take a Break row | app/settings/page.tsx:826 | Button containing `Take a Break (Disable Account)` and `Hide your profile. Log back in any time to reactivate.` | none | Works | [settings.spec](../tests/e2e/settings.spec.ts) |
+| ACC-02 | Disable dialog: reason (optional) | app/settings/page.tsx:860, 877 | Dialog title `Disable Your Account`; note starts `Note: You can reactivate your account anytime`; label `Why are you disabling your account? (optional)` (`#disable-reason`), placeholder `Help us improve by telling us why...` | none | Not verified |  |
+| ACC-03 | Disable dialog: password | app/settings/page.tsx:889 | Label `Enter your password to confirm` (`#disable-password`), placeholder `••••••••`. No show-password toggle | none | Works | [settings.spec](../tests/e2e/settings.spec.ts) |
+| ACC-04 | Disable dialog: "I'm sure" checkbox | app/settings/page.tsx:902 | Checkbox `#disable-confirm`, label `I understand that my profile will be hidden and I'm 100% sure I want to disable my account` | none | Works | [settings.spec](../tests/e2e/settings.spec.ts) |
+| ACC-05 | Disable dialog: confirm (disabled until password typed and box ticked) | app/settings/page.tsx:175, 924 | Button `Disable Account`; while sending `Disabling...`; toast `Your account has been disabled. You will be logged out.`; URL becomes `/login` | `POST /settings/disable` | Works | [settings.spec](../tests/e2e/settings.spec.ts) |
+| ACC-06 | Disable dialog: cancel | app/settings/page.tsx:913 | Button `Cancel` | none | Not verified |  |
+| ACC-07 | A disabled account is signed out of other open sessions on their next request | lib/api.ts:73; server/src/middleware/auth.js:38 | In a second context any API call redirects to `/login` | n/a | Works (API test only) | [core.test](../server/tests/core.test.js) |
+| ACC-08 | Delete Account row | app/settings/page.tsx:841 | Button `Delete Account` (red) | none | Works | [settings.spec](../tests/e2e/settings.spec.ts) |
+| ACC-09 | Delete dialog: warning and reason (optional) | app/settings/page.tsx:944, 967 | Dialog title `Delete Your Account`; text `This will permanently delete your account and all associated data. This action cannot be undone.`; link `d8lpa.community@gmail.com`; label `Why are you deleting your account? (optional)` (`#delete-reason`) | none | Fixed - wording now says what really happens (the account is closed, not erased) | [screenshots](screenshots/) |
+| ACC-10 | Delete dialog: password | app/settings/page.tsx:979 | Label `Enter your password to confirm` (`#delete-password`), placeholder `••••••••`. No show-password toggle | none | Works | [settings.spec](../tests/e2e/settings.spec.ts) |
+| ACC-11 | Delete dialog: "I'm sure" checkbox | app/settings/page.tsx:992 | Checkbox `#delete-confirm`, label `I understand this is permanent and I'm 100% sure I want to delete my account` | none | Works | [settings.spec](../tests/e2e/settings.spec.ts) |
+| ACC-12 | Delete dialog: confirm (disabled until password typed and box ticked) | app/settings/page.tsx:207, 1014 | Button `Delete Account Permanently`; while sending `Deleting...`; toast `Your account has been deleted. You will be logged out.`; URL becomes `/login` | `POST /settings/delete` | Fixed - a wrong password no longer closes the dialog and wipes what was typed | [settings.spec](../tests/e2e/settings.spec.ts) |
+| ACC-13 | Delete dialog: cancel | app/settings/page.tsx:1003 | Button `Cancel` | none | Not verified |  |
+| ACC-14 | A deleted account can no longer log in | server/src/routes/auth.js:278 | Login error `Your account has been deleted. Please contact d8lpa.community@gmail.com if you believe this is an error.` | `POST /auth/login` | Works | [settings.spec](../tests/e2e/settings.spec.ts) |
 
 ## 17. Admin
 
@@ -558,80 +600,80 @@ File: `app/admin/page.tsx` (three tabs: Users, Events, News)
 
 | ID | Function | Where (file:line) | How a test finds it (visible text / aria-label / role / placeholder, exactly as in the code) | API call it makes | Status | Test |
 |---|---|---|---|---|---|---|
-| ADM-01 | Non-admin is refused | app/admin/page.tsx:147 | `Access Denied`; `You don't have admin privileges.`; button `Return to Browse` | none | TBD | |
-| ADM-02 | Admin panel heading | app/admin/page.tsx:700 | Heading `Admin Panel`; text `Manage users, events, and take moderation actions` | none | TBD | |
-| ADM-03 | Tab: Users (default) | app/admin/page.tsx:711 | Tab `Users` | none | TBD | |
-| ADM-04 | Tab: Events | app/admin/page.tsx:715 | Tab `Events` | none | TBD | |
-| ADM-05 | Tab: News | app/admin/page.tsx:719 | Tab `News` | none | TBD | |
+| ADM-01 | Non-admin is refused | app/admin/page.tsx:147 | `Access Denied`; `You don't have admin privileges.`; button `Return to Browse` | none | Works | [auth.spec](../tests/e2e/auth.spec.ts) [core.test](../server/tests/core.test.js) |
+| ADM-02 | Admin panel heading | app/admin/page.tsx:700 | Heading `Admin Panel`; text `Manage users, events, and take moderation actions` | none | Works | [auth.spec](../tests/e2e/auth.spec.ts) [core.test](../server/tests/core.test.js) |
+| ADM-03 | Tab: Users (default) | app/admin/page.tsx:711 | Tab `Users` | none | Not verified |  |
+| ADM-04 | Tab: Events | app/admin/page.tsx:715 | Tab `Events` | none | Not verified |  |
+| ADM-05 | Tab: News | app/admin/page.tsx:719 | Tab `News` | none | Not verified |  |
 
 ### 17.1 Users tab
 
 | ID | Function | Where (file:line) | How a test finds it (visible text / aria-label / role / placeholder, exactly as in the code) | API call it makes | Status | Test |
 |---|---|---|---|---|---|---|
-| ADM-10 | Load all users | app/admin/page.tsx:223 | Card title `User Management`; one row per user | `GET /admin/users` | TBD | |
-| ADM-11 | Search users by name, email or ID | app/admin/page.tsx:731 | Placeholder `Search users by name, email, or ID...` | none (client filter) | TBD | |
-| ADM-12 | Stat card / filter: Total Users | app/admin/page.tsx:743 | Clickable card (a `div`) with the count and text `Total Users` | none | TBD | |
-| ADM-13 | Stat card / filter: Active | app/admin/page.tsx:755 | Clickable card with text `Active` | none | TBD | |
-| ADM-14 | Stat card / filter: Suspended | app/admin/page.tsx:769 | Clickable card with text `Suspended` | none | TBD | |
-| ADM-15 | Stat card / filter: Banned | app/admin/page.tsx:783 | Clickable card with text `Banned` | none | TBD | |
-| ADM-16 | User row: avatar, name, status badge, email, joined and last-active dates | app/admin/page.tsx:298, 807 | Status badge `Active`, `Warned ({n})`, `Suspended` or `Banned`; text `Joined {date}` and `Last active {date}` | none | TBD | |
-| ADM-17 | Actions menu on a user row | app/admin/page.tsx:833 | Button `Actions` | none | TBD | |
-| ADM-18 | Warn a user | app/admin/page.tsx:311, 841 | Menu item `Warning` (shows the current warning count); dialog title `Issue Warning`; label `Reason for action` (`#reason`), placeholder `Provide a reason for this action...`; button `Confirm` | `POST /admin/users/{id}/action` (`action: "warn"`) | TBD | |
-| ADM-19 | Suspend a user | app/admin/page.tsx:855 | Menu item `Suspend`; dialog title `Suspend User`; reason; button `Confirm` | `POST /admin/users/{id}/action` (`action: "suspend"`) | TBD | |
-| ADM-20 | Unsuspend a user (immediate, no dialog) | app/admin/page.tsx:420, 857 | On a suspended user the same menu item `Suspend` shows a tick; clicking it lifts the suspension | `POST /admin/users/{id}/action` (`action: "unsuspend"`) | TBD | |
-| ADM-21 | Ban a user | app/admin/page.tsx:874 | Menu item `Ban`; dialog title `Ban User`; reason; button `Confirm` | `POST /admin/users/{id}/action` (`action: "ban"`) | TBD | |
-| ADM-22 | Unban a user (immediate, no dialog) | app/admin/page.tsx:876 | On a banned user the same menu item `Ban` shows a tick; clicking it lifts the ban | `POST /admin/users/{id}/action` (`action: "unban"`) | TBD | |
-| ADM-23 | Remove a warning | app/admin/page.tsx:420 | **Not in the UI.** `removeAction` supports `"warning"` but no control calls it; the `Warning` menu item only ever adds one | would be `POST /admin/users/{id}/action` (`action: "remove_warning"`) | TBD | |
-| ADM-24 | Action dialog: cancel; Confirm stays disabled until a reason is typed | app/admin/page.tsx:1282 | Button `Cancel`; button `Confirm` | none | TBD | |
-| ADM-25 | Action error | app/admin/page.tsx:378, 434 | Native `alert()` starting `Error performing action:` or `Error removing action:` | none | TBD | |
-| ADM-26 | Open notes for a user | app/admin/page.tsx:323, 899 | Button `Notes` (count badge after the notes have been opened once); dialog title `Admin Notes` | `GET /admin/users/{id}/notes` | TBD | |
-| ADM-27 | Add a note | app/admin/page.tsx:337, 1323 | Label `Add a note` (`#new-note`), placeholder `Write a note about this user...`; the add button is icon-only (plus) with **no accessible name** | `POST /admin/users/{id}/notes` | TBD | |
-| ADM-28 | Edit a note | lib/api.ts:702 | **Not in the UI.** `api.admin.updateNote` exists in the client but nothing calls it | would be `PUT /admin/users/{id}/notes` (no such route in the committed backend; the working-tree backend adds one at `server/src/routes/admin.js:438`) | TBD | |
-| ADM-29 | Delete a note (no confirmation) | app/admin/page.tsx:353, 1356 | Icon-only trash button with **no accessible name** on each note | `DELETE /admin/users/{id}/notes?noteId={noteId}` | TBD | |
-| ADM-30 | Notes list and empty state | app/admin/page.tsx:1347 | Each note: its text, `By: {admin email}`, date and time; empty text `No notes for this user` | none | TBD | |
-| ADM-31 | Note error | app/admin/page.tsx:342, 358 | Native `alert()` starting `Could not save note:` or `Could not delete note:` | none | TBD | |
-| ADM-32 | Action history for a user | app/admin/page.tsx:318, 914, 1384 | Button `History`; dialog title `Action History`; each entry: action name, date and time, reason, `By: {admin email}`; empty text `No action history for this user` | none (comes with `GET /admin/users`) | TBD | |
-| ADM-33 | Empty state: no users match | app/admin/page.tsx:926 | Text `No users found` | none | TBD | |
+| ADM-10 | Load all users | app/admin/page.tsx:223 | Card title `User Management`; one row per user | `GET /admin/users` | Works (API test only) | [core.test](../server/tests/core.test.js) |
+| ADM-11 | Search users by name, email or ID | app/admin/page.tsx:731 | Placeholder `Search users by name, email, or ID...` | none (client filter) | Works (API test only) | [core.test](../server/tests/core.test.js) |
+| ADM-12 | Stat card / filter: Total Users | app/admin/page.tsx:743 | Clickable card (a `div`) with the count and text `Total Users` | none | Not verified |  |
+| ADM-13 | Stat card / filter: Active | app/admin/page.tsx:755 | Clickable card with text `Active` | none | Not verified |  |
+| ADM-14 | Stat card / filter: Suspended | app/admin/page.tsx:769 | Clickable card with text `Suspended` | none | Not verified |  |
+| ADM-15 | Stat card / filter: Banned | app/admin/page.tsx:783 | Clickable card with text `Banned` | none | Not verified |  |
+| ADM-16 | User row: avatar, name, status badge, email, joined and last-active dates | app/admin/page.tsx:298, 807 | Status badge `Active`, `Warned ({n})`, `Suspended` or `Banned`; text `Joined {date}` and `Last active {date}` | none | Not verified |  |
+| ADM-17 | Actions menu on a user row | app/admin/page.tsx:833 | Button `Actions` | none | Not verified |  |
+| ADM-18 | Warn a user | app/admin/page.tsx:311, 841 | Menu item `Warning` (shows the current warning count); dialog title `Issue Warning`; label `Reason for action` (`#reason`), placeholder `Provide a reason for this action...`; button `Confirm` | `POST /admin/users/{id}/action` (`action: "warn"`) | Works | [community.spec](../tests/e2e/community.spec.ts) [core.test](../server/tests/core.test.js) |
+| ADM-19 | Suspend a user | app/admin/page.tsx:855 | Menu item `Suspend`; dialog title `Suspend User`; reason; button `Confirm` | `POST /admin/users/{id}/action` (`action: "suspend"`) | Works (API test only) | [core.test](../server/tests/core.test.js) |
+| ADM-20 | Unsuspend a user (immediate, no dialog) | app/admin/page.tsx:420, 857 | On a suspended user the same menu item `Suspend` shows a tick; clicking it lifts the suspension | `POST /admin/users/{id}/action` (`action: "unsuspend"`) | Works (API test only) | [core.test](../server/tests/core.test.js) |
+| ADM-21 | Ban a user | app/admin/page.tsx:874 | Menu item `Ban`; dialog title `Ban User`; reason; button `Confirm` | `POST /admin/users/{id}/action` (`action: "ban"`) | Works (API test only) | [core.test](../server/tests/core.test.js) |
+| ADM-22 | Unban a user (immediate, no dialog) | app/admin/page.tsx:876 | On a banned user the same menu item `Ban` shows a tick; clicking it lifts the ban | `POST /admin/users/{id}/action` (`action: "unban"`) | Works (API test only) | [core.test](../server/tests/core.test.js) |
+| ADM-23 | Remove a warning | app/admin/page.tsx:420 | **Not in the UI.** `removeAction` supports `"warning"` but no control calls it; the `Warning` menu item only ever adds one | would be `POST /admin/users/{id}/action` (`action: "remove_warning"`) | Works (API test only) | [core.test](../server/tests/core.test.js) |
+| ADM-24 | Action dialog: cancel; Confirm stays disabled until a reason is typed | app/admin/page.tsx:1282 | Button `Cancel`; button `Confirm` | none | Not verified |  |
+| ADM-25 | Action error | app/admin/page.tsx:378, 434 | Native `alert()` starting `Error performing action:` or `Error removing action:` | none | Not verified |  |
+| ADM-26 | Open notes for a user | app/admin/page.tsx:323, 899 | Button `Notes` (count badge after the notes have been opened once); dialog title `Admin Notes` | `GET /admin/users/{id}/notes` | Works (API test only) | [core.test](../server/tests/core.test.js) |
+| ADM-27 | Add a note | app/admin/page.tsx:337, 1323 | Label `Add a note` (`#new-note`), placeholder `Write a note about this user...`; the add button is icon-only (plus) with **no accessible name** | `POST /admin/users/{id}/notes` | Works (API test only) | [core.test](../server/tests/core.test.js) |
+| ADM-28 | Edit a note | lib/api.ts:702 | **Not in the UI.** `api.admin.updateNote` exists in the client but nothing calls it | would be `PUT /admin/users/{id}/notes` (no such route in the committed backend; the working-tree backend adds one at `server/src/routes/admin.js:438`) | Fixed - the edit endpoint did not exist | [core.test](../server/tests/core.test.js) |
+| ADM-29 | Delete a note (no confirmation) | app/admin/page.tsx:353, 1356 | Icon-only trash button with **no accessible name** on each note | `DELETE /admin/users/{id}/notes?noteId={noteId}` | Works (API test only) | [core.test](../server/tests/core.test.js) |
+| ADM-30 | Notes list and empty state | app/admin/page.tsx:1347 | Each note: its text, `By: {admin email}`, date and time; empty text `No notes for this user` | none | Works (API test only) | [core.test](../server/tests/core.test.js) |
+| ADM-31 | Note error | app/admin/page.tsx:342, 358 | Native `alert()` starting `Could not save note:` or `Could not delete note:` | none | Not verified |  |
+| ADM-32 | Action history for a user | app/admin/page.tsx:318, 914, 1384 | Button `History`; dialog title `Action History`; each entry: action name, date and time, reason, `By: {admin email}`; empty text `No action history for this user` | none (comes with `GET /admin/users`) | Not verified |  |
+| ADM-33 | Empty state: no users match | app/admin/page.tsx:926 | Text `No users found` | none | Not verified |  |
 
 ### 17.2 Events tab
 
 | ID | Function | Where (file:line) | How a test finds it (visible text / aria-label / role / placeholder, exactly as in the code) | API call it makes | Status | Test |
 |---|---|---|---|---|---|---|
-| ADM-40 | Load events and event statistics | app/admin/page.tsx:238, 939 | Card title `Event Management`; stat cards `Total Events`, `Upcoming`, `Past`, `Cancelled` | `GET /events` | TBD | |
-| ADM-41 | Event row: image, title, category badge, Cancelled / Past badge, description, date range, location, attendance | app/admin/page.tsx:983 | Title text (struck through when cancelled); badges `Cancelled`, `Past`; text `{n} attending` or `{n}/{max} attending` | none | TBD | |
-| ADM-42 | Open the create-event dialog | app/admin/page.tsx:476, 976 | Button `Create Event`; in the empty state `Create Your First Event`; dialog title `Create New Event` | none | TBD | |
-| ADM-43 | Event form: title (required) | app/admin/page.tsx:1451 | Label `Event Title *` (`#event-title`), placeholder `e.g., Speed Dating Night` | none | TBD | |
-| ADM-44 | Event form: description | app/admin/page.tsx:1462 | Label `Description` (`#event-description`), placeholder `Describe the event...` | none | TBD | |
-| ADM-45 | Event form: start date and time (required) | app/admin/page.tsx:1474 | Labels `Start Date *` (`#event-start-date`), `Start Time *` (`#event-start-time`) | none | TBD | |
-| ADM-46 | Event form: end date and time | app/admin/page.tsx:1496 | Labels `End Date` (`#event-end-date`), `End Time` (`#event-end-time`) | none | TBD | |
-| ADM-47 | Event form: location (required) | app/admin/page.tsx:1518 | Label `Location *` (`#event-location`), placeholder `e.g., The Lounge Bar, San Francisco` | none | TBD | |
-| ADM-48 | Event form: category | app/admin/page.tsx:1530 | Label `Category`; combobox `#event-category`; options `Local Chapter Event`, `Regional`, `National`, `Dating`, `Outdoor`, `Food & Drink`, `Social`, `Fitness`, `Arts & Culture` | none | TBD | |
-| ADM-49 | Event form: maximum attendees | app/admin/page.tsx:1552 | Label `Max Attendees` (`#event-max-attendees`), placeholder `Leave blank for unlimited` | none | TBD | |
-| ADM-50 | Event form: upload a photo | app/admin/page.tsx:512, 1565 | Label `Upload Event Photo (optional)` (`#event-photo`, `type="file"`); text `Uploading...`; preview image `alt="Event preview"` | `POST /admin/events/photo` (multipart, field `photo`) | TBD | |
-| ADM-51 | Event form: remove the uploaded photo | app/admin/page.tsx:1589 | Icon-only trash button with **no accessible name** on the preview | none | TBD | |
-| ADM-52 | Create the event (disabled until title, start date, start time and location are filled) | app/admin/page.tsx:533, 1606 | Button `Create Event` inside the dialog | `POST /admin/events`, then `GET /events` | TBD | |
-| ADM-53 | Edit an event | app/admin/page.tsx:493, 1080 | Row button `Actions`, menu item `Edit`; dialog title `Edit Event`; button `Save Changes` | `PUT /admin/events/{id}`, then `GET /events` | TBD | |
-| ADM-54 | Event dialog: cancel | app/admin/page.tsx:1603 | Button `Cancel` | none | TBD | |
-| ADM-55 | Event save error | app/admin/page.tsx:566, 577 | Native `alert()` starting `Error updating event:` or `Error creating event:` | none | TBD | |
-| ADM-56 | Cancel an event (no confirmation) | app/admin/page.tsx:612, 1090 | Menu item `Cancel Event` | `PUT /admin/events/{id}/cancel`, then `GET /events` | TBD | |
-| ADM-57 | Restore a cancelled event | app/admin/page.tsx:619, 1085 | Menu item `Restore` | `PUT /admin/events/{id}/uncancel`, then `GET /events` | TBD | |
-| ADM-58 | Delete an event (no confirmation) | app/admin/page.tsx:605, 1099 | Menu item `Delete` | `DELETE /admin/events/{id}`, then `GET /events` | TBD | |
-| ADM-59 | View attendees | app/admin/page.tsx:628, 1057, 1618 | Button `Attendees` (count badge when above zero); dialog title `Event Attendees`; text `{n} attending` plus `of {max} spots`; each row name and email; empty text `No attendees yet` | `GET /admin/events/{id}/attendees` | TBD | |
-| ADM-60 | Hide / show an event | lib/api.ts:749 | **Not in the UI.** `api.admin.toggleEventVisibility` exists in the client but nothing calls it | would be `PUT /admin/events/{id}/toggle-visibility` (no such route in the committed backend; the working-tree backend adds one at `server/src/routes/admin.js:591`) | TBD | |
-| ADM-61 | Empty state: no events | app/admin/page.tsx:1113 | Text `No events yet` | none | TBD | |
+| ADM-40 | Load events and event statistics | app/admin/page.tsx:238, 939 | Card title `Event Management`; stat cards `Total Events`, `Upcoming`, `Past`, `Cancelled` | `GET /events` | Works (API test only) | [core.test](../server/tests/core.test.js) |
+| ADM-41 | Event row: image, title, category badge, Cancelled / Past badge, description, date range, location, attendance | app/admin/page.tsx:983 | Title text (struck through when cancelled); badges `Cancelled`, `Past`; text `{n} attending` or `{n}/{max} attending` | none | Not verified |  |
+| ADM-42 | Open the create-event dialog | app/admin/page.tsx:476, 976 | Button `Create Event`; in the empty state `Create Your First Event`; dialog title `Create New Event` | none | Not verified |  |
+| ADM-43 | Event form: title (required) | app/admin/page.tsx:1451 | Label `Event Title *` (`#event-title`), placeholder `e.g., Speed Dating Night` | none | Not verified |  |
+| ADM-44 | Event form: description | app/admin/page.tsx:1462 | Label `Description` (`#event-description`), placeholder `Describe the event...` | none | Not verified |  |
+| ADM-45 | Event form: start date and time (required) | app/admin/page.tsx:1474 | Labels `Start Date *` (`#event-start-date`), `Start Time *` (`#event-start-time`) | none | Not verified |  |
+| ADM-46 | Event form: end date and time | app/admin/page.tsx:1496 | Labels `End Date` (`#event-end-date`), `End Time` (`#event-end-time`) | none | Not verified |  |
+| ADM-47 | Event form: location (required) | app/admin/page.tsx:1518 | Label `Location *` (`#event-location`), placeholder `e.g., The Lounge Bar, San Francisco` | none | Not verified |  |
+| ADM-48 | Event form: category | app/admin/page.tsx:1530 | Label `Category`; combobox `#event-category`; options `Local Chapter Event`, `Regional`, `National`, `Dating`, `Outdoor`, `Food & Drink`, `Social`, `Fitness`, `Arts & Culture` | none | Not verified |  |
+| ADM-49 | Event form: maximum attendees | app/admin/page.tsx:1552 | Label `Max Attendees` (`#event-max-attendees`), placeholder `Leave blank for unlimited` | none | Not verified |  |
+| ADM-50 | Event form: upload a photo | app/admin/page.tsx:512, 1565 | Label `Upload Event Photo (optional)` (`#event-photo`, `type="file"`); text `Uploading...`; preview image `alt="Event preview"` | `POST /admin/events/photo` (multipart, field `photo`) | Works (API test only) | [core.test](../server/tests/core.test.js) |
+| ADM-51 | Event form: remove the uploaded photo | app/admin/page.tsx:1589 | Icon-only trash button with **no accessible name** on the preview | none | Not verified |  |
+| ADM-52 | Create the event (disabled until title, start date, start time and location are filled) | app/admin/page.tsx:533, 1606 | Button `Create Event` inside the dialog | `POST /admin/events`, then `GET /events` | Works (API test only) | [core.test](../server/tests/core.test.js) |
+| ADM-53 | Edit an event | app/admin/page.tsx:493, 1080 | Row button `Actions`, menu item `Edit`; dialog title `Edit Event`; button `Save Changes` | `PUT /admin/events/{id}`, then `GET /events` | Still broken - editing an evening event can shift its date by a day (UTC date + local time); server side is tested |  |
+| ADM-54 | Event dialog: cancel | app/admin/page.tsx:1603 | Button `Cancel` | none | Not verified |  |
+| ADM-55 | Event save error | app/admin/page.tsx:566, 577 | Native `alert()` starting `Error updating event:` or `Error creating event:` | none | Not verified |  |
+| ADM-56 | Cancel an event (no confirmation) | app/admin/page.tsx:612, 1090 | Menu item `Cancel Event` | `PUT /admin/events/{id}/cancel`, then `GET /events` | Works (API test only) | [core.test](../server/tests/core.test.js) |
+| ADM-57 | Restore a cancelled event | app/admin/page.tsx:619, 1085 | Menu item `Restore` | `PUT /admin/events/{id}/uncancel`, then `GET /events` | Works (API test only) | [core.test](../server/tests/core.test.js) |
+| ADM-58 | Delete an event (no confirmation) | app/admin/page.tsx:605, 1099 | Menu item `Delete` | `DELETE /admin/events/{id}`, then `GET /events` | Works (API test only) | [core.test](../server/tests/core.test.js) |
+| ADM-59 | View attendees | app/admin/page.tsx:628, 1057, 1618 | Button `Attendees` (count badge when above zero); dialog title `Event Attendees`; text `{n} attending` plus `of {max} spots`; each row name and email; empty text `No attendees yet` | `GET /admin/events/{id}/attendees` | Works (API test only) | [core.test](../server/tests/core.test.js) |
+| ADM-60 | Hide / show an event | lib/api.ts:749 | **Not in the UI.** `api.admin.toggleEventVisibility` exists in the client but nothing calls it | would be `PUT /admin/events/{id}/toggle-visibility` (no such route in the committed backend; the working-tree backend adds one at `server/src/routes/admin.js:591`) | Fixed - the hide/show endpoint did not exist | [core.test](../server/tests/core.test.js) |
+| ADM-61 | Empty state: no events | app/admin/page.tsx:1113 | Text `No events yet` | none | Not verified |  |
 
 ### 17.3 News tab
 
 | ID | Function | Where (file:line) | How a test finds it (visible text / aria-label / role / placeholder, exactly as in the code) | API call it makes | Status | Test |
 |---|---|---|---|---|---|---|
-| ADM-70 | Announcement title | app/admin/page.tsx:1139 | Card title `Post News to All Users`; label `Title` (`#news-title`), placeholder `e.g., New Feature Announcement` | none | TBD | |
-| ADM-71 | Announcement message | app/admin/page.tsx:1148 | Label `Message` (`#news-message`), placeholder `Write your announcement message here...` | none | TBD | |
-| ADM-72 | Post to all users (disabled until both fields are filled; no confirmation) | app/admin/page.tsx:1157 | Button `Post to All Users` | `POST /admin/news` | TBD | |
-| ADM-73 | Post error | app/admin/page.tsx:1173 | Native `alert()` starting `Error posting announcement:` | none | TBD | |
-| ADM-74 | Previous announcements list | app/admin/page.tsx:245, 1191 | Card title `Previous Announcements`; each item: title, message, date and time | `GET /admin/news` | TBD | |
-| ADM-75 | Delete an announcement | app/admin/page.tsx:1222 | Icon-only trash button with **no accessible name** on each item | none (removes it from the screen only) | TBD | |
-| ADM-76 | Empty state: no announcements | app/admin/page.tsx:1233 | Text `No announcements posted yet` | none | TBD | |
-| ADM-77 | Review member reports | server/src/routes/admin.js:750 | **Not in the UI.** The server has `GET /admin/reports` and `PUT /admin/reports/{id}` but the admin page has no Reports tab and `lib/api.ts` has no client for them | none | TBD | |
+| ADM-70 | Announcement title | app/admin/page.tsx:1139 | Card title `Post News to All Users`; label `Title` (`#news-title`), placeholder `e.g., New Feature Announcement` | none | Works | [community.spec](../tests/e2e/community.spec.ts) [core.test](../server/tests/core.test.js) |
+| ADM-71 | Announcement message | app/admin/page.tsx:1148 | Label `Message` (`#news-message`), placeholder `Write your announcement message here...` | none | Works | [community.spec](../tests/e2e/community.spec.ts) [core.test](../server/tests/core.test.js) |
+| ADM-72 | Post to all users (disabled until both fields are filled; no confirmation) | app/admin/page.tsx:1157 | Button `Post to All Users` | `POST /admin/news` | Works | [community.spec](../tests/e2e/community.spec.ts) [core.test](../server/tests/core.test.js) |
+| ADM-73 | Post error | app/admin/page.tsx:1173 | Native `alert()` starting `Error posting announcement:` | none | Not verified |  |
+| ADM-74 | Previous announcements list | app/admin/page.tsx:245, 1191 | Card title `Previous Announcements`; each item: title, message, date and time | `GET /admin/news` | Works | [community.spec](../tests/e2e/community.spec.ts) [core.test](../server/tests/core.test.js) |
+| ADM-75 | Delete an announcement | app/admin/page.tsx:1222 | Icon-only trash button with **no accessible name** on each item | none (removes it from the screen only) | Fixed - only removed the row on screen; the announcement stayed in every inbox | [community.spec](../tests/e2e/community.spec.ts) [core.test](../server/tests/core.test.js) |
+| ADM-76 | Empty state: no announcements | app/admin/page.tsx:1233 | Text `No announcements posted yet` | none | Not verified |  |
+| ADM-77 | Review member reports | server/src/routes/admin.js:750 | **Not in the UI.** The server has `GET /admin/reports` and `PUT /admin/reports/{id}` but the admin page has no Reports tab and `lib/api.ts` has no client for them | none | Fixed - reports had no admin screen at all | [community.spec](../tests/e2e/community.spec.ts) |
 
 ## 18. Global
 
@@ -639,23 +681,23 @@ Files: `components/protected-route.tsx`, `components/realtime-provider.tsx`, `li
 
 | ID | Function | Where (file:line) | How a test finds it (visible text / aria-label / role / placeholder, exactly as in the code) | API call it makes | Status | Test |
 |---|---|---|---|---|---|---|
-| GLB-01 | Signed-out visitor to any app page is sent to login | components/protected-route.tsx:40 | Spinner, then URL becomes `/login` | none | TBD | |
-| GLB-02 | Session timeout after 8 hours (checked when a protected page mounts) | lib/store/auth-store.ts:114, 207; components/protected-route.tsx:37 | Seed `spark-auth` with a `sessionTimestamp` more than 8 hours old, open `/browse`; URL becomes `/login` | none | TBD | |
-| GLB-03 | Banned / suspended modal | components/protected-route.tsx:50, 78 | Alert dialog title `Account Suspended or Banned`; text `Your account has been suspended or banned. Please contact d8lpa.community@gmail.com for more info.`; button `Go to Login` (no cancel, no X) | `GET /auth/me` | TBD | |
-| GLB-04 | Session is cleared when the server says the account is suspended or banned | lib/api.ts:64 | `localStorage` key `spark-auth` removed after a 403 containing `suspended or banned` | n/a | TBD | |
-| GLB-05 | Session elsewhere is ended when the account is disabled or deleted | lib/api.ts:73 | URL becomes `/login` after a 403 containing `disabled` or `deleted` | n/a | TBD | |
-| GLB-06 | Nav badge counts are loaded at sign-in / page load | components/realtime-provider.tsx:51, 97 | Badges on `Messages`, `Matches`, `Notifications`, `Events` | `GET /matches`, `GET /messages`, `GET /notifications` | TBD | |
-| GLB-07 | Live badge: a new message bumps the Messages badge (or re-reads the true count when already on Messages) | components/realtime-provider.tsx:147, 154 | Send a message from a second context; the badge on `Messages` / `Chat` increases without reload | socket event `new-notification` (`type: "message"`) | TBD | |
-| GLB-08 | Live badge: a new match bumps Matches and Notifications | components/realtime-provider.tsx:163 | Like back from a second context; the badges on `Matches` and `Notifications` increase without reload. The committed backend never sends this ping; the working-tree backend does (see defects 39 and 49) | socket event `new-notification` (`type: "match"`) | TBD | |
-| GLB-09 | Live badge: a new event bumps Events and Notifications | components/realtime-provider.tsx:167 | Client handler exists, but no version of the backend that was read sends an `event` ping (see defect 39) | socket event `new-notification` (`type: "event"`) | TBD | |
-| GLB-10 | Badges clear when the matching page is visited | components/realtime-provider.tsx:187 | Window events `notificationsRead`, `messagesViewed`, `matchesViewed`, `eventsViewed` fired by the pages | `GET /matches`, `GET /messages`, `GET /notifications` on the first two events | TBD | |
-| GLB-11 | Notification chime on a live ping, when sound is on | components/realtime-provider.tsx:149; lib/notification-sound.ts:50 | No DOM output; stub `window.AudioContext` and assert an oscillator is created | `GET /settings` (reads the preference at sign-in) | TBD | |
-| GLB-12 | Audio is unlocked on the first click or key press | components/realtime-provider.tsx:123 | No DOM output | none | TBD | |
-| GLB-13 | Realtime connection joins the member's room and re-joins after a reconnect | components/realtime-provider.tsx:135 | Socket emits `join` with the user id | socket | TBD | |
-| GLB-14 | Network failure message | lib/api.ts:88 | Any screen that shows API errors displays `Network error. Please try again.` | n/a | TBD | |
-| GLB-15 | Toast container | app/layout.tsx:48 | Sonner toaster; toasts are only raised from the Settings page | none | TBD | |
-| GLB-16 | Development banner | components/dev-banner.tsx:11 | Text `Development Mode` and `- This is a development environment` (only when `NODE_ENV` is `development`) | none | TBD | |
-| GLB-17 | Browser tab title | app/layout.tsx:16 | Title `D8-LPA - Find Your Connection` | none | TBD | |
+| GLB-01 | Signed-out visitor to any app page is sent to login | components/protected-route.tsx:40 | Spinner, then URL becomes `/login` | none | Works | [auth.spec](../tests/e2e/auth.spec.ts) [chat.spec](../tests/e2e/chat.spec.ts) |
+| GLB-02 | Session timeout after 8 hours (checked when a protected page mounts) | lib/store/auth-store.ts:114, 207; components/protected-route.tsx:37 | Seed `spark-auth` with a `sessionTimestamp` more than 8 hours old, open `/browse`; URL becomes `/login` | none | Fixed - using the app now keeps the session alive; not automated |  |
+| GLB-03 | Banned / suspended modal | components/protected-route.tsx:50, 78 | Alert dialog title `Account Suspended or Banned`; text `Your account has been suspended or banned. Please contact d8lpa.community@gmail.com for more info.`; button `Go to Login` (no cancel, no X) | `GET /auth/me` | Fixed - the explanation dialog never appeared (message mismatch + redirect race) | [community.spec](../tests/e2e/community.spec.ts) |
+| GLB-04 | Session is cleared when the server says the account is suspended or banned | lib/api.ts:64 | `localStorage` key `spark-auth` removed after a 403 containing `suspended or banned` | n/a | Fixed - the explanation dialog never appeared (message mismatch + redirect race) | [community.spec](../tests/e2e/community.spec.ts) |
+| GLB-05 | Session elsewhere is ended when the account is disabled or deleted | lib/api.ts:73 | URL becomes `/login` after a 403 containing `disabled` or `deleted` | n/a | Works (API test only) | [core.test](../server/tests/core.test.js) |
+| GLB-06 | Nav badge counts are loaded at sign-in / page load | components/realtime-provider.tsx:51, 97 | Badges on `Messages`, `Matches`, `Notifications`, `Events` | `GET /matches`, `GET /messages`, `GET /notifications` | Works | [auth.spec](../tests/e2e/auth.spec.ts) [chat.spec](../tests/e2e/chat.spec.ts) |
+| GLB-07 | Live badge: a new message bumps the Messages badge (or re-reads the true count when already on Messages) | components/realtime-provider.tsx:147, 154 | Send a message from a second context; the badge on `Messages` / `Chat` increases without reload | socket event `new-notification` (`type: "message"`) | Works | [auth.spec](../tests/e2e/auth.spec.ts) [chat.spec](../tests/e2e/chat.spec.ts) |
+| GLB-08 | Live badge: a new match bumps Matches and Notifications | components/realtime-provider.tsx:163 | Like back from a second context; the badges on `Matches` and `Notifications` increase without reload. The committed backend never sends this ping; the working-tree backend does (see defects 39 and 49) | socket event `new-notification` (`type: "match"`) | Fixed - the server never sent the live "match" ping | [community.spec](../tests/e2e/community.spec.ts) [sockets.test](../server/tests/sockets.test.js) |
+| GLB-09 | Live badge: a new event bumps Events and Notifications | components/realtime-provider.tsx:167 | Client handler exists, but no version of the backend that was read sends an `event` ping (see defect 39) | socket event `new-notification` (`type: "event"`) | Fixed - the server never sent the live "event" ping; UI not automated | [core.test](../server/tests/core.test.js) |
+| GLB-10 | Badges clear when the matching page is visited | components/realtime-provider.tsx:187 | Window events `notificationsRead`, `messagesViewed`, `matchesViewed`, `eventsViewed` fired by the pages | `GET /matches`, `GET /messages`, `GET /notifications` on the first two events | Works | [auth.spec](../tests/e2e/auth.spec.ts) [chat.spec](../tests/e2e/chat.spec.ts) |
+| GLB-11 | Notification chime on a live ping, when sound is on | components/realtime-provider.tsx:149; lib/notification-sound.ts:50 | No DOM output; stub `window.AudioContext` and assert an oscillator is created | `GET /settings` (reads the preference at sign-in) | Works | [auth.spec](../tests/e2e/auth.spec.ts) [chat.spec](../tests/e2e/chat.spec.ts) |
+| GLB-12 | Audio is unlocked on the first click or key press | components/realtime-provider.tsx:123 | No DOM output | none | Not verified |  |
+| GLB-13 | Realtime connection joins the member's room and re-joins after a reconnect | components/realtime-provider.tsx:135 | Socket emits `join` with the user id | socket | Fixed - anyone could join any member's room; connection now needs the member's token | [sockets.test](../server/tests/sockets.test.js) |
+| GLB-14 | Network failure message | lib/api.ts:88 | Any screen that shows API errors displays `Network error. Please try again.` | n/a | Fixed - plain-language network message; load-error states | [settings.spec](../tests/e2e/settings.spec.ts) |
+| GLB-15 | Toast container | app/layout.tsx:48 | Sonner toaster; toasts are only raised from the Settings page | none | Works | [auth.spec](../tests/e2e/auth.spec.ts) [chat.spec](../tests/e2e/chat.spec.ts) |
+| GLB-16 | Development banner | components/dev-banner.tsx:11 | Text `Development Mode` and `- This is a development environment` (only when `NODE_ENV` is `development`) | none | Not verified |  |
+| GLB-17 | Browser tab title | app/layout.tsx:16 | Title `D8-LPA - Find Your Connection` | none | Fixed - title no longer says "generator: v0" | [screenshots](screenshots/) |
 
 ---
 

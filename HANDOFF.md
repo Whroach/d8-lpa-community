@@ -19,7 +19,7 @@ The repo is public and its history holds a production database connection string
 3. **Design review was partial** - see the "Limits" paragraph in `docs/DESIGN-REVIEW.md`. Onboarding, profile editor, admin and dialogs were not reviewed.
 4. **Roadmap items not built:** profile-completeness helper, photo tips / cropping, in-app event reminders, interest groups. See `ROADMAP.md`.
 5. **Not done:** removing unused UI components and unused root dependencies (`express`, `mongoose`, `@aws-sdk/client-s3`, `recharts`... are no longer imported by the website); `lib/mock-data.ts` and the `USE_MOCK_DATA` branches in `lib/api.ts` are dead but still there.
-6. **CI workflow** (`.github/workflows/ci.yml`) is written but has never run; expect to adjust it on first run.
+6. **CI workflow** (`.github/workflows/ci.yml`) ran green on the pull request (both jobs).
 7. With `ENFORCE_EMAIL_VERIFICATION=true` the login page does not yet take the member to the code screen.
 
 ## Useful to know

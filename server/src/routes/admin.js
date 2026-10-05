@@ -86,6 +86,21 @@ const checkAdmin = async (req, res, next) => {
   next();
 };
 
+// The older one-purpose routes below (warn / suspend / ban) had no guard, so
+// an admin could suspend or ban themselves or another admin through them and
+// lock the panel. Same rule as the generic action route.
+const notOnAdmins = async (req, res, next) => {
+  try {
+    const target = await User.findById(req.params.userId).select('role');
+    if (target && (target.role === 'admin' || target._id.toString() === req.userId.toString())) {
+      return res.status(400).json({ message: 'This action cannot be used on an admin account.' });
+    }
+    next();
+  } catch (error) {
+    res.status(500).json({ message: 'Error performing user action' });
+  }
+};
+
 // GET /api/admin/users
 router.use('/users/:userId', validateIdParams('userId'));
 router.use('/events/:eventId', (req, res, next) =>
@@ -159,7 +174,7 @@ router.get('/users', auth, checkAdmin, async (req, res) => {
 });
 
 // PUT /api/admin/users/:userId/warn
-router.put('/users/:userId/warn', auth, checkAdmin, async (req, res) => {
+router.put('/users/:userId/warn', auth, checkAdmin, notOnAdmins, async (req, res) => {
   try {
     const { reason } = req.body;
     const user = await User.findById(req.params.userId);
@@ -188,7 +203,7 @@ router.put('/users/:userId/warn', auth, checkAdmin, async (req, res) => {
 });
 
 // PUT /api/admin/users/:userId/suspend
-router.put('/users/:userId/suspend', auth, checkAdmin, async (req, res) => {
+router.put('/users/:userId/suspend', auth, checkAdmin, notOnAdmins, async (req, res) => {
   try {
     const { reason, duration } = req.body;
     const user = await User.findById(req.params.userId);
@@ -236,7 +251,7 @@ router.put('/users/:userId/unsuspend', auth, checkAdmin, async (req, res) => {
 });
 
 // PUT /api/admin/users/:userId/ban
-router.put('/users/:userId/ban', auth, checkAdmin, async (req, res) => {
+router.put('/users/:userId/ban', auth, checkAdmin, notOnAdmins, async (req, res) => {
   try {
     const { reason } = req.body;
     const user = await User.findById(req.params.userId);

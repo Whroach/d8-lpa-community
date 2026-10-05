@@ -413,3 +413,105 @@ test.describe("My Profile: photos", () => {
     await page.context().close()
   })
 })
+
+test.describe("My Profile: completeness helper", () => {
+  test("HELP: shows the percentage and next steps; an example fills the field; saving raises the percentage; Hide is remembered", async ({ browser, request }) => {
+    const me = await createMember(request, { interests: ["Gardening", "Cooking", "Travel"] })
+    const page = await signedInPage(browser, me, "/profile")
+    const card = page.getByTestId("completeness")
+    // A new member has a bio and three interests: 25%.
+    await expect(card.getByRole("heading", { name: "Your profile is 25% complete" })).toBeVisible()
+    await expect(card.getByRole("progressbar", { name: "Profile completeness" })).toHaveAttribute("aria-valuenow", "25")
+    await expect(card.getByText("Only you see this.")).toBeVisible()
+    await expect(card.getByRole("listitem")).toHaveCount(3)
+    await expect(card.getByTestId("suggestion-photo")).toContainText("A photo helps other members recognise you at events.")
+
+    // "Add this" on the photo opens the photo manager.
+    await card.getByRole("button", { name: "Add this: Add a photo" }).click()
+    await expect(page.getByRole("dialog", { name: "Manage Photos" })).toBeVisible()
+    await page.getByRole("dialog", { name: "Manage Photos" }).getByRole("button", { name: "Done" }).click()
+
+    // "Add this" on a choice opens the editor at that choice.
+    await card.getByRole("button", { name: "Add this: Say what you are looking for" }).click()
+    await expect(page.getByRole("button", { name: "Friendship", exact: true })).toBeFocused()
+    await expect(card).toBeHidden() // out of the way while editing
+    await page.getByRole("button", { name: "Friendship", exact: true }).press("Enter")
+    await page.getByRole("button", { name: "Save", exact: true }).click()
+    await expect(page.getByText("Profile saved")).toBeVisible()
+    await expect(card.getByRole("heading", { name: "Your profile is 35% complete" })).toBeVisible()
+
+    // An example answer is a starting point: it fills the field, focused, ready to change.
+    const example = "Finding the best pie in any town"
+    await card.getByTestId("suggestion-prompt_good_at").getByRole("button", { name: new RegExp(example) }).click()
+    const field = page.getByRole("textbox", { name: "I'm weirdly good at...", exact: true })
+    await expect(field).toHaveValue(example)
+    await expect(field).toBeFocused()
+    await field.fill(example + " - and eating it")
+    await page.getByRole("button", { name: "Save", exact: true }).click()
+    await expect(card.getByRole("heading", { name: "Your profile is 45% complete" })).toBeVisible()
+    const stored = await (await request.get(`${API}/users/profile`, { headers: authHeaders(me.token) })).json()
+    expect(stored.profile.prompt_good_at).toBe(example + " - and eating it")
+
+    // An example that is not wanted is thrown away with Cancel.
+    await card.getByTestId("suggestion-prompt_perfect_weekend").getByRole("button").nth(1).click()
+    await page.getByRole("button", { name: "Cancel" }).click()
+    await page.getByRole("dialog", { name: "Discard your changes?" }).getByRole("button", { name: "Discard changes" }).click()
+    await expect(card.getByRole("heading", { name: "Your profile is 45% complete" })).toBeVisible()
+
+    await card.getByRole("button", { name: "Hide for now" }).click()
+    await expect(card).toHaveCount(0)
+    await page.reload()
+    await expect(page.getByTestId("my-name")).toBeVisible()
+    await expect(page.getByTestId("completeness")).toHaveCount(0)
+    await page.context().close()
+  })
+
+  test("HELP: a complete profile shows no helper, and other members never see one", async ({ browser, request }) => {
+    const me = await createMember(request, { firstName: "Lena", interests: ["Gardening", "Cooking", "Travel"] })
+    const viewer = await createMember(request)
+    await updateProfile(request, me, {
+      looking_for_description: ["Friendship"], occupation: "Baker", languages: ["English"],
+      prompt_good_at: "Bread", prompt_perfect_weekend: "Markets", prompt_message_if: "You bake", hoping_to_find: "Friends",
+    })
+    const page = await signedInPage(browser, me, "/profile")
+    await expect(page.getByRole("heading", { name: "Your profile is 80% complete" })).toBeVisible() // only the photo is missing
+    await expect(page.getByTestId("completeness").getByText("One thing would finish it:")).toBeVisible()
+    const res = await request.post(`${API}/users/photos`, {
+      headers: authHeaders(me.token),
+      multipart: { photo: { name: "p.png", mimeType: "image/png", buffer: await makePng(page, 240, 300) } },
+    })
+    expect(res.ok()).toBeTruthy()
+    await page.reload()
+    await expect(page.getByTestId("my-name")).toContainText("Lena")
+    await expect(page.getByTestId("completeness")).toHaveCount(0)
+
+    const other = await signedInPage(browser, viewer, `/profile/${me.id}`)
+    await expect(other.getByRole("heading", { name: "Lena", level: 1 })).toBeVisible()
+    await expect(other.getByText(/% complete/)).toHaveCount(0)
+    await other.context().close()
+    await page.context().close()
+  })
+})
+
+test.describe("My Profile: drag to reorder", () => {
+  test("PRO-59: dragging a photo onto another changes the order and saves it", async ({ browser, request }) => {
+    const me = await createMember(request)
+    const page = await signedInPage(browser, me, "/profile")
+    for (const colour of ["#2f6f4f", "#8a5a2b"]) {
+      const res = await request.post(`${API}/users/photos`, {
+        headers: authHeaders(me.token),
+        multipart: { photo: { name: "p.png", mimeType: "image/png", buffer: await makePng(page, 240, 300, colour) } },
+      })
+      expect(res.ok()).toBeTruthy()
+    }
+    const order = async () => (await (await request.get(`${API}/users/profile`, { headers: authHeaders(me.token) })).json()).profile.photos as string[]
+    const [first, second] = await order()
+    await page.reload()
+    await page.getByRole("button", { name: "Manage Photos", exact: true }).click()
+    const tiles = page.getByRole("dialog", { name: "Manage Photos" }).getByTestId("managed-photo")
+    await expect(tiles).toHaveCount(2)
+    await tiles.nth(1).dragTo(tiles.nth(0))
+    await expect.poll(order).toEqual([second, first])
+    await page.context().close()
+  })
+})

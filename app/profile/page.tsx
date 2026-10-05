@@ -7,6 +7,7 @@ import { useRouter } from "next/navigation"
 import { toast } from "sonner"
 import { LoadError } from "@/components/load-error"
 import { PhotoCropDialog, PHOTO_TIPS } from "@/components/profile/photo-crop-dialog"
+import { profileCompleteness, type CompletenessItem } from "@/lib/profile-completeness"
 import Image from "next/image"
 import Link from "next/link"
 import {
@@ -580,6 +581,54 @@ function ProfilePage() {
 
   const handleAddPhoto = () => fileInputRef.current?.click()
 
+  // ---- "Your profile is N% complete" ------------------------------------
+  const HIDE_KEY = "d8lpa-hide-completeness"
+  const [helperHidden, setHelperHidden] = useState(false)
+  useEffect(() => {
+    try {
+      setHelperHidden(localStorage.getItem(HIDE_KEY) === "1")
+    } catch {
+      // private browsing: the card simply shows
+    }
+  }, [])
+  const completeness = useMemo(
+    () => profileCompleteness({ ...(profile || {}), photos }),
+    [profile, photos]
+  )
+
+  const FIELD_FOR: Partial<Record<CompletenessItem["key"], { form?: keyof ProfileForm; label?: string; chip?: string }>> = {
+    bio: { form: "bio", label: "About me" },
+    interests: { label: "Add your own interest" },
+    looking_for: { chip: "Friendship" },
+    prompt_good_at: { form: "prompt_good_at", label: "I'm weirdly good at..." },
+    prompt_perfect_weekend: { form: "prompt_perfect_weekend", label: "My perfect weekend..." },
+    hoping_to_find: { form: "hoping_to_find", label: "What are you hoping to find on this site?" },
+    prompt_message_if: { form: "prompt_message_if", label: "Message me if..." },
+    languages: { chip: "English" },
+    occupation: { label: "Occupation" },
+  }
+
+  /** Opens the editor at the field for this suggestion, optionally with an example filled in. */
+  const startOn = (item: CompletenessItem, example?: string) => {
+    if (item.key === "photo") {
+      setShowPhotoManager(true)
+      return
+    }
+    const target = FIELD_FOR[item.key]
+    if (!target) return
+    setIsEditing(true)
+    if (example && target.form) setFormData((prev) => ({ ...prev, [target.form as string]: example }))
+    window.setTimeout(() => {
+      const el = target.label
+        ? document.querySelector<HTMLElement>(`[aria-label="${target.label}"]`)
+        : Array.from(document.querySelectorAll<HTMLElement>('[role="button"][aria-pressed]')).find(
+            (node) => node.textContent?.trim() === target.chip
+          )
+      el?.scrollIntoView({ block: "center" })
+      el?.focus()
+    }, 100)
+  }
+
   // A picture was chosen: check it, then show the tips and the crop step.
   const handleFileChosen = (file: File | undefined) => {
     if (!file) return
@@ -647,19 +696,6 @@ function ProfilePage() {
 
         {!isLoadingProfile && !loadError && (
           <>
-            {/* Profile Incomplete Warning */}
-            {!user?.onboarding_completed && (
-              <div className="mb-6 flex items-center gap-3 p-4 rounded-lg bg-amber-50 border border-amber-200 text-amber-800">
-                <AlertTriangle className="h-5 w-5 shrink-0 text-amber-600" />
-                <div className="flex-1">
-                  <p className="font-medium">Complete Your Profile</p>
-                  <p className="text-sm text-amber-700">
-                    Add more details to your profile to increase your visibility and get more matches.
-                  </p>
-                </div>
-              </div>
-            )}
-
             {/* Header */}
             <div className="flex flex-wrap items-center justify-between gap-3 mb-8">
               <div>
@@ -695,6 +731,77 @@ function ProfilePage() {
             )}
           </div>
         </div>
+
+        {!isEditing && !helperHidden && completeness.percent < 100 && (
+          <section aria-labelledby="completeness-title" data-testid="completeness" className="mb-6 rounded-xl border-2 border-primary/40 bg-card p-5">
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <h2 id="completeness-title" className="text-xl font-semibold">
+                Your profile is {completeness.percent}% complete
+              </h2>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => {
+                  setHelperHidden(true)
+                  try {
+                    localStorage.setItem(HIDE_KEY, "1")
+                  } catch {
+                    // not remembered; that is all
+                  }
+                }}
+              >
+                Hide for now
+              </Button>
+            </div>
+            <div
+              role="progressbar"
+              aria-label="Profile completeness"
+              aria-valuemin={0}
+              aria-valuemax={100}
+              aria-valuenow={completeness.percent}
+              aria-valuetext={`${completeness.percent} percent`}
+              className="mt-3 h-3 w-full overflow-hidden rounded-full bg-muted"
+            >
+              <div className="h-full rounded-full bg-primary" style={{ width: `${completeness.percent}%` }} />
+            </div>
+            <p className="mt-3 text-muted-foreground">
+              Only you see this. {completeness.missing.length === 1 ? "One thing would finish it:" : "Next, you could:"}
+            </p>
+            <ul className="mt-3 space-y-4">
+              {completeness.missing.slice(0, 3).map((item) => (
+                <li key={item.key} data-testid={`suggestion-${item.key}`} className="rounded-lg border border-border p-3">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <div className="min-w-0 flex-1">
+                      <p className="font-semibold">{item.label}</p>
+                      <p className="text-muted-foreground">{item.reason}</p>
+                    </div>
+                    <Button size="sm" onClick={() => startOn(item)} aria-label={`Add this: ${item.label}`}>
+                      Add this
+                    </Button>
+                  </div>
+                  {item.examples && (
+                    <div className="mt-3">
+                      <p className="text-sm font-medium">Stuck for words? Start from an example and make it yours:</p>
+                      <div className="mt-2 flex flex-col gap-2">
+                        {item.examples.map((example) => (
+                          <Button
+                            key={example}
+                            type="button"
+                            variant="outline"
+                            className="h-auto min-h-11 justify-start whitespace-normal py-2 text-left font-normal"
+                            onClick={() => startOn(item, example)}
+                          >
+                            &ldquo;{example}&rdquo;
+                          </Button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </li>
+              ))}
+            </ul>
+          </section>
+        )}
 
         {saveError && (
           <div role="alert" className="mb-6 flex items-start gap-3 p-4 rounded-lg bg-card border-2 border-destructive/50">

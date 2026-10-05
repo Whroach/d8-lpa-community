@@ -570,9 +570,39 @@ router.put('/events/:eventId', auth, checkAdmin, async (req, res) => {
       return res.status(400).json({ message: problem });
     }
 
+    // An empty value means "clear this": no end time, no limit on places, no
+    // photo. (These used to be ignored, so an end time or a photo could never
+    // be removed from an event once set.)
+    const unset = {};
+    for (const key of ['end_date', 'max_attendees', 'image']) {
+      if (req.body?.[key] === '' || req.body?.[key] === null) {
+        unset[key] = 1;
+        delete fields[key];
+      }
+    }
+    for (const key of Object.keys(fields)) {
+      if (fields[key] === undefined) delete fields[key];
+    }
+    // The end must still come after the start when only one of them changes.
+    if ((fields.start_date || fields.end_date) && !unset.end_date) {
+      const current = await Event.findById(req.params.eventId).select('start_date end_date');
+      if (!current) {
+        return res.status(404).json({ message: 'Event not found' });
+      }
+      const start = new Date(fields.start_date || current.start_date);
+      const end = fields.end_date ? new Date(fields.end_date) : current.end_date;
+      if (end && end < start) {
+        return res.status(400).json({ message: 'The event cannot end before it starts.' });
+      }
+    }
+
+    const update = {};
+    if (Object.keys(fields).length > 0) update.$set = fields;
+    if (Object.keys(unset).length > 0) update.$unset = unset;
+
     const event = await Event.findByIdAndUpdate(
       req.params.eventId,
-      { $set: fields },
+      update,
       { new: true, runValidators: true }
     );
 

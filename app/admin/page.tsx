@@ -57,6 +57,7 @@ import { AdminReports } from "@/components/admin-reports"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { cn } from "@/lib/utils"
 import { useAuthStore } from "@/lib/store/auth-store"
+import { instantToSave, localTimeExists, toLocalDateInput, toLocalTimeInput } from "@/lib/event-dates"
 
 interface AdminUser {
   id: string
@@ -190,6 +191,8 @@ function AdminDashboard() {
   const [selectedEvent, setSelectedEvent] = useState<AdminEvent | null>(null)
   const [editingEvent, setEditingEvent] = useState<AdminEvent | null>(null)
   const [isUploadingPhoto, setIsUploadingPhoto] = useState(false)
+  const [eventFormError, setEventFormError] = useState("")
+  const [isSavingEvent, setIsSavingEvent] = useState(false)
   const [attendees, setAttendees] = useState<
     { id: string; first_name: string; last_name: string; email: string; photo: string | null }[]
   >([])
@@ -477,6 +480,7 @@ function AdminDashboard() {
   // Event management functions
   const openCreateEventDialog = () => {
     setEditingEvent(null)
+    setEventFormError("")
     setEventForm({
       title: "",
       description: "",
@@ -487,23 +491,27 @@ function AdminDashboard() {
       end_time: "",
       location: "",
       max_attendees: "",
-      category: "dating",
+      category: "local-chapter",
     })
     setShowEventDialog(true)
   }
 
   const openEditEventDialog = (event: AdminEvent) => {
     setEditingEvent(event)
+    setEventFormError("")
+    // Date AND time both come from this device's clock (see
+    // lib/event-dates.ts). The date used to come from the UTC calendar day,
+    // which moved evening events a day later on every save.
     const startDate = new Date(event.start_date)
     const endDate = event.end_date ? new Date(event.end_date) : null
     setEventForm({
       title: event.title,
-      description: event.description,
+      description: event.description || "",
       image: event.image || "",
-      start_date: startDate.toISOString().split("T")[0],
-      start_time: startDate.toTimeString().slice(0, 5),
-      end_date: endDate ? endDate.toISOString().split("T")[0] : "",
-      end_time: endDate ? endDate.toTimeString().slice(0, 5) : "",
+      start_date: toLocalDateInput(startDate),
+      start_time: toLocalTimeInput(startDate),
+      end_date: endDate ? toLocalDateInput(endDate) : "",
+      end_time: endDate ? toLocalTimeInput(endDate) : "",
       location: event.location,
       max_attendees: event.max_attendees?.toString() || "",
       category: event.category || "dating",
@@ -533,75 +541,82 @@ function AdminDashboard() {
   }
 
   const saveEvent = async () => {
-    if (!eventForm.title || !eventForm.start_date || !eventForm.start_time || !eventForm.location) {
-      console.error('Missing required fields:', { 
-        title: eventForm.title, 
-        start_date: eventForm.start_date, 
-        start_time: eventForm.start_time, 
-        location: eventForm.location 
-      })
+    if (!eventForm.title.trim() || !eventForm.start_date || !eventForm.start_time || !eventForm.location.trim()) {
+      setEventFormError("Please fill in the title, start date, start time and location.")
       return
     }
 
-    try {
-      const startDateTime = new Date(`${eventForm.start_date}T${eventForm.start_time}:00`)
-      const endDateTime = eventForm.end_date && eventForm.end_time 
-        ? new Date(`${eventForm.end_date}T${eventForm.end_time}:00`)
-        : null
-
-      const eventData = {
-        title: eventForm.title,
-        description: eventForm.description,
-        image: eventForm.image || undefined,
-        start_date: startDateTime.toISOString(),
-        end_date: endDateTime?.toISOString(),
-        location: eventForm.location,
-        max_attendees: eventForm.max_attendees ? parseInt(eventForm.max_attendees) : undefined,
-        category: eventForm.category,
-      }
-
-      if (editingEvent) {
-        // Update existing event
-        const result = await api.admin.updateEvent(editingEvent.id, eventData)
-        if (result.error) {
-          console.error('Error updating event:', result.error)
-          alert(`Error updating event: ${result.error}`)
-          return
-        }
-        if (result.data) {
-          await loadEvents()
-        }
-      } else {
-        // Create new event
-        const result = await api.admin.createEvent(eventData)
-        if (result.error) {
-          console.error('Error creating event:', result.error)
-          alert(`Error creating event: ${result.error}`)
-          return
-        }
-        if (result.data) {
-          await loadEvents()
-        }
-      }
-
-      setShowEventDialog(false)
-      setEditingEvent(null)
-      setEventForm({
-        title: "",
-        description: "",
-        image: "",
-        start_date: "",
-        start_time: "",
-        end_date: "",
-        end_time: "",
-        location: "",
-        max_attendees: "",
-        category: "local-chapter",
-      })
-    } catch (error) {
-      console.error('Exception in saveEvent:', error)
-      alert(`Error: ${error instanceof Error ? error.message : String(error)}`)
+    // What the admin types is the date and time on their own device; it is
+    // saved as one exact moment. See lib/event-dates.ts for the convention.
+    if (!localTimeExists(eventForm.start_date, eventForm.start_time)) {
+      setEventFormError("That start time does not exist on that day (the clocks change). Please choose another time.")
+      return
     }
+    const startIso = instantToSave(eventForm.start_date, eventForm.start_time, editingEvent?.start_date)
+    if (!startIso) {
+      setEventFormError("Please check the start date and time.")
+      return
+    }
+
+    // An end time on its own means "the same day". An end date on its own is
+    // not enough to go on.
+    let endIso: string | null = null
+    if (eventForm.end_date && !eventForm.end_time) {
+      setEventFormError("Please add an end time, or clear the end date.")
+      return
+    }
+    if (eventForm.end_time) {
+      const endDate = eventForm.end_date || eventForm.start_date
+      if (!localTimeExists(endDate, eventForm.end_time)) {
+        setEventFormError("That end time does not exist on that day (the clocks change). Please choose another time.")
+        return
+      }
+      endIso = instantToSave(endDate, eventForm.end_time, editingEvent?.end_date)
+      if (!endIso) {
+        setEventFormError("Please check the end date and time.")
+        return
+      }
+      if (new Date(endIso) < new Date(startIso)) {
+        setEventFormError("The event cannot end before it starts.")
+        return
+      }
+    }
+
+    const places = eventForm.max_attendees.trim()
+    if (places && (!/^\d+$/.test(places) || parseInt(places, 10) < 1)) {
+      setEventFormError("The number of places must be 1 or more. Leave it blank for no limit.")
+      return
+    }
+
+    const eventData = {
+      title: eventForm.title.trim(),
+      description: eventForm.description,
+      // An empty value clears the field when editing (removing the photo, the
+      // end time or the limit used to be ignored on save).
+      image: eventForm.image || (editingEvent ? "" : undefined),
+      start_date: startIso,
+      end_date: endIso || (editingEvent ? "" : undefined),
+      location: eventForm.location.trim(),
+      max_attendees: places ? parseInt(places, 10) : editingEvent ? "" : undefined,
+      category: eventForm.category,
+    }
+
+    setEventFormError("")
+    setIsSavingEvent(true)
+    const result = editingEvent
+      ? await api.admin.updateEvent(editingEvent.id, eventData)
+      : await api.admin.createEvent(eventData)
+    setIsSavingEvent(false)
+
+    if (result.error) {
+      setEventFormError(`The event was not saved. ${result.error}`)
+      return
+    }
+
+    await loadEvents()
+    toast.success(editingEvent ? "Event updated" : "Event created - members who want event notices have been told")
+    setShowEventDialog(false)
+    setEditingEvent(null)
   }
 
   const deleteEvent = async (eventId: string) => {
@@ -810,6 +825,7 @@ function AdminDashboard() {
                   {filteredUsers.map((user) => (
                     <div
                       key={user.id}
+                      data-testid="user-row"
                       className="flex items-center gap-4 p-4 rounded-lg border border-border bg-card hover:bg-muted/30 transition-colors"
                     >
                       <Avatar className="h-12 w-12">
@@ -990,6 +1006,7 @@ function AdminDashboard() {
                     return (
                       <div
                         key={event.id}
+                        data-testid="event-row"
                         className={cn(
                           "flex items-center gap-4 p-4 rounded-lg border border-border bg-card hover:bg-muted/30 transition-colors",
                           (isPast || isCancelled) && "opacity-60"
@@ -1614,15 +1631,27 @@ function AdminDashboard() {
                 )}
               </div>
 
+              <p className="text-sm text-muted-foreground">
+                Dates and times are the ones on your own clock. Members see them in their own time zone.
+              </p>
+
+              {eventFormError && (
+                <p role="alert" className="rounded-lg border border-destructive/20 bg-destructive/10 p-3 text-base text-destructive">
+                  {eventFormError}
+                </p>
+              )}
+
               {/* Actions */}
               <div className="flex justify-end gap-2 pt-4 border-t border-border">
-                <Button variant="outline" onClick={() => setShowEventDialog(false)}>
+                <Button variant="outline" className="min-h-11" onClick={() => setShowEventDialog(false)}>
                   Cancel
                 </Button>
                 <Button
+                  className="min-h-11"
                   onClick={saveEvent}
-                  disabled={!eventForm.title || !eventForm.start_date || !eventForm.start_time || !eventForm.location}
+                  disabled={isSavingEvent || !eventForm.title || !eventForm.start_date || !eventForm.start_time || !eventForm.location}
                 >
+                  {isSavingEvent && <Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden="true" />}
                   {editingEvent ? "Save Changes" : "Create Event"}
                 </Button>
               </div>

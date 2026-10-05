@@ -45,7 +45,7 @@ describe('sign up and email verification', () => {
   })
 
   it('refuses a duplicate email', async () => {
-    const res = await ctx.api.post('/api/auth/signup').send({ email, password: PASSWORD })
+    const res = await ctx.api.post('/api/auth/signup').send({ email, password: 'Another-Pass-99!' })
     expect(res.status).toBe(400)
     expect(res.body.message).toMatch(/already registered/i)
   })
@@ -86,6 +86,71 @@ describe('sign up and email verification', () => {
     const res = await ctx.api.post('/api/auth/verify-email').send({ email: 'nobody@example.test', code: '123456' })
     expect(res.status).toBe(400)
     expect(res.body.message).toBe('Invalid verification code')
+  })
+})
+
+describe('picking a sign-up back up before the email is verified (VER-07)', () => {
+  const email = 'stranded@example.test'
+
+  it('same email and password again: fresh code, back to the code screen, no second account', async () => {
+    clearOutbox()
+    const first = await ctx.api.post('/api/auth/signup').send({ email, password: PASSWORD })
+    expect(first.status).toBe(201)
+    const firstCode = (await User.findOne({ email })).verification_code
+
+    const again = await ctx.api.post('/api/auth/signup').send({ email, password: PASSWORD })
+    expect(again.status).toBe(200)
+    expect(again.body.requiresVerification).toBe(true)
+    expect(again.body.resumed).toBe(true)
+    expect(again.body.token).toBeTruthy()
+    expect(String(again.body.user_id)).toBe(String(first.body.user_id))
+    expect(await User.countDocuments({ email })).toBe(1)
+
+    const mails = getOutbox().filter((m) => m.to === email)
+    expect(mails).toHaveLength(2)
+    const user = await User.findOne({ email })
+    expect(codeFrom(mails[1])).toBe(user.verification_code)
+    expect(user.verification_code_expires.getTime()).toBeGreaterThan(Date.now())
+
+    // The newest code is the one that works; the first one no longer does.
+    if (firstCode !== user.verification_code) {
+      const stale = await ctx.api.post('/api/auth/verify-email').send({ email, code: firstCode })
+      expect(stale.status).toBe(400)
+    }
+    const verify = await ctx.api.post('/api/auth/verify-email').send({ email, code: codeFrom(mails[1]) })
+    expect(verify.status).toBe(200)
+  })
+
+  it('a wrong password gets the ordinary answer, sends nothing and changes nothing', async () => {
+    const other = 'stranded-wrong@example.test'
+    await ctx.api.post('/api/auth/signup').send({ email: other, password: PASSWORD })
+    const before = (await User.findOne({ email: other })).verification_code
+    clearOutbox()
+    const res = await ctx.api.post('/api/auth/signup').send({ email: other, password: 'Wrong-Pass-99!' })
+    expect(res.status).toBe(400)
+    expect(res.body).toEqual({ message: 'Email already registered' })
+    expect(getOutbox()).toHaveLength(0)
+    expect((await User.findOne({ email: other })).verification_code).toBe(before)
+  })
+
+  it('a verified or set-up account is never "resumed", even with the right password', async () => {
+    clearOutbox()
+    // `email` was verified in the first test.
+    const verified = await ctx.api.post('/api/auth/signup').send({ email, password: PASSWORD })
+    expect(verified.status).toBe(400)
+    expect(verified.body).toEqual({ message: 'Email already registered' })
+
+    const member = await makeUser({ email_verified: false })
+    const setUp = await ctx.api.post('/api/auth/signup').send({ email: member.user.email, password: PASSWORD })
+    expect(setUp.status).toBe(400)
+
+    const banned = 'stranded-banned@example.test'
+    await ctx.api.post('/api/auth/signup').send({ email: banned, password: PASSWORD })
+    await User.updateOne({ email: banned }, { is_banned: true })
+    clearOutbox()
+    const res = await ctx.api.post('/api/auth/signup').send({ email: banned, password: PASSWORD })
+    expect(res.status).toBe(400)
+    expect(getOutbox()).toHaveLength(0)
   })
 })
 

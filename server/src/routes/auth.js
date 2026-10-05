@@ -69,7 +69,43 @@ router.post('/signup', [
     // Check if user exists
     const existingUser = await User.findOne({ email });
     if (existingUser) {
-      return res.status(400).json({ message: 'Email already registered' });
+      // Someone who signed up, then left the code screen (pressed "Back",
+      // reloaded, closed the tab) used to be stuck: signing up again said
+      // "Email already registered" and nothing led back to the code screen.
+      // If the account is still unverified and has never been set up, and the
+      // password given is that account's password, this is the same person
+      // picking up where they left off: send a fresh code and return to the
+      // code screen. Anything else gets exactly the answer it always got, so
+      // this tells a stranger nothing new (with the right password they could
+      // already sign in).
+      const canResume =
+        isProduction &&
+        !existingUser.email_verified &&
+        !existingUser.onboarding_completed &&
+        !existingUser.is_banned &&
+        !existingUser.is_suspended &&
+        !existingUser.is_deleted &&
+        existingUser.role !== 'admin' &&
+        (await existingUser.comparePassword(password));
+      if (!canResume) {
+        return res.status(400).json({ message: 'Email already registered' });
+      }
+
+      const freshCode = generateVerificationCode();
+      existingUser.verification_code = freshCode;
+      existingUser.verification_code_expires = new Date(Date.now() + 10 * 60 * 1000);
+      await existingUser.save();
+      sendVerificationEmail(email, freshCode).catch((emailError) => {
+        logger.error('[SIGNUP] Failed to send verification email:', emailError.message);
+      });
+      logger.info(`[SIGNUP] Unverified sign-up resumed: ${existingUser._id}`);
+      return res.status(200).json({
+        user_id: existingUser._id,
+        email: existingUser.email,
+        token: generateToken(existingUser._id),
+        requiresVerification: true,
+        resumed: true
+      });
     }
 
     // Generate verification code
@@ -373,6 +409,22 @@ router.put('/complete-onboarding', auth, async (req, res) => {
       return res.status(404).json({ message: 'User not found' });
     }
 
+    // Setting up can be finished early ("Skip for now"), but never without
+    // the required first step: a name, a date of birth (the 18+ check above
+    // only ran when one was sent, so leaving it out used to get round the age
+    // rule), a gender and agreement to the Community Guidelines. Values the
+    // account already has count, so nobody set up earlier is affected.
+    const clean = (value) => (typeof value === 'string' ? value.trim() : '');
+    const missing = [];
+    if (!clean(first_name) && !user.first_name) missing.push('your first name');
+    if (!clean(last_name) && !user.last_name) missing.push('your last name');
+    if (!birthdate && !user.birthdate) missing.push('your date of birth');
+    if (!gender && !user.gender) missing.push('your gender');
+    if (agreed_to_guidelines !== true && !user.agreed_to_guidelines) missing.push('your agreement to the Community Guidelines');
+    if (missing.length > 0) {
+      return res.status(400).json({ message: `Please complete the first step: we still need ${missing.join(', ')}.` });
+    }
+
     // Update user with only basic info
     user.first_name = first_name || user.first_name;
     user.last_name = last_name || user.last_name;
@@ -404,9 +456,11 @@ router.put('/complete-onboarding', auth, async (req, res) => {
       if (kept.length > 0 || photos.length === 0) profile.photos = kept;
     }
 
-    // Set profile picture from photos array (use first photo if available)
-    if (profile.photos.length > 0 && !profile.profile_picture_url) {
-      profile.profile_picture_url = profile.photos[0];
+    // Keep the profile picture pointing at a photo that still exists. (An
+    // empty list used to clear the photos but leave the old picture address
+    // behind, so a "removed" picture stayed on the profile.)
+    if (!profile.photos.includes(profile.profile_picture_url)) {
+      profile.profile_picture_url = profile.photos[0] || null;
     }
 
     // Age range chosen during onboarding (it used to be thrown away here).

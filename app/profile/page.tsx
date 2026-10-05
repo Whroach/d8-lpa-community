@@ -704,7 +704,7 @@ function ProfilePage() {
                     </div>
                   ) : formData.district_number ? (
                     <span className="flex items-center gap-1 text-foreground font-medium">
-                      <span className="text-primary">District #{formData.district_number}</span>
+                      <span className="text-primary">District {String(formData.district_number).replace("district_", "")}</span>
                     </span>
                   ) : null}
                   

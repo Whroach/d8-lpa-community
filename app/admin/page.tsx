@@ -52,6 +52,8 @@ import { Label } from "@/components/ui/label"
 
 import { api } from "@/lib/api"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { toast } from "sonner"
+import { AdminReports } from "@/components/admin-reports"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { cn } from "@/lib/utils"
 import { useAuthStore } from "@/lib/store/auth-store"
@@ -706,6 +708,8 @@ function AdminDashboard() {
           </p>
         </div>
 
+        <AdminReports />
+
         <Tabs defaultValue="users" className="w-full">
           <TabsList className="mb-6">
             <TabsTrigger value="users" className="gap-2">
@@ -1223,7 +1227,19 @@ function AdminDashboard() {
                         variant="ghost"
                         size="icon"
                         className="text-destructive hover:text-destructive shrink-0"
-                        onClick={() => setNewsItems(newsItems.filter((n) => n.id !== item.id))}
+                        aria-label={`Withdraw the announcement "${item.title}"`}
+                        onClick={async () => {
+                          // This used to remove the row from the screen only;
+                          // the announcement stayed in every member's inbox.
+                          if (!window.confirm(`Withdraw "${item.title}" from every member's notifications?`)) return
+                          const result = await api.admin.deleteAnnouncement(item.id)
+                          if (result.error) {
+                            toast.error(`The announcement was not withdrawn. ${result.error}`)
+                            return
+                          }
+                          setNewsItems(newsItems.filter((n) => n.id !== item.id))
+                          toast.success("Announcement withdrawn")
+                        }}
                       >
                         <Trash2 className="h-4 w-4" />
                       </Button>

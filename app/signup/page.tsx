@@ -417,9 +417,6 @@ export default function SignupPage() {
                   <li>• Make sure you entered the correct email</li>
                   <li>• {resendCooldown === 0 ? "Try requesting a new code below" : `Try requesting a new code in ${resendCooldown}s`}</li>
                 </ul>
-                <p className="text-xs text-muted-foreground text-center pt-2 italic">
-                  (In development mode, check the terminal where your server is running for the verification code)
-                </p>
               </div>
             </div>
           )}

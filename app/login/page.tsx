@@ -19,6 +19,7 @@ const DISABLE_EMAIL_VERIFICATION = process.env.NEXT_PUBLIC_DISABLE_EMAIL_VERIFIC
 export default function LoginPage() {
   const router = useRouter()
   const { setUser, setProfile, setToken, setError, setLoading, isLoading, error } = useAuthStore()
+  const [sessionNotice, setSessionNotice] = useState("")
   
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
@@ -30,6 +31,11 @@ export default function LoginPage() {
   // password in localStorage, where any script on the page — or anyone with
   // access to the device — could read it.
   useEffect(() => {
+    // A message left over from another screen must not greet someone here.
+    setError(null)
+    if (new URLSearchParams(window.location.search).get("expired")) {
+      setSessionNotice("For your security you were signed out after a while. Please log in again.")
+    }
     const savedCredentials = localStorage.getItem("db-lpa-remember-me")
     if (savedCredentials) {
       try {
@@ -96,6 +102,11 @@ export default function LoginPage() {
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-6">
+            {sessionNotice && !error && (
+              <p role="status" className="rounded-lg bg-muted p-3 text-base text-foreground">
+                {sessionNotice}
+              </p>
+            )}
             {error && (
               <div className="p-3 bg-destructive/10 border border-destructive/20 rounded-lg text-destructive text-sm">
                 {error}

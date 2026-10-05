@@ -248,10 +248,14 @@ export default function OnboardingPage() {
     setMembershipIdError(null)
 
     try {
-      const response = await fetch('/api/auth/check-membership-id', {
+      // Goes to the real API (with the member's token). The old relative
+      // address pointed at the website itself and always failed.
+      const apiBase = process.env.NEXT_PUBLIC_API_URL || '/api'
+      const response = await fetch(`${apiBase}/auth/check-membership-id`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          ...(useAuthStore.getState().token ? { Authorization: `Bearer ${useAuthStore.getState().token}` } : {}),
         },
         body: JSON.stringify({ lpa_membership_id: membershipId }),
       })
@@ -757,7 +761,7 @@ export default function OnboardingPage() {
                   {[
                     { value: "female", label: "Women" },
                     { value: "male", label: "Men" },
-                    { value: "non-binary", label: "Non-binary" },
+                    { value: "non_binary", label: "Non-binary" },
                     { value: "everyone", label: "Everyone" },
                   ].map((option) => (
                     <button

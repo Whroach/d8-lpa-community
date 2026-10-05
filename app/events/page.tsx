@@ -40,12 +40,22 @@ import {
 } from "@/components/ui/popover"
 import { cn } from "@/lib/utils"
 import { api } from "@/lib/api"
+import { toast } from "sonner"
+import { EventExtras } from "@/components/event-extras"
 
+// These are the event categories the server stores. The old list filtered on
+// a field that does not exist, so choosing any type hid every event.
 const EVENT_TYPES = [
   { value: "all", label: "All Types" },
-  { value: "local_chapter", label: "Local Chapter" },
+  { value: "local-chapter", label: "Local Chapter" },
   { value: "regional", label: "Regional" },
   { value: "national", label: "National" },
+  { value: "social", label: "Social" },
+  { value: "dating", label: "Singles" },
+  { value: "food", label: "Food" },
+  { value: "outdoor", label: "Outdoor" },
+  { value: "fitness", label: "Fitness" },
+  { value: "arts", label: "Arts" },
 ]
 
 interface Event {
@@ -137,7 +147,7 @@ export default function EventsPage() {
     
     // Filter by event type
     if (eventType !== "all") {
-      filtered = filtered.filter(event => event.event_type === eventType)
+      filtered = filtered.filter(event => event.category === eventType)
     }
     
     // Filter by date range
@@ -191,6 +201,10 @@ export default function EventsPage() {
       setIsActioning(null)
       return
     }
+
+    toast.success(event.is_joined ? `You are no longer going to ${event.title}` : `You are going to ${event.title}`, {
+      description: event.is_joined ? undefined : "Add it to your calendar so you do not forget.",
+    })
 
     setEvents((prev) =>
       prev.map((e) =>
@@ -504,7 +518,7 @@ export default function EventsPage() {
         {/* Event Details Dialog */}
         <Dialog open={!!selectedEvent} onOpenChange={() => setSelectedEvent(null)}>
           {selectedEvent && (
-            <DialogContent className="sm:max-w-lg">
+            <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-lg">
               {selectedEvent.image && (
                 <div className="relative h-48 -mx-6 -mt-6 mb-4 overflow-hidden rounded-t-lg">
                   <Image
@@ -591,12 +605,17 @@ export default function EventsPage() {
                         {isActioning === selectedEvent.id ? (
                           <Loader2 className="h-4 w-4 mr-2 animate-spin" />
                         ) : selectedEvent.is_joined ? (
-                          "Leave Event"
+                          "I can't go"
                         ) : (
-                          "Join Event"
+                          "I'm going"
                         )}
                       </Button>
                     )}
+                    <EventExtras
+                      event={selectedEvent}
+                      isJoined={selectedEvent.is_joined}
+                      canRsvp={!selectedEvent.is_cancelled && !isPastEvent(selectedEvent)}
+                    />
                   </div>
                 </DialogDescription>
               </DialogHeader>

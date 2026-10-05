@@ -766,7 +766,7 @@ function MessagesScreen() {
                   </Link>
                 </Button>
 
-                <DropdownMenu>
+                <DropdownMenu modal={false}>
                   <DropdownMenuTrigger asChild>
                     <Button variant="outline" data-testid="chat-options">
                       Options

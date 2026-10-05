@@ -25,7 +25,6 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import {
   Dialog,
   DialogContent,
@@ -479,18 +478,24 @@ People you have unmatched will appear here
 
         {/* Main Tab Switcher - Matches vs Profiles You Liked */}
         <div className="mb-6">
-          <Tabs value={mainTab} onValueChange={(val) => setMainTab(val as "matches" | "liked")} className="w-full">
-            <TabsList className="grid w-full grid-cols-2 bg-card border border-border p-1">
-              <TabsTrigger value="matches" className="flex items-center gap-2 rounded-md data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
-                <Heart className="h-4 w-4" />
-                Matches
-              </TabsTrigger>
-              <TabsTrigger value="liked" className="flex items-center gap-2 rounded-md data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
-                <Heart className="h-4 w-4 fill-current" />
-                Profiles You Liked
-              </TabsTrigger>
-            </TabsList>
-          </Tabs>
+          {/* Two plain buttons: the tab widget pointed at panels that do not exist. */}
+          <div role="group" aria-label="Show" className="grid w-full grid-cols-2 gap-1 rounded-lg border border-border bg-card p-1">
+            {([["matches", "Matches"], ["liked", "Profiles You Liked"]] as const).map(([value, label]) => (
+              <button
+                key={value}
+                type="button"
+                aria-pressed={mainTab === value}
+                onClick={() => setMainTab(value)}
+                className={cn(
+                  "flex min-h-11 items-center justify-center gap-2 rounded-md px-3 py-2 text-base font-medium transition-colors",
+                  mainTab === value ? "bg-primary text-primary-foreground" : "text-foreground hover:bg-muted"
+                )}
+              >
+                <Heart className={cn("h-4 w-4", value === "liked" && "fill-current")} aria-hidden="true" />
+                {label}
+              </button>
+            ))}
+          </div>
         </div>
 
         {/* Search and Filter - Only show for Matches tab */}

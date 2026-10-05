@@ -2005,7 +2005,7 @@ function ProfilePage() {
 
         {/* Profile Preview Dialog */}
         <Dialog open={showPreview} onOpenChange={setShowPreview}>
-          <DialogContent className="max-w-md p-0 overflow-hidden">
+          <DialogContent className="max-w-md p-0 overflow-hidden [&>button:last-child]:hidden">
             <ProfilePreviewCard
               photos={photos}
               name={formData.first_name}
@@ -2062,9 +2062,10 @@ function ProfilePreviewCard({
     <div className="bg-card">
       {/* Header */}
       <div className="px-4 py-3 border-b border-border flex items-center justify-between">
-        <span className="text-sm font-medium text-muted-foreground">Profile Preview</span>
-        <Button variant="ghost" size="sm" onClick={onClose} className="h-8 px-2">
-          <X className="h-4 w-4" />
+        <DialogTitle className="text-base font-semibold">Profile Preview</DialogTitle>
+        <Button variant="ghost" size="sm" onClick={onClose}>
+          <X aria-hidden="true" />
+          Close
         </Button>
       </div>
 
@@ -2082,15 +2083,20 @@ function ProfilePreviewCard({
           <div className="absolute top-3 left-0 right-0 flex justify-center gap-1.5 px-4">
             {photos.map((_, index) => (
               <button
+                type="button"
                 key={index}
+                aria-label={`Go to photo ${index + 1}`}
+                aria-current={index === currentPhotoIndex}
                 onClick={() => setCurrentPhotoIndex(index)}
-                className={cn(
-                  "h-1 rounded-full transition-all",
-                  index === currentPhotoIndex
-                    ? "bg-white w-6"
-                    : "bg-white/50 w-4 hover:bg-white/70"
-                )}
-              />
+                className="flex h-8 items-center"
+              >
+                <span
+                  className={cn(
+                    "block h-1.5 rounded-full transition-all",
+                    index === currentPhotoIndex ? "bg-white w-6" : "bg-white/60 w-4"
+                  )}
+                />
+              </button>
             ))}
           </div>
         )}
@@ -2099,16 +2105,20 @@ function ProfilePreviewCard({
         {photos.length > 1 && (
           <>
             <button
+              type="button"
+              aria-label="Previous photo"
               onClick={prevPhoto}
-              className="absolute left-2 top-1/2 -translate-y-1/2 p-2 rounded-full bg-black/30 text-white hover:bg-black/50 transition-colors"
+              className="absolute left-2 top-1/2 -translate-y-1/2 flex h-11 w-11 items-center justify-center rounded-full bg-black/60 text-white hover:bg-black/80 transition-colors"
             >
-              <ChevronLeft className="h-5 w-5" />
+              <ChevronLeft className="h-5 w-5" aria-hidden="true" />
             </button>
             <button
+              type="button"
+              aria-label="Next photo"
               onClick={nextPhoto}
-              className="absolute right-2 top-1/2 -translate-y-1/2 p-2 rounded-full bg-black/30 text-white hover:bg-black/50 transition-colors"
+              className="absolute right-2 top-1/2 -translate-y-1/2 flex h-11 w-11 items-center justify-center rounded-full bg-black/60 text-white hover:bg-black/80 transition-colors"
             >
-              <ChevronRight className="h-5 w-5" />
+              <ChevronRight className="h-5 w-5" aria-hidden="true" />
             </button>
           </>
         )}

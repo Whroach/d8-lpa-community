@@ -26,6 +26,8 @@ export interface User {
   is_banned?: boolean
   is_suspended?: boolean
   has_warning?: boolean
+  has_seen_tour?: boolean
+  email_verified?: boolean
 }
 
 export interface Profile {

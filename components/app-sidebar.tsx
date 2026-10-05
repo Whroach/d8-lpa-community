@@ -1,7 +1,5 @@
 "use client"
 
-import { useRouter } from "next/navigation"
-
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import {
@@ -12,254 +10,119 @@ import {
   Calendar,
   Bell,
   Settings,
-  ChevronLeft,
-  ChevronRight,
   Shield,
   LogOut,
   Compass,
+  Bookmark,
+  LifeBuoy,
+  ShieldCheck,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
-import { useSidebarStore } from "@/lib/store/sidebar-store"
-import { Button } from "@/components/ui/button"
-import { Badge } from "@/components/ui/badge"
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip"
-import { useAuthStore } from "@/lib/store/auth-store" // Import useAuthStore
-import { useNotificationStore } from "@/lib/store/notification-store"
+import { useAuthStore } from "@/lib/store/auth-store"
+import { useNotificationStore, type BadgeCounts } from "@/lib/store/notification-store"
+import { useLogout } from "@/lib/use-logout"
 
-const navItems = [
-  { href: "/profile", label: "Profile", icon: User, badgeKey: null },
+type NavItem = {
+  href: string
+  label: string
+  icon: typeof User
+  badgeKey: keyof BadgeCounts | null
+}
+
+export const mainNavItems: NavItem[] = [
   { href: "/browse", label: "Browse", icon: Compass, badgeKey: null },
-  { href: "/messages", label: "Messages", icon: MessageCircle, badgeKey: "messages" },
   { href: "/matches", label: "Matches", icon: Users, badgeKey: "matches" },
-  { href: "/notifications", label: "Notifications", icon: Bell, badgeKey: "notifications" },
+  { href: "/messages", label: "Messages", icon: MessageCircle, badgeKey: "messages" },
   { href: "/events", label: "Events", icon: Calendar, badgeKey: "events" },
+  { href: "/notifications", label: "Notifications", icon: Bell, badgeKey: "notifications" },
+  { href: "/saved", label: "Saved", icon: Bookmark, badgeKey: null },
+  { href: "/profile", label: "My Profile", icon: User, badgeKey: null },
 ]
 
-const bottomNavItems = [
-  { href: "/admin", label: "Admin", icon: Shield },
+export const secondaryNavItems: NavItem[] = [
+  { href: "/safety", label: "Safety", icon: ShieldCheck, badgeKey: null },
+  { href: "/help", label: "Help", icon: LifeBuoy, badgeKey: null },
+  { href: "/settings", label: "Settings", icon: Settings, badgeKey: null },
 ]
 
+export const badgeText = (count: number) => (count > 99 ? "99+" : String(count))
+
+/** "/profile" is only active on your own profile, not on "/profile/<id>". */
+export const isNavActive = (pathname: string, href: string) =>
+  pathname === href || (href !== "/profile" && pathname.startsWith(`${href}/`))
+
+/**
+ * Desktop navigation. Always shows a word beside every icon - the old
+ * collapsed, icon-only mode is gone: it saved a little space at the cost of
+ * people having to remember what each picture meant.
+ */
 export function AppSidebar() {
   const pathname = usePathname()
-  const { isCollapsed, toggleCollapsed } = useSidebarStore()
-  const router = useRouter() // Declare router
-  const { user, logout } = useAuthStore() // Declare user and logout
-
-  // Counts are loaded and kept live by RealtimeProvider, so the sidebar and
-  // the mobile nav always show the same numbers.
+  const user = useAuthStore((state) => state.user)
   const badgeCounts = useNotificationStore((state) => state.counts)
-  const clearCount = useNotificationStore((state) => state.clearCount)
+  const logout = useLogout()
 
-  return (
-    <TooltipProvider delayDuration={0}>
-      <aside
-        className={cn(
-          "fixed left-0 top-0 z-40 h-screen border-r border-sidebar-border bg-sidebar hidden md:flex flex-col transition-all duration-300",
-          isCollapsed ? "w-[72px]" : "w-64"
-        )}
-      >
-        {/* Logo */}
-        <div
+  const renderLink = (item: NavItem) => {
+    const isActive = isNavActive(pathname, item.href)
+    const count = item.badgeKey ? badgeCounts[item.badgeKey] : 0
+    return (
+      <li key={item.href}>
+        <Link
+          href={item.href}
+          aria-current={isActive ? "page" : undefined}
           className={cn(
-            "flex items-center gap-2 px-6 py-5 border-b border-sidebar-border",
-            isCollapsed && "px-4 justify-center"
+            "flex min-h-12 items-center gap-3 rounded-lg px-4 py-2.5 text-base font-medium transition-colors",
+            isActive
+              ? "bg-primary text-primary-foreground shadow-sm"
+              : "text-sidebar-foreground hover:bg-muted"
           )}
         >
-          <Heart className="h-8 w-8 text-primary fill-primary shrink-0" />
-          {!isCollapsed && (
-            <span className="text-xl font-bold text-sidebar-foreground">
-              D8-LPA
+          <item.icon className="h-5 w-5 shrink-0" aria-hidden="true" />
+          <span className="flex-1">{item.label}</span>
+          {count > 0 && (
+            <span
+              className={cn(
+                "flex h-6 min-w-6 items-center justify-center rounded-full px-1.5 text-xs font-bold",
+                isActive ? "bg-primary-foreground text-primary" : "bg-primary text-primary-foreground"
+              )}
+            >
+              <span aria-hidden="true">{badgeText(count)}</span>
+              <span className="sr-only">{count} new</span>
             </span>
           )}
-        </div>
+        </Link>
+      </li>
+    )
+  }
 
-        {/* Collapse Toggle Button */}
-        <Button
-          variant="ghost"
-          size="icon"
-          onClick={toggleCollapsed}
-          className="absolute -right-3 top-20 h-6 w-6 rounded-full border border-sidebar-border bg-sidebar shadow-sm hover:bg-sidebar-accent"
-        >
-          {isCollapsed ? (
-            <ChevronRight className="h-3 w-3" />
-          ) : (
-            <ChevronLeft className="h-3 w-3" />
-          )}
-        </Button>
+  return (
+    <aside className="fixed left-0 top-0 z-40 hidden h-screen w-64 flex-col border-r border-sidebar-border bg-sidebar md:flex">
+      <Link href="/browse" className="flex items-center gap-2 border-b border-sidebar-border px-6 py-5">
+        <Heart className="h-8 w-8 shrink-0 fill-primary text-primary" aria-hidden="true" />
+        <span className="text-xl font-bold text-sidebar-foreground">D8-LPA</span>
+      </Link>
 
-        {/* Navigation */}
-        <nav className="flex-1 px-3 py-6 space-y-1 overflow-y-auto">
-          {navItems.map((item) => {
-            const isActive = pathname === item.href
-            const badgeCount = item.badgeKey
-              ? badgeCounts[item.badgeKey as keyof typeof badgeCounts]
-              : 0
-            const linkContent = (
-              <Link
-                key={item.href}
-                href={item.href}
-                onClick={() => {
-                  // Clear badge count when clicking the link
-                  if (item.badgeKey) {
-                    clearCount(item.badgeKey as keyof typeof badgeCounts)
-                  }
-                }}
-                className={cn(
-                  "flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-colors relative",
-                  isActive
-                    ? "bg-primary text-white shadow-md"
-                    : "text-sidebar-foreground hover:bg-primary/10",
-                  isCollapsed && "justify-center px-3"
-                )}
-              >
-                {isCollapsed ? (
-                  <div className="relative">
-                    <item.icon className="h-5 w-5 shrink-0" />
-                    {badgeCount > 0 && (
-                      <span className="absolute -top-2 -right-2 flex h-4 w-4 items-center justify-center rounded-full bg-primary text-[10px] font-bold text-primary-foreground">
-                        {badgeCount > 9 ? "9+" : badgeCount}
-                      </span>
-                    )}
-                  </div>
-                ) : (
-                  <>
-                    <item.icon className="h-5 w-5 shrink-0" />
-                    <span className="flex-1">{item.label}</span>
-                    {badgeCount > 0 && (
-                      <Badge variant="default" className="h-5 min-w-5 px-1.5 text-xs">
-                        {badgeCount > 99 ? "99+" : badgeCount}
-                      </Badge>
-                    )}
-                  </>
-                )}
-              </Link>
-            )
+      <nav aria-label="Main" className="flex-1 overflow-y-auto px-3 py-4" data-tour="nav">
+        <ul className="space-y-1">{mainNavItems.map(renderLink)}</ul>
+      </nav>
 
-            if (isCollapsed) {
-              return (
-                <Tooltip key={item.href}>
-                  <TooltipTrigger asChild>{linkContent}</TooltipTrigger>
-                  <TooltipContent side="right" sideOffset={10}>
-                    {item.label}
-                    {badgeCount > 0 && ` (${badgeCount})`}
-                  </TooltipContent>
-                </Tooltip>
-              )
-            }
-
-            return linkContent
-          })}
-        </nav>
-
-        {/* Admin, Settings & Logout */}
-        <div className="p-3 border-t border-sidebar-border space-y-1">
-          {isCollapsed ? (
-            <>
-              {/* Admin tab - only show for admins */}
-              {user?.role === 'admin' && bottomNavItems.map((item) => (
-                <Tooltip key={item.href}>
-                  <TooltipTrigger asChild>
-                    <Link
-                      href={item.href}
-                      className={cn(
-                        "flex items-center justify-center px-3 py-3 rounded-lg text-sm font-medium transition-colors",
-                        pathname === item.href
-                          ? "bg-primary text-white shadow-md"
-                          : "text-sidebar-foreground hover:bg-primary/10"
-                      )}
-                    >
-                      <item.icon className="h-5 w-5" />
-                    </Link>
-                  </TooltipTrigger>
-                  <TooltipContent side="right" sideOffset={10}>
-                    {item.label}
-                  </TooltipContent>
-                </Tooltip>
-              ))}
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Link
-                    href="/settings"
-                    className={cn(
-                      "flex items-center justify-center px-3 py-3 rounded-lg text-sm font-medium transition-colors",
-                      pathname === "/settings"
-                        ? "bg-primary text-white shadow-md"
-                        : "text-sidebar-foreground hover:bg-primary/10"
-                    )}
-                  >
-                    <Settings className="h-5 w-5" />
-                  </Link>
-                </TooltipTrigger>
-                <TooltipContent side="right" sideOffset={10}>
-                  Settings
-                </TooltipContent>
-              </Tooltip>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <button
-                    onClick={() => {
-                      logout()
-                      router.push("/login")
-                    }}
-                    className="w-full flex items-center justify-center px-3 py-3 rounded-lg text-sm font-medium transition-colors text-white bg-destructive hover:bg-destructive/90 shadow-md"
-                  >
-                    <LogOut className="h-5 w-5" />
-                  </button>
-                </TooltipTrigger>
-                <TooltipContent side="right" sideOffset={10}>
-                  Logout
-                </TooltipContent>
-              </Tooltip>
-            </>
-          ) : (
-            <>
-              {/* Admin tab - only show for admins */}
-              {user?.role === 'admin' && bottomNavItems.map((item) => (
-                <Link
-                  key={item.href}
-                  href={item.href}
-                  className={cn(
-                    "flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-colors",
-                    pathname === item.href
-                      ? "bg-primary text-white shadow-md"
-                      : "text-sidebar-foreground hover:bg-primary/10"
-                  )}
-                >
-                  <item.icon className="h-5 w-5" />
-                  {item.label}
-                </Link>
-              ))}
-              <Link
-                href="/settings"
-                className={cn(
-                  "flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-colors",
-                  pathname === "/settings"
-                    ? "bg-primary text-white shadow-md"
-                    : "text-sidebar-foreground hover:bg-primary/10"
-                )}
-              >
-                <Settings className="h-4 w-4" />
-                Settings
-              </Link>
-              <button
-                onClick={() => {
-                  logout()
-                  router.push("/login")
-                }}
-                className="w-full flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-colors text-white bg-destructive hover:bg-destructive/90 shadow-md"
-              >
-                <LogOut className="h-4 w-4" />
-                Logout
-              </button>
-            </>
-          )}
-        </div>
-      </aside>
-    </TooltipProvider>
+      <nav aria-label="Help and settings" className="border-t border-sidebar-border p-3">
+        <ul className="space-y-1">
+          {secondaryNavItems.map(renderLink)}
+          {user?.role === "admin" &&
+            renderLink({ href: "/admin", label: "Admin", icon: Shield, badgeKey: null })}
+          <li>
+            <button
+              type="button"
+              onClick={logout}
+              className="flex min-h-12 w-full items-center gap-3 rounded-lg px-4 py-2.5 text-base font-medium text-sidebar-foreground transition-colors hover:bg-muted"
+            >
+              <LogOut className="h-5 w-5 shrink-0" aria-hidden="true" />
+              Log Out
+            </button>
+          </li>
+        </ul>
+      </nav>
+    </aside>
   )
 }

@@ -21,6 +21,12 @@ interface ApiResponse<T> {
   data?: T
   error?: string
   message?: string
+  /** HTTP status of a failed request. */
+  status?: number
+  /** True when the request never reached the server (offline, timeout). */
+  network?: boolean
+  /** The server's full error body (for example `errors` or `requiresVerification`). */
+  details?: any
 }
 
 // Simulate network delay
@@ -41,14 +47,14 @@ async function apiRequest<T>(
     ...options.headers,
   }
 
-  console.log(`[API_REQUEST] Endpoint: ${endpoint}, Token present: ${!!token}, Token value: ${token ? token.substring(0, 20) + '...' : 'null'}`)
-
   try {
     const response = await fetch(`${API_BASE_URL}${endpoint}`, {
       ...options,
       headers,
     })
-    const data = await response.json()
+    // A proxy error page or an empty reply is not JSON; don't let that turn
+    // into an unhandled exception and a blank screen.
+    const data = await response.json().catch(() => ({}))
 
     if (!response.ok) {
       if (response.status === 401) {
@@ -56,9 +62,12 @@ async function apiRequest<T>(
         if (endpoint !== "/auth/login" && endpoint !== "/auth/signup") {
           if (typeof window !== "undefined") {
             localStorage.removeItem("spark-auth")
-            window.location.href = "/login"
+            window.location.href = "/login?expired=1"
           }
         }
+      }
+      if (response.status === 429) {
+        return { error: data.message || "You are going a little fast. Please wait a minute and try again.", status: 429 }
       }
       // Handle 403 (banned/suspended) - show message but stay on current page
       if (response.status === 403 && data.message?.includes("suspended or banned")) {
@@ -81,13 +90,16 @@ async function apiRequest<T>(
           }
         }
       }
-      return { error: data.message || data.error || "An error occurred" }
+      return {
+        error: data.message || data.error || "Something went wrong. Please try again.",
+        status: response.status,
+        details: data,
+      }
     }
 
     return { data }
-  } catch (error) {
-    console.error('[API] Network error:', error)
-    return { error: "Network error. Please try again." }
+  } catch {
+    return { error: "We can't reach D8-LPA right now. Please check your internet connection and try again.", network: true }
   }
 }
 
@@ -111,15 +123,15 @@ async function apiRequestFormData<T>(
       body: formData,
     })
 
-    const data = await response.json()
+    const data = await response.json().catch(() => ({}))
 
     if (!response.ok) {
-      return { error: data.message || data.error || "An error occurred" }
+      return { error: data.message || data.error || "We could not upload that. Please try again.", status: response.status }
     }
 
     return { data }
   } catch {
-    return { error: "Network error. Please try again." }
+    return { error: "We can't reach D8-LPA right now. Please check your internet connection and try again.", network: true }
   }
 }
 
@@ -137,7 +149,6 @@ export const api = {
           },
         }
       }
-      console.log('[API.AUTH.LOGIN] Making real API request to /auth/login')
       return apiRequest<{ user: any; profile: any; token: string }>("/auth/login", {
         method: "POST",
         body: JSON.stringify({ email, password }),
@@ -410,16 +421,26 @@ export const api = {
       }
       return apiRequest<any>(`/browse/${userId}/unblock`, { method: "DELETE" })
     },
-    report: async (userId: string, reason: string) => {
+    report: async (
+      userId: string,
+      reason: string,
+      extra: { category?: string; source?: "profile" | "chat" | "browse" | "matches"; match_id?: string } = {}
+    ) => {
       if (USE_MOCK_DATA) {
         await delay(200)
         return { data: { success: true } }
       }
       return apiRequest<any>(`/browse/${userId}/report`, {
         method: "POST",
-        body: JSON.stringify({ reason }),
+        body: JSON.stringify({ reason, ...extra }),
       })
     },
+  },
+  /** Saved profiles: a private bookmark, never shown to the other person. */
+  favorites: {
+    getAll: async () => apiRequest<any[]>("/favorites"),
+    add: async (userId: string) => apiRequest<any>(`/favorites/${userId}`, { method: "PUT" }),
+    remove: async (userId: string) => apiRequest<any>(`/favorites/${userId}`, { method: "DELETE" }),
   },
   matches: {
     // The server splits matches into active/inactive; older builds returned a
@@ -546,6 +567,11 @@ export const api = {
         method: "POST",
       })
     },
+    /** Who's going: first name, picture and optional note. */
+    getAttendees: async (eventId: string) => apiRequest<any[]>(`/events/${eventId}/attendees`),
+    /** Carpool / meet-up note shown beside your name. Empty string removes it. */
+    saveNote: async (eventId: string, note: string) =>
+      apiRequest<any>(`/events/${eventId}/note`, { method: "PUT", body: JSON.stringify({ note }) }),
   },
   notifications: {
     getAll: async () => {
@@ -618,16 +644,23 @@ export const api = {
       lookingFor?: string[]
       agePreferenceMin?: number
       agePreferenceMax?: number
-      notifications: {
-        matches: boolean
-        messages: boolean
-        likes: boolean
-        events: boolean
-        admin_news: boolean
+      notifications?: {
+        matches?: boolean
+        messages?: boolean
+        likes?: boolean
+        events?: boolean
+        admin_news?: boolean
+        sound?: boolean
+        quiet_hours_enabled?: boolean
+        quiet_hours_start?: string
+        quiet_hours_end?: string
+        email_digest?: boolean
       }
-      privacy: {
-        profileVisible: boolean
-        selectiveMode: boolean
+      privacy?: {
+        profileVisible?: boolean
+        selectiveMode?: boolean
+        showOnline?: boolean
+        readReceipts?: boolean
       }
     }) => {
       if (USE_MOCK_DATA) {
@@ -745,6 +778,13 @@ export const api = {
         method: "DELETE",
       })
     },
+    // Member reports waiting for a moderator
+    getReports: async (status: string = "pending") => apiRequest<any[]>(`/admin/reports?status=${status}`),
+    updateReport: async (reportId: string, status: string, action_taken?: string) =>
+      apiRequest<any>(`/admin/reports/${reportId}`, {
+        method: "PUT",
+        body: JSON.stringify({ status, action_taken }),
+      }),
     // Toggle event visibility
     toggleEventVisibility: async (eventId: string) => {
       if (USE_MOCK_DATA) {

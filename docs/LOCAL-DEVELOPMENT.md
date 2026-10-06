@@ -46,11 +46,13 @@ New sign-ups work too: the verification code and password-reset emails are captu
 
 | Command | What it runs |
 |---|---|
-| `npm test` | 122 unit, API and realtime tests (in-memory database) |
-| `npm run test:e2e` | 53 browser tests with Playwright, including chat between two browser sessions. Starts the local stack itself if it is not already running on ports 4120/4121 |
+| `npm test` | 167 unit, API and realtime tests (in-memory database) |
+| `npm run test:e2e` | 175 browser tests with Playwright: every screen and button, chat between two browser sessions, the admin area (also with 300 members and 250 reports), and axe accessibility checks on every screen and dialog. Starts the local stack itself if it is not already running on ports 4120/4121. About 25 minutes |
+| `npm run test:e2e:switches` | 3 browser tests for the login screen as it is when the site is built with password reset switched off. Starts its own copy of the website on port 4126 |
+| `npm run smoke:prod` | 9 tests against a production build: `next build` + `next start`, the API with `NODE_ENV=production`, a throwaway database, stand-ins for S3 and Mailgun, and a guard that fails the run if the API tries to reach the internet. Ends with `[smoke] PASSED`. Ports 5201 / 3201 / 5202 unless `SMOKE_API_PORT` / `SMOKE_WEB_PORT` / `SMOKE_FAKE_PORT` are set |
 | `npm run typecheck` | TypeScript |
-| `npm run lint` | ESLint |
-| `npm run test:all` | All of the above |
+| `npm run lint` | ESLint (0 errors, 0 warnings) |
+| `npm run test:all` | Typecheck, lint, `npm test`, both browser suites |
 
 First time only for the browser tests: `npx playwright install chromium`.
 
@@ -60,14 +62,29 @@ To use an already-running stack for the browser tests, start it on the ports the
 $env:API_PORT = '4120'; $env:WEB_PORT = '4121'; npm run dev:local
 ```
 
-## Screenshots for design review
+## Many members, to try the admin area
+
+With the local stack running, this adds 300 fictional members and 250 reports (and removes them again):
 
 ```powershell
-$env:WEB_URL = 'http://localhost:3000'; $env:API_URL = 'http://localhost:5001/api'
-node scripts/screenshots.mjs docs/screenshots/tmp
+Invoke-RestMethod -Method Post -Uri http://localhost:5001/api/__test/bulk-admin-data -ContentType 'application/json' -Body '{"members":300,"reports":250}'
+Invoke-RestMethod -Method Delete -Uri http://localhost:5001/api/__test/bulk-admin-data
 ```
 
-13 screens x phone / tablet / desktop x light / dark.
+The address only exists in local runs.
+
+## Screenshots for design review
+
+The accessibility tests visit every screen, step and dialog. Asked to, they also save a picture of each one, so the pictures are exactly the states that were measured:
+
+```powershell
+$env:SHOTS_DIR = 'docs/screenshots/tmp/round3'
+foreach ($size in 'phone','tablet','desktop') { $env:SHOTS_SIZE = $size; npx playwright test tests/e2e/a11y- }
+node scripts/contact-sheets.mjs docs/screenshots/tmp/round3
+Remove-Item Env:SHOTS_DIR, Env:SHOTS_SIZE
+```
+
+That gives every state at 390, 820 and 1440 pixels wide, in light and dark, tiled into readable sheets under `docs/screenshots/tmp/round3/sheets` (not committed). The older scripts `scripts/screenshots.mjs` and `scripts/screenshots-round2.mjs` still work.
 
 ## Switches (local only)
 

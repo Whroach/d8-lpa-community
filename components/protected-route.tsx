@@ -26,6 +26,11 @@ export function ProtectedRoute({ children }: ProtectedRouteProps) {
   const [isMounted, setIsMounted] = useState(false)
   const [showBanModal, setShowBanModal] = useState(false)
   const timedOut = useRef(false)
+  // Set when the server says the account is suspended or banned. Signing out
+  // re-runs the effect below; without this it then sent the member straight
+  // to the login screen, so the explanation only flashed past or never
+  // appeared at all.
+  const blocked = useRef(false)
 
   useEffect(() => {
     setIsMounted(true)
@@ -49,7 +54,7 @@ export function ProtectedRoute({ children }: ProtectedRouteProps) {
         router.replace("/login?expired=1")
         return
       }
-      if (timedOut.current) return
+      if (timedOut.current || blocked.current) return
       router.push("/login")
       return
     }
@@ -68,6 +73,7 @@ export function ProtectedRoute({ children }: ProtectedRouteProps) {
       const result = await api.auth.me()
       if (cancelled) return
       if (result.error && result.error.includes("suspended or banned")) {
+        blocked.current = true
         setShowBanModal(true)
         logout()
         return

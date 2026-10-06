@@ -213,7 +213,17 @@ test.describe("admin", () => {
     await expect(page.getByRole("navigation", { name: "Main" })).toBeVisible()
     await request.post(`${API}/admin/users/${member.id}/action`, { headers: authHeaders(admin.token), data: { action: "suspend" } })
     await page.goto("/messages")
-    await expect(page.getByText("Account Suspended or Banned")).toBeVisible()
+    const notice = page.getByRole("alertdialog", { name: "Account Suspended or Banned" })
+    await expect(notice).toBeVisible()
+    // The explanation has to stay until the member has read it. (It used to
+    // be replaced by the login screen a moment later - sometimes before it
+    // was ever painted - which is why this test failed about one run in four.)
+    await page.waitForTimeout(1500)
+    await expect(notice).toBeVisible()
+    await expect(page).toHaveURL(/\/messages/)
+    expect(await page.evaluate(() => JSON.parse(localStorage.getItem("spark-auth") || "{}")?.state?.token ?? null)).toBeNull()
+    await notice.getByRole("button", { name: "Go to Login" }).click()
+    await expect(page).toHaveURL(/\/login/)
     await request.post(`${API}/admin/users/${member.id}/action`, { headers: authHeaders(admin.token), data: { action: "unsuspend" } })
     await page.context().close()
   })

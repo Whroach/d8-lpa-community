@@ -11,6 +11,16 @@ async function openOnboarding(browser: import("@playwright/test").Browser, who: 
   return page
 }
 
+/** The tips and "position your photo" step that opens after a picture is chosen. */
+const cropStep = (page: Page) => page.getByRole("dialog", { name: "Position your photo" })
+
+/** Chooses a picture and accepts it as framed in the crop step. */
+async function addPhoto(page: Page, buffer: Buffer = TINY_PNG) {
+  await page.locator('input[type="file"]').setInputFiles({ name: "me.png", mimeType: "image/png", buffer })
+  await cropStep(page).getByRole("button", { name: "Use photo" }).click()
+  await expect(cropStep(page)).toBeHidden()
+}
+
 async function choose(page: Page, label: string | RegExp, option: string) {
   await page.getByRole("combobox", { name: label }).click()
   await page.getByRole("option", { name: option, exact: true }).click()
@@ -37,8 +47,7 @@ test.describe("ONB-38: removing the onboarding photo really removes it", () => {
     await page.getByRole("button", { name: "Next", exact: true }).click()
     await expect(page.getByRole("heading", { name: "Profile Setup", level: 1 })).toBeVisible()
 
-    const fileInput = page.locator('input[type="file"]')
-    await fileInput.setInputFiles({ name: "me.png", mimeType: "image/png", buffer: TINY_PNG })
+    await addPhoto(page)
     await expect(page.getByRole("img", { name: "Your profile picture" })).toBeVisible()
     await expect(page.getByText("Picture added.")).toBeVisible()
     let saved = await profileOf(request, who.token)
@@ -73,7 +82,7 @@ test.describe("ONB-38: removing the onboarding photo really removes it", () => {
     const page = await openOnboarding(browser, who)
     await fillStepOne(page, "Rosa")
     await page.getByRole("button", { name: "Next", exact: true }).click()
-    await page.locator('input[type="file"]').setInputFiles({ name: "me.png", mimeType: "image/png", buffer: TINY_PNG })
+    await addPhoto(page)
     await expect(page.getByRole("img", { name: "Your profile picture" })).toBeVisible()
 
     // Reload half-way: the answers and the picture are still there.
@@ -97,7 +106,7 @@ test.describe("ONB-38: removing the onboarding photo really removes it", () => {
     const page = await openOnboarding(browser, who)
     await fillStepOne(page)
     await page.getByRole("button", { name: "Next", exact: true }).click()
-    await page.locator('input[type="file"]').setInputFiles({ name: "me.png", mimeType: "image/png", buffer: TINY_PNG })
+    await addPhoto(page)
     await expect(page.getByRole("img", { name: "Your profile picture" })).toBeVisible()
 
     await page.route("**/api/users/photos", (route) =>
@@ -197,12 +206,18 @@ test.describe("onboarding: the whole form, step by step", () => {
     const file = page.locator('input[type="file"]')
     await file.setInputFiles({ name: "notes.txt", mimeType: "text/plain", buffer: Buffer.from("hello") })
     await expect(alertBox(page)).toContainText("not a picture we can use")
-    await file.setInputFiles({ name: "huge.png", mimeType: "image/png", buffer: Buffer.concat([TINY_PNG, Buffer.alloc(5 * 1024 * 1024 + 10)]) })
-    await expect(alertBox(page)).toContainText("too large")
-    // A file that only claims to be a picture is refused by the server.
+    // Phone photos are made smaller before upload, so only very big files are refused up front.
+    await file.setInputFiles({ name: "huge.png", mimeType: "image/png", buffer: Buffer.concat([TINY_PNG, Buffer.alloc(25 * 1024 * 1024 + 10)]) })
+    await expect(alertBox(page)).toContainText("too large (over 25 MB)")
+    await expect(cropStep(page)).toBeHidden()
+    // A file that only claims to be a picture cannot be opened, so it cannot be used.
     await file.setInputFiles({ name: "fake.png", mimeType: "image/png", buffer: Buffer.from("this is not really a png") })
-    await expect(alertBox(page)).toContainText("does not look like a picture")
-    await file.setInputFiles({ name: "me.png", mimeType: "image/png", buffer: TINY_PNG })
+    await expect(cropStep(page).getByRole("alert")).toContainText("We could not open that picture")
+    await expect(cropStep(page).getByRole("button", { name: "Use photo" })).toBeDisabled()
+    await expect(cropStep(page).getByRole("button", { name: "Use the whole picture" })).toBeDisabled()
+    await cropStep(page).getByRole("button", { name: "Cancel" }).click()
+    await expect(page.getByText("Click to upload profile picture")).toBeVisible()
+    await addPhoto(page)
     await expect(page.getByRole("img", { name: "Your profile picture" })).toBeVisible()
 
     // Bio with its counter (stops at 300).

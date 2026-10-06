@@ -13,6 +13,9 @@
  *   onConfirm  called with a JPEG Blob - either the framed part (4:5, the shape
  *              profile cards use) or the whole picture, scaled down so uploads
  *              are quick on a phone. The caller uploads it.
+ *   onCloseAutoFocus  optional: lets the caller say where keyboard focus goes
+ *              when the step closes (call event.preventDefault() and focus
+ *              something). Otherwise it returns to whatever opened the step.
  */
 import { useCallback, useEffect, useRef, useState } from "react"
 import { ArrowDown, ArrowLeft, ArrowRight, ArrowUp, Minus, Plus } from "lucide-react"
@@ -28,6 +31,14 @@ const MAX_ZOOM = 3
 const STEP = 0.1
 
 type Source = ImageBitmap | HTMLImageElement
+
+/** What the file picker offers and what is accepted before the crop step. */
+export const PHOTO_FILE_TYPES = ["image/jpeg", "image/png", "image/webp", "image/gif"]
+/**
+ * Phone photos are often larger than the server allows; they are made smaller
+ * here before upload, so only unreasonably big files are refused up front.
+ */
+export const MAX_PHOTO_FILE_BYTES = 25 * 1024 * 1024
 
 export const PHOTO_TIPS = [
   "Use a recent photo in good light, with your face easy to see.",
@@ -83,6 +94,7 @@ export function PhotoCropDialog({
   error = null,
   onCancel,
   onConfirm,
+  onCloseAutoFocus,
 }: {
   file: File | null
   open: boolean
@@ -90,6 +102,7 @@ export function PhotoCropDialog({
   error?: string | null
   onCancel: () => void
   onConfirm: (blob: Blob) => void
+  onCloseAutoFocus?: (event: Event) => void
 }) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const [source, setSource] = useState<Source | null>(null)
@@ -164,7 +177,7 @@ export function PhotoCropDialog({
 
   return (
     <Dialog open={open} onOpenChange={(next) => !next && !busy && onCancel()}>
-      <DialogContent className="max-h-[92vh] overflow-y-auto sm:max-w-lg">
+      <DialogContent className="max-h-[92vh] overflow-y-auto sm:max-w-lg" onCloseAutoFocus={onCloseAutoFocus}>
         <DialogHeader>
           <DialogTitle>Position your photo</DialogTitle>
           <DialogDescription>

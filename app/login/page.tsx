@@ -14,7 +14,11 @@ import { useAuthStore } from "@/lib/store/auth-store"
 import { api } from "@/lib/api"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 
+// Baked in when the website is built. When "true", emailed codes and links are
+// switched off, so "Forgot password?" explains that instead of opening the
+// reset form. (Browser test: tests/e2e-switch/auth07.spec.ts.)
 const DISABLE_EMAIL_VERIFICATION = process.env.NEXT_PUBLIC_DISABLE_EMAIL_VERIFICATION === 'true'
+const SUPPORT_EMAIL = "d8lpa.community@gmail.com"
 
 export default function LoginPage() {
   const router = useRouter()
@@ -164,7 +168,7 @@ export default function LoginPage() {
                 <button
                   type="button"
                   onClick={() => setShowForgotPasswordDialog(true)}
-                  className="text-sm text-primary hover:underline"
+                  className="rounded text-sm text-primary hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                 >
                   Forgot password?
                 </button>
@@ -207,19 +211,24 @@ export default function LoginPage() {
         <DialogContent className="sm:max-w-[400px]">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
-              <AlertCircle className="h-5 w-5 text-amber-600" />
-              Feature Disabled
+              <AlertCircle className="h-5 w-5 shrink-0 text-muted-foreground" aria-hidden="true" />
+              Password reset is switched off
             </DialogTitle>
+            <DialogDescription className="text-base text-foreground">
+              Resetting a password by email is switched off for now. Please email{" "}
+              <a href={`mailto:${SUPPORT_EMAIL}`} className="font-medium text-primary underline">
+                {SUPPORT_EMAIL}
+              </a>{" "}
+              and we will help you get back into your account.
+            </DialogDescription>
           </DialogHeader>
-          <DialogDescription className="text-base text-foreground">
-            Forgot Password has been disabled for now. Please contact support if you need assistance with your account.
-          </DialogDescription>
           <div className="flex justify-end gap-2 pt-4">
-            <Button onClick={() => setShowForgotPasswordDialog(false)}>
+            <Button className="min-h-11 text-base" onClick={() => setShowForgotPasswordDialog(false)}>
               Close
             </Button>
           </div>
         </DialogContent>
-      </Dialog>    </div>
+      </Dialog>
+    </div>
   )
 }

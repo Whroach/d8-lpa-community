@@ -64,11 +64,19 @@ jobs:
       - run: npm run test:e2e
         env:
           CI: "true"
+      # Screens that only exist when the site is built with a switch set
+      # (AUTH-07). Starts a second copy of the website only - no API.
+      - name: End-to-end, build-time switches
+        run: npm run test:e2e:switches
+        env:
+          CI: "true"
       - uses: actions/upload-artifact@v4
         if: failure()
         with:
           name: playwright-report
           path: |
             playwright-report
+            playwright-report-switches
             test-results
+            test-results-switches
           retention-days: 7

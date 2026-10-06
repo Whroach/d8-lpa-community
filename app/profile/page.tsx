@@ -6,7 +6,7 @@ import { useState, useEffect, useMemo, useRef, useCallback } from "react"
 import { useRouter } from "next/navigation"
 import { toast } from "sonner"
 import { LoadError } from "@/components/load-error"
-import { PhotoCropDialog, PHOTO_TIPS } from "@/components/profile/photo-crop-dialog"
+import { PhotoCropDialog, PHOTO_TIPS, PHOTO_FILE_TYPES, MAX_PHOTO_FILE_BYTES } from "@/components/profile/photo-crop-dialog"
 import { profileCompleteness, type CompletenessItem } from "@/lib/profile-completeness"
 import Image from "next/image"
 import Link from "next/link"
@@ -634,13 +634,13 @@ function ProfilePage() {
     if (!file) return
     setUploadError(null)
     setCropError(null)
-    if (!["image/jpeg", "image/png", "image/webp", "image/gif"].includes(file.type)) {
+    if (!PHOTO_FILE_TYPES.includes(file.type)) {
       setUploadError('That file is not a photo we can use. Please choose a JPG or PNG image.')
       return
     }
     // Phone photos are often larger than this; they are made smaller before
     // upload, so only refuse files that are unreasonably big.
-    if (file.size > 25 * 1024 * 1024) {
+    if (file.size > MAX_PHOTO_FILE_BYTES) {
       setUploadError('That photo is too large. Please choose an image under 25MB.')
       return
     }

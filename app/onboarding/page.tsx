@@ -20,6 +20,7 @@ import {
 import { useAuthStore } from "@/lib/store/auth-store"
 import { api } from "@/lib/api"
 import { cn } from "@/lib/utils"
+import { PhotoCropDialog, PHOTO_FILE_TYPES, MAX_PHOTO_FILE_BYTES } from "@/components/profile/photo-crop-dialog"
 import {
   Dialog,
   DialogContent,
@@ -31,8 +32,6 @@ import {
 const TOTAL_STEPS = 3
 const STEP_LABELS = ["Personal Info", "Profile Setup", "Get to Know Me"]
 const DRAFT_KEY = "d8-lpa-onboarding-draft"
-const MAX_PHOTO_BYTES = 5 * 1024 * 1024
-const PHOTO_TYPES = ["image/jpeg", "image/png", "image/webp", "image/gif"]
 
 const US_STATES = [
   "Alabama", "Alaska", "Arizona", "Arkansas", "California", "Colorado", "Connecticut",
@@ -376,6 +375,10 @@ export default function OnboardingPage() {
   const [photoBusy, setPhotoBusy] = useState(false)
   const [photoError, setPhotoError] = useState<string | null>(null)
   const [photoStatus, setPhotoStatus] = useState("")
+  // The picture that was chosen and is waiting in the "position your photo" step.
+  const [cropFile, setCropFile] = useState<File | null>(null)
+  const [cropError, setCropError] = useState<string | null>(null)
+  const removePhotoRef = useRef<HTMLButtonElement>(null)
   const [showGuidelines, setShowGuidelines] = useState(false)
   const [showStep1Errors, setShowStep1Errors] = useState(false)
   const [saving, setSaving] = useState(false)
@@ -516,36 +519,46 @@ export default function OnboardingPage() {
     router.push("/profile")
   }
 
-  const handlePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  // A picture was chosen: check it, then show the same tips and "position
+  // your photo" step that My Profile uses. Nothing is uploaded until the
+  // member presses "Use photo" or "Use the whole picture" there.
+  const handlePhotoChosen = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     e.target.value = ""
     if (!file) return
 
     setPhotoStatus("")
-    if (!PHOTO_TYPES.includes(file.type)) {
+    setCropError(null)
+    if (!PHOTO_FILE_TYPES.includes(file.type)) {
       setPhotoError("That file is not a picture we can use. Please choose a JPG, PNG, WebP or GIF.")
       return
     }
-    if (file.size > MAX_PHOTO_BYTES) {
-      setPhotoError("That picture is too large (over 5 MB). Please choose a smaller one.")
+    if (file.size > MAX_PHOTO_FILE_BYTES) {
+      setPhotoError("That picture is too large (over 25 MB). Please choose a smaller one.")
       return
     }
-
-    setPhotoBusy(true)
     setPhotoError(null)
-
-    const formData = new FormData()
-    formData.append("photo", file)
-    const result = await api.users.uploadPhoto(formData)
-
-    if (result.error || !result.data) {
-      setPhotoError(result.error || "We could not upload that picture. Please try again.")
-    } else {
-      setPhoto(result.data.url)
-      setPhotoStatus("Picture added.")
-    }
-    setPhotoBusy(false)
+    setCropFile(file)
   }
+
+  // Uploads the picture the crop step prepared (already made smaller there).
+  const uploadPrepared = async (blob: Blob) => {
+    setPhotoBusy(true)
+    setCropError(null)
+    const formData = new FormData()
+    formData.append("photo", blob, "photo.jpg")
+    const result = await api.users.uploadPhoto(formData)
+    setPhotoBusy(false)
+    if (result.error || !result.data) {
+      // Shown inside the crop step, which stays open so they can try again.
+      setCropError(result.error || "We could not upload that picture. Please try again.")
+      return
+    }
+    setPhoto(result.data.url)
+    setPhotoStatus("Picture added.")
+    setCropFile(null)
+  }
+
 
   // Really deletes the upload from the profile. (This used to clear the
   // preview only, and the picture stayed on the member's profile.)
@@ -844,7 +857,7 @@ export default function OnboardingPage() {
                 <div className="space-y-3">
                   <p id="photo-label" className="text-base font-medium text-foreground">Profile Picture</p>
                   <p className="text-sm text-muted-foreground">
-                    A clear, recent photo of you helps people feel comfortable saying hello. JPG, PNG, WebP or GIF, up to 5 MB. You can add or change it later in My Profile.
+                    A clear, recent photo of you helps people feel comfortable saying hello. After you choose one you can move and zoom it before it is added. JPG, PNG, WebP or GIF. You can add more or change it later in My Profile.
                   </p>
                   {photo ? (
                     <div className="flex flex-col items-center gap-3 sm:flex-row sm:items-end">
@@ -854,6 +867,7 @@ export default function OnboardingPage() {
                         className="h-48 w-48 rounded-xl object-cover border border-border"
                       />
                       <Button
+                        ref={removePhotoRef}
                         type="button"
                         variant="outline"
                         onClick={handleRemovePhoto}
@@ -874,7 +888,7 @@ export default function OnboardingPage() {
                       <input
                         type="file"
                         accept="image/jpeg,image/png,image/webp,image/gif"
-                        onChange={handlePhotoUpload}
+                        onChange={handlePhotoChosen}
                         className="sr-only"
                         disabled={photoBusy}
                         aria-labelledby="photo-label"
@@ -1297,6 +1311,25 @@ export default function OnboardingPage() {
           )}
         </div>
       </main>
+
+      {/* Tips and the "position your photo" step - the same one My Profile uses. */}
+      <PhotoCropDialog
+        file={cropFile}
+        open={cropFile !== null}
+        busy={photoBusy}
+        error={cropError}
+        onCancel={() => { setCropFile(null); setCropError(null) }}
+        onConfirm={uploadPrepared}
+        onCloseAutoFocus={(event) => {
+          // Once a picture is added the upload box is replaced by the picture,
+          // so keyboard focus goes to the "Remove photo" button beside it.
+          // After Cancel the box is still there and focus returns to it.
+          if (removePhotoRef.current) {
+            event.preventDefault()
+            removePhotoRef.current.focus()
+          }
+        }}
+      />
 
       {/* Community Guidelines Dialog */}
       <Dialog open={showGuidelines} onOpenChange={setShowGuidelines}>

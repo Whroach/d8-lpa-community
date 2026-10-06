@@ -9,6 +9,7 @@ For the owner. Short on purpose; the reasons are in [`ROLLOUT.md`](ROLLOUT.md). 
 - [ ] Read "Behaviour changes members may notice" in `ROLLOUT.md`. Decide whether to tell members first (larger text, new menu items, Settings save by themselves, the short welcome tour everyone sees once).
 - [ ] Make the six owner decisions at the end of `ROLLOUT.md`, or consciously leave them: none blocks the merge, and every default keeps today's behaviour.
 - [ ] Optional, 5 minutes, on your own computer - nothing real is used: `npm ci`, then `npm run smoke:prod`. It builds the site the way Railway does, starts the API with `NODE_ENV=production` against a throwaway database with stand-ins for S3 and Mailgun, and runs the core flows. It should end with `[smoke] PASSED`.
+- [ ] Know that this pull request also updates libraries (security fixes only, no major versions - see section 2b of `ROLLOUT.md`). If you would rather ship those separately, revert commit `e4110e0` on the branch before merging; everything else works without it. If you merge with **"Create a merge commit"** (not squash), that commit can also be reverted by itself later.
 - [ ] In Railway, note the **current deployment** of each service (Deployments tab; the one marked Active) - that is what you roll back to.
 - [ ] In Railway → API service → Variables, confirm these exist (do not change them): `MONGODB_URI`, `JWT_SECRET`, `ALLOWED_ORIGINS` (must include the website's address), `FRONTEND_URL`, the `AWS_*` four, `MAILGUN_API_KEY`, `MAILGUN_DOMAIN`, `SMTP_FROM_EMAIL`. Website service: `NEXT_PUBLIC_API_URL`. **No new variable is required.**
 - [ ] Pick a quiet time (a weekday morning). Members with the site open keep working, but live chat updates in an already-open tab stop until they reload.
@@ -28,6 +29,7 @@ For the owner. Short on purpose; the reasons are in [`ROLLOUT.md`](ROLLOUT.md). 
 - [ ] My Profile → Manage Photos → add a photo (tips, then "Position your photo") → it appears. This proves S3 still works.
 - [ ] Log out → "Forgot password?" → enter your own address → the email arrives and the link opens the site. This proves Mailgun still works.
 - [ ] Admin area opens; Reports and Members load.
+- [ ] Admin -> Activity log opens (it is empty until the first decision is taken after the deploy - that is expected).
 - [ ] **Rate limits see real visitors, not the proxy.** From your computer run (PowerShell):
       `curl.exe -s -D - -o NUL https://<api address>/api/events | findstr /i ratelimit-remaining`
       then the same on your phone's mobile data (or ask someone elsewhere). Each should start near **1499** and count down separately. If both count down the same number, every member is sharing one allowance: set `TRUST_PROXY` on the API service (try `2` if there is a second proxy such as Cloudflare in front) and redeploy. (Use `/api/events`, not `/api/health` - the health check is never limited and carries no such header. Signed out, `/api/events` answers 401; that is expected, the header is still there.)

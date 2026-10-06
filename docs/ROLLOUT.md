@@ -43,6 +43,16 @@ Round 2 adds no collection and no index.
 
 Members who said "I'm going" get an in-app notification the day before an event and on the day. **Nothing needs scheduling**: a member's due reminders are created when they open the app. "Today" and "tomorrow" follow `COMMUNITY_TIME_ZONE` (default `America/Chicago`), and the time in the reminder is written with its zone ("6:30 PM CST"). Optional: to have reminders waiting before members open the app, add a Railway cron service running `node src/jobs/run-event-reminders.js` hourly. No email is sent. Right after deploy, members going to an event that is today or tomorrow will get that reminder once.
 
+## 2b. Round 3: admin activity log, required reasons, dependency updates
+
+- **New collection `moderationactions`** (the admin activity log): one entry for every warning, suspension, ban, lifting, dismissed or reopened report - who, about whom, when, why. It is created by itself the first time an admin takes a decision, with two small indexes. Entries are only added, never changed. Nothing existing is migrated: decisions taken before the deploy are in each member's own History (as before), not in the log.
+- `users.actionHistory[]` entries may now carry `report_id` (which report a decision answered). Additive.
+- **Suspend and ban now need a reason** (the API answers 400 without one), from the Members tab and from the report queue; each asks for confirmation first. An admin with the old admin page still open in a tab would find the one-click Suspend / Ban in the old report queue refused until they reload - nothing is changed by the refused click.
+- `GET /admin/users` and `GET /admin/reports` answer a page at a time when asked with `page=`; without it they answer as before.
+- A report about a member who has closed their account is now marked "Account closed" and can only be dismissed.
+- **Dependency updates** (commit `e4110e0`, on its own so it can be reverted alone): the non-breaking fixes `npm audit` offers, for the website and the API - patch and minor releases inside the ranges already in `package.json` (Next.js 16.1.6 to 16.4.0, Express 4.22.1 to 4.22.3, Mongoose 8.22.0 to 8.24.5, ws, socket.io-parser, the AWS S3 client and others). Both now report 0 known vulnerabilities. Checked with the full test suites and `npm run smoke:prod` (production build, API in production mode, S3 and Mailgun stand-ins). `server/node_modules` is committed (decision 4), so it was updated to match `server/package-lock.json`; that is why the commit is thousands of files. What cannot be checked locally: a real upload to the real S3 bucket with the newer AWS client - the release checklist has that as a step straight after deploy.
+- No new environment variable. Token format and secret unchanged; sign-ins stay valid.
+
 ## 3. Deploy order
 
 Deploy the API and the website **together** (same commit). The live chat connection now requires the member's token:
@@ -64,6 +74,8 @@ Existing sign-ins stay valid: the token format and secret are unchanged.
 - Round 2: adding a photo shows tips and a "position your photo" step; photos are made smaller in the browser before upload. The screen now says 9 photos (what the server always allowed), not 10.
 - Round 2: first name, last name and city can be edited on My Profile. Birthday cannot.
 - Round 2: My Profile shows the member (only) a "Your profile is N% complete" card with suggestions; "Hide for now" removes it on that device.
+- Round 3: onboarding now shows the same photo tips and "position your photo" step as My Profile. Pop-up messages ("Saved" and the like) have larger, darker text.
+- Round 3, admins only: the admin area has five tabs (Reports, Members, Events, News, Activity log); warn, suspend, ban, lifting, cancel, restore, delete, post and withdraw each ask first in the app's own dialogs, and suspend / ban / warn offer Undo for a few seconds.
 - Vercel Analytics was removed from the page (the site is hosted on Railway, and it sent page views to a third party).
 
 ## 5. Decisions for the owner

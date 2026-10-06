@@ -93,7 +93,11 @@ test.describe("browse, like, match, save", () => {
     await expect(row).toContainText("was reported by Gray")
     await expect(row).toContainText("Asked me for money, gift cards or crypto")
     await expect(row).toContainText("Asked for a loan in the second message.")
-    await row.getByRole("button", { name: "Warn" }).click()
+    // Warning from the queue now asks first: it shows the standard message, which can be changed.
+    await row.getByRole("button", { name: /^Warn / }).click()
+    const confirm = adminPage.getByRole("alertdialog")
+    await expect(confirm.getByLabel("Message to Harper")).toHaveValue(/A member reported your behaviour/)
+    await confirm.getByRole("button", { name: "Send warning" }).click()
     await expect(adminPage.getByText("Harper has been warned and the report closed")).toBeVisible()
     await expect(adminPage.getByTestId("report-row").filter({ hasText: "Harper" })).toHaveCount(0)
     await adminContext.close()

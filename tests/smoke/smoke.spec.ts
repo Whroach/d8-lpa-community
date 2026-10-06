@@ -163,7 +163,7 @@ test.describe("rate limits behind one proxy (trust proxy = 1, the production def
 })
 
 test.describe("core flows on the production build", () => {
-  test("sign up in the browser, confirm the emailed code, land in onboarding; unverified sign-in is refused before that", async ({ page, request }) => {
+  test("sign up in the browser, confirm the emailed code, land in onboarding", async ({ page, request }) => {
     const email = uniqueEmail("signup")
     await page.goto("/signup")
     await page.locator("#email").fill(email)
@@ -243,7 +243,7 @@ test.describe("core flows on the production build", () => {
     await adaPage.getByRole("button", { name: "Like Bea" }).click()
     await expect(adaPage.getByText(/It's a match! You and Bea like each other/)).toBeVisible()
     const matches = await (await request.get(`${API}/matches`, { headers: auth(ada.token) })).json()
-    const matchId = String((matches[0] || matches.matches?.[0]).id)
+    const matchId = String((Array.isArray(matches) ? matches : matches.active)[0].id)
 
     // Chat, live in both directions (Socket.io with the production CORS list).
     await adaPage.goto(`/messages?match=${matchId}`)
@@ -304,7 +304,9 @@ test.describe("core flows on the production build", () => {
 
     const adminPage = await signedInPage(browser, { ...boss, token: admin.token, user: admin.user, profile: admin.profile }, "/admin")
     await expect(adminPage.getByRole("heading", { name: /Admin/ }).first()).toBeVisible()
-    await expect(adminPage.getByText(member.email).first()).toBeVisible()
+    await expect(adminPage.getByRole("heading", { name: "Member reports" })).toBeVisible()
+    await adminPage.getByRole("tab", { name: "Members" }).or(adminPage.getByRole("button", { name: "Members", exact: true })).first().click()
+    await expect(adminPage.getByText(/Pia Example/).first()).toBeVisible()
 
     const title = `Smoke Supper ${Date.now()}`
     const start = new Date(Date.now() + 6 * 864e5)

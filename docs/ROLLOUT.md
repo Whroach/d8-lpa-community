@@ -17,7 +17,7 @@ No new variable is required. Optional ones:
 
 | Variable | Service | Purpose |
 |---|---|---|
-| `TRUST_PROXY` | API | Defaults to `1` in production (one proxy in front, which is how Railway works). Rate limits are per visitor address, so this must be right: if every visitor shared the proxy's address, they would all be limited together. Check after deploy that `/api/health` responses carry sensible `RateLimit-Remaining` values from two different networks |
+| `TRUST_PROXY` | API | Defaults to `1` in production (one proxy in front, which is how Railway works). Rate limits are per visitor address, so this must be right: if every visitor shared the proxy's address, they would all be limited together. Check after deploy that the `RateLimit-Remaining` header on `/api/events` counts down separately from two different networks (not `/api/health`: the health check is never limited and carries no such header). The exact command is in [`RELEASE-CHECKLIST.md`](RELEASE-CHECKLIST.md). Verified locally in round 3 by `npm run smoke:prod`: with the production default, each address in `X-Forwarded-For` (as one proxy would send it) has its own allowance, and an entry forged by the visitor is ignored. What cannot be verified locally is how many proxies really sit in front of the API on Railway - hence the check |
 | `ENFORCE_EMAIL_VERIFICATION=true` | API | Refuse sign-in until the email address is verified. **Off by default** - see decision 1 |
 | `COMMUNITY_TIME_ZONE` | API | For quiet hours on the email summary. Default `America/Chicago` |
 

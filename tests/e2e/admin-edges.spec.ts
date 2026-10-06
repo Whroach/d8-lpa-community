@@ -352,6 +352,27 @@ test.describe("admin: Undo, failures and unusual cases", () => {
     await context.close()
   })
 
+  test("ADM waiting number: a report that arrives while the admin is on another tab shows on the Reports tab at the next tab change", async ({ browser, request }) => {
+    const admin = await loginApi(request, ADMIN_EMAIL, DEMO_PASSWORD)
+    const tag = Date.now()
+    const reporter = await createMember(request, { firstName: `Wren${tag}` })
+    const reported = await createMember(request, { firstName: `Xan${tag}` })
+    const pending = async () => (await (await request.get(`${API}/admin/reports?page=1&limit=1`, { headers: authHeaders(admin.token) })).json()).counts.pending as number
+    const page = await adminPage(browser, admin, "Members")
+    await expect(page.getByTestId("user-row").first()).toBeVisible()
+    expect((await request.post(`${API}/browse/${reported.id}/report`, { headers: authHeaders(reporter.token), data: { reason: `Badge ${tag}`, category: "Something else", source: "profile" } })).ok()).toBeTruthy()
+    const now = await pending()
+    await openTab(page, "Events")
+    await expect(page.getByTestId("reports-waiting")).toHaveText(`${now} waiting`)
+    // Tidy up, and the number follows at the next change of tab.
+    const filed = await (await request.get(`${API}/admin/reports?page=1&limit=5&q=${encodeURIComponent(`Badge ${tag}`)}`, { headers: authHeaders(admin.token) })).json()
+    await request.put(`${API}/admin/reports/${filed.reports[0].id}`, { headers: authHeaders(admin.token), data: { status: "dismissed", action_taken: "none" } })
+    await openTab(page, "News")
+    if (now - 1 > 0) await expect(page.getByTestId("reports-waiting")).toHaveText(`${now - 1} waiting`)
+    else await expect(page.getByTestId("reports-waiting")).toHaveCount(0)
+    await page.context().close()
+  })
+
   test("ADM activity log pages: more than one page of entries, Next and Previous", async ({ browser, request }) => {
     test.setTimeout(150_000)
     const admin = await loginApi(request, ADMIN_EMAIL, DEMO_PASSWORD)

@@ -25,6 +25,7 @@
  */
 import { spawn } from 'child_process'
 import crypto from 'crypto'
+import fs from 'fs'
 import path from 'path'
 import { fileURLToPath, pathToFileURL } from 'url'
 import { startLocalMongo } from './local-mongo.mjs'
@@ -115,7 +116,12 @@ try {
   }
   if (!skipBuild) {
     console.log('\n[smoke] next build ...')
+    // Building into a folder other than .next makes Next.js add that folder to
+    // tsconfig.json. Put the file back as it was, so nothing stray is committed.
+    const tsconfigPath = path.join(root, 'tsconfig.json')
+    const tsconfigBefore = fs.readFileSync(tsconfigPath)
     const code = await runToEnd(['node_modules/next/dist/bin/next', 'build'], { cwd: root, env: webEnv })
+    if (!fs.readFileSync(tsconfigPath).equals(tsconfigBefore)) fs.writeFileSync(tsconfigPath, tsconfigBefore)
     if (code !== 0) throw new Error(`next build failed (${code})`)
   }
 

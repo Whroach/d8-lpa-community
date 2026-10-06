@@ -31,3 +31,35 @@ The repo is public and its history holds a production database connection string
 - The API process does not hot-reload: restart `dev:local` after changing anything under `server/`.
 - The Next dev server may rewrite `tsconfig.json` when `NEXT_DIST_DIR` is used - do not commit that.
 - Ports used in round 2: 4120-4125. All stopped.
+
+---
+
+# Round 3 (2026-10-06) - running notes
+
+The first attempt at this round was cut off by an outage about an hour in; a second session picked it up. This section is kept up to date as the work goes.
+
+## What the interrupted attempt left, and what happened to it
+
+Pushed before the outage (all kept, all re-run): the suspension-notice fix (the intermittent test), the admin API (reasons required, activity log, server-side pages and search, local bulk seed), the rebuilt admin panel, the hygiene pass (mock data, 32 unused components and hooks, 41 unused dependencies removed), the onboarding crop step, the AUTH-07 switch build, the production-like smoke run and `docs/RELEASE-CHECKLIST.md`.
+
+Six files were uncommitted:
+
+| File | Decision |
+|---|---|
+| `components/admin/events-tab.tsx`, `news-tab.tsx` (each form box changes only its own value) | Kept - sound |
+| `eslint.config.mjs` (ignore `test-results-*`) | Kept |
+| `tests/e2e/a11y-admin.spec.ts`, `a11y-signup-onboarding.spec.ts` (new) | Kept and finished - 6 of their 8 tests failed as left |
+| `components/ui/select.tsx` (page behind an open list made inert) | **Was broken**: it also ran for closed lists, which switched the whole page off (nothing could be clicked). Fixed to act only when the list is really open, then kept |
+
+## Done so far in the second session
+
+- Inventory: section 17 rewritten row by row for the rebuilt admin panel (a helper read every row against its test). That found 17 admin rows with no browser test; all 17 are now tested in `tests/e2e/admin-edges.spec.ts`. **0 not verified, 0 broken** (533 rows).
+- Defects found while writing those tests, all fixed: a report about a closed account still offered Warn / Suspend / Ban; Warn offered for a banned member; Restore event had no confirmation; failed loads of notes and "who is going" read as "none"; an event under way was labelled Past; delete wording on a cancelled event; stale waiting number on the Reports tab; toast text 13px and below AA contrast.
+- `npm audit`: 0 known vulnerabilities in website and API after non-breaking updates (commit `e4110e0`, on its own so it can be reverted alone; it is large because `server/node_modules` is committed).
+- `npm run smoke:prod` 9 of 9 after the dependency updates.
+
+## Still to do in this round (updated as it goes)
+
+- Screenshot review of every screen and dialog at three widths, light and dark.
+- Three consecutive full browser runs.
+- Docs: design review, rollout, local development, PR description.

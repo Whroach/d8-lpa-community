@@ -707,12 +707,14 @@ describe('admin', () => {
     expect([user.warnings, user.status]).toEqual([1, 'warned'])
     expect(await Notification.countDocuments({ user_id: target.id, title: 'Account Warning' })).toBe(1)
 
-    await act('suspend')
+    // Suspending or banning needs a reason (it goes in the activity log).
+    expect((await act('suspend')).status).toBe(400)
+    expect((await act('suspend', 'Cooling-off period')).status).toBe(200)
     expect((await ctx.api.get('/api/auth/me').set(target.auth)).status).toBe(403)
     await act('unsuspend')
     expect((await ctx.api.get('/api/auth/me').set(target.auth)).status).toBe(200)
 
-    await act('ban')
+    expect((await act('ban', 'Repeated harassment')).status).toBe(200)
     expect((await ctx.api.post('/api/auth/login').send({ email: target.user.email, password: PASSWORD })).status).toBe(403)
     await act('unban')
     expect((await ctx.api.post('/api/auth/login').send({ email: target.user.email, password: PASSWORD })).status).toBe(200)

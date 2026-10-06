@@ -26,4 +26,16 @@ router.delete('/outbox', (req, res) => {
   res.json({ success: true });
 });
 
+// A large fictional community (about 300 members, 250 reports) for trying the
+// admin screens at scale. See server/src/dev/seed-bulk.js.
+router.post('/bulk-admin-data', async (req, res) => {
+  const { seedBulk } = await import('../dev/seed-bulk.js');
+  res.json(await seedBulk({ members: req.body?.members, reports: req.body?.reports ?? 250 }));
+});
+
+router.delete('/bulk-admin-data', async (req, res) => {
+  const { clearBulk } = await import('../dev/seed-bulk.js');
+  res.json(await clearBulk());
+});
+
 export default router;

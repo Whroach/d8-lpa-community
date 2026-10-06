@@ -47,6 +47,7 @@ const routes = () => [
   ['get', '/api/admin/reports'],
   ['put', `/api/admin/reports/${FAKE_ID}`, { status: 'dismissed' }],
   ['get', '/api/admin/stats'],
+  ['get', '/api/admin/audit-log'],
 ]
 
 describe('admin routes are for admins only', () => {

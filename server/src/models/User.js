@@ -67,6 +67,8 @@ const userSchema = new mongoose.Schema({
     action: { type: String },
     reason: { type: String, default: '' },
     admin: { type: String, default: '' },
+    // The member report this action answered, if any (optional, added later).
+    report_id: { type: String },
     created_at: { type: Date, default: Date.now }
   }],
   // Free-form private notes written by admins about this account.

@@ -158,7 +158,7 @@ describe('realtime: nobody can listen in', () => {
     const member = await makeUser()
     const socket = await connect(member)
     const dropped = waitFor(socket, 'disconnect')
-    await ctx.api.post(`/api/admin/users/${member.id}/action`).set(admin.auth).send({ action: 'suspend' })
+    await ctx.api.post(`/api/admin/users/${member.id}/action`).set(admin.auth).send({ action: 'suspend', message: 'Test suspension' })
     await dropped
     expect(socket.connected).toBe(false)
   })

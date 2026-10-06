@@ -211,7 +211,7 @@ test.describe("admin", () => {
     const admin = await loginApi(request, ADMIN_EMAIL, DEMO_PASSWORD)
     const page = await signedInPage(browser, member, "/browse")
     await expect(page.getByRole("navigation", { name: "Main" })).toBeVisible()
-    await request.post(`${API}/admin/users/${member.id}/action`, { headers: authHeaders(admin.token), data: { action: "suspend" } })
+    await request.post(`${API}/admin/users/${member.id}/action`, { headers: authHeaders(admin.token), data: { action: "suspend", message: "Test suspension" } })
     await page.goto("/messages")
     const notice = page.getByRole("alertdialog", { name: "Account Suspended or Banned" })
     await expect(notice).toBeVisible()

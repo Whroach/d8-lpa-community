@@ -98,7 +98,6 @@ export default function SavedPage() {
               <li key={profile.id}>
                 <Card>
                   <CardContent className="flex gap-4 p-4">
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img
                       src={profile.profile_picture_url || "/placeholder-user.jpg"}
                       alt=""

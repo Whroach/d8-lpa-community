@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useCallback, useEffect, useState } from "react"
 import { useParams, useRouter } from "next/navigation"
 import Image from "next/image"
 import { ArrowLeft, MapPin, Briefcase, GraduationCap, Heart, MessageCircle, Flag, User as UserIcon, ChevronLeft, ChevronRight, Target, Globe, Compass, X, MoreVertical } from "lucide-react"
@@ -51,14 +51,9 @@ export default function UserProfilePage() {
   const myProfile = useAuthStore((state) => state.profile)
   const me = useAuthStore((state) => state.user)
 
-  useEffect(() => {
-    loadProfile()
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [userId])
-
   // One request now returns the profile and how I relate to this member
   // (liked, matched, saved); this page used to make three.
-  const loadProfile = async () => {
+  const loadProfile = useCallback(async () => {
     setIsLoading(true)
     setLoadError("")
     setNotFound(false)
@@ -78,7 +73,11 @@ export default function UserProfilePage() {
       setLoadError(result.error || "Please try again.")
     }
     setIsLoading(false)
-  }
+  }, [userId])
+
+  useEffect(() => {
+    void loadProfile()
+  }, [loadProfile])
 
   const nextPhoto = () => {
     if (selectedPhotoIndex < photos.length - 1) {

@@ -5,7 +5,7 @@ import { SelectContent } from "@/components/ui/select"
 import { SelectValue } from "@/components/ui/select"
 import { SelectTrigger } from "@/components/ui/select"
 import { Select } from "@/components/ui/select"
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback } from "react"
 import { useRouter } from "next/navigation"
 import {
   Settings,
@@ -144,26 +144,7 @@ export default function SettingsPage() {
   const [textSize, setTextSizeState] = useState<TextSize>("comfortable")
   const doLogout = useLogout()
 
-  useEffect(() => {
-    setTextSizeState(getTextSize())
-    loadSettings()
-    // Jump to a section when arriving from Help or Safety (#privacy, ...).
-    const hash = window.location.hash.slice(1)
-    if (hash) setTimeout(() => document.getElementById(hash)?.scrollIntoView(), 400)
-  }, [])
-
-  // Changes are saved as soon as they are made - there is no Save button to
-  // forget. A short pause groups quick changes into one request.
-  useEffect(() => {
-    if (!hasChanges || loadError !== "") return
-    const timer = setTimeout(() => {
-      void saveSettings()
-    }, 500)
-    return () => clearTimeout(timer)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [settings, hasChanges, loadError])
-
-  const loadSettings = async () => {
+  const loadSettings = useCallback(async () => {
     setLoadError(null)
     const result = await api.settings.get()
     if (result.error || !result.data) {
@@ -204,7 +185,15 @@ export default function SettingsPage() {
       setHasChanges(false)
       setSaveSuccess(false)
     }
-  }
+  }, [])
+
+  useEffect(() => {
+    setTextSizeState(getTextSize())
+    void loadSettings()
+    // Jump to a section when arriving from Help or Safety (#privacy, ...).
+    const hash = window.location.hash.slice(1)
+    if (hash) setTimeout(() => document.getElementById(hash)?.scrollIntoView(), 400)
+  }, [loadSettings])
 
   const saveSettings = async () => {
     const toSave = settings
@@ -241,6 +230,17 @@ export default function SettingsPage() {
     toast.success("Saved", { id: "settings-saved", duration: 2500 })
     setTimeout(() => setSaveSuccess(false), 3000)
   }
+
+  // Changes are saved as soon as they are made - there is no Save button to
+  // forget. A short pause groups quick changes into one request.
+  useEffect(() => {
+    if (!hasChanges || loadError !== "") return
+    const timer = setTimeout(() => {
+      void saveSettings()
+    }, 500)
+    return () => clearTimeout(timer)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [settings, hasChanges, loadError])
 
   const handleDisableAccount = async () => {
     if (!disableConfirmed || !disablePassword.trim()) {

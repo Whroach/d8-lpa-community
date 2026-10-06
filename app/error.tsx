@@ -28,6 +28,8 @@ export default function GlobalError({
           <Button size="lg" onClick={reset}>
             Try again
           </Button>
+          {/* A full page load on purpose: after a crash the app is started afresh rather than re-using broken state. */}
+          {/* eslint-disable-next-line @next/next/no-location-assign-relative-destination */}
           <Button size="lg" variant="outline" onClick={() => (window.location.href = "/browse")}>
             Go to the home screen
           </Button>

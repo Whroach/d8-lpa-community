@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useCallback, useEffect, useState } from "react"
 import Link from "next/link"
 import { Search, MessageCircle, Users, Filter, MoreVertical, User, HeartOff, Ban, Flag, Heart, MapPin, ChevronUp, ChevronDown, History } from "lucide-react"
 import { AppLayout } from "@/components/app-layout"
@@ -81,6 +81,35 @@ export default function MatchesPage() {
     setDialogError(null)
   }
 
+  const loadLikedProfiles = useCallback(async (): Promise<string | null> => {
+    const result = await api.browse.getLikedProfiles()
+    if (result.data) {
+      setLikedProfiles(result.data)
+      return null
+    }
+    return result.error || "Please try again."
+  }, [])
+
+  const loadMatches = useCallback(async (): Promise<string | null> => {
+    const result = await api.matches.getAll()
+    if (result.data) {
+      setMatches(
+        Array.isArray(result.data) ? result.data : result.data.active || []
+      )
+      setInactiveMatches(Array.isArray(result.data) ? [] : result.data.inactive || [])
+      return null
+    }
+    return (result as { error?: string }).error || "Please try again."
+  }, [])
+
+  const loadAll = useCallback(async () => {
+    setIsLoading(true)
+    setLoadError(null)
+    const [matchError, likedError] = await Promise.all([loadMatches(), loadLikedProfiles()])
+    setLoadError(matchError || likedError || null)
+    setIsLoading(false)
+  }, [loadMatches, loadLikedProfiles])
+
   useEffect(() => {
     // Both requests share isLoading, so wait for both before clearing it —
     // otherwise the faster one hides the skeleton while the other is pending.
@@ -89,24 +118,7 @@ export default function MatchesPage() {
       localStorage.setItem("lastViewedMatches", new Date().toISOString())
       window.dispatchEvent(new Event("matchesViewed"))
     }
-  }, [])
-
-  const loadAll = async () => {
-    setIsLoading(true)
-    setLoadError(null)
-    const [matchError, likedError] = await Promise.all([loadMatches(), loadLikedProfiles()])
-    setLoadError(matchError || likedError || null)
-    setIsLoading(false)
-  }
-
-  const loadLikedProfiles = async (): Promise<string | null> => {
-    const result = await api.browse.getLikedProfiles()
-    if (result.data) {
-      setLikedProfiles(result.data)
-      return null
-    }
-    return result.error || "Please try again."
-  }
+  }, [loadAll])
 
   // Removing a like asks first. There is no Undo on purpose: liking again
   // would send the other member a second "someone likes you" notice.
@@ -170,18 +182,6 @@ export default function MatchesPage() {
 
     setFilteredInactiveMatches(filteredInactive)
   }, [matches, inactiveMatches, searchQuery, sortBy])
-
-  const loadMatches = async (): Promise<string | null> => {
-    const result = await api.matches.getAll()
-    if (result.data) {
-      setMatches(
-        Array.isArray(result.data) ? result.data : result.data.active || []
-      )
-      setInactiveMatches(Array.isArray(result.data) ? [] : result.data.inactive || [])
-      return null
-    }
-    return (result as { error?: string }).error || "Please try again."
-  }
 
   const formatTimestamp = (timestamp?: string | null) => {
     if (!timestamp) return ""

@@ -2,7 +2,7 @@
 
 import React from "react"
 
-import { useState, useEffect, useMemo, useRef } from "react"
+import { useState, useEffect, useMemo, useRef, useCallback } from "react"
 import { useRouter } from "next/navigation"
 import { toast } from "sonner"
 import { LoadError } from "@/components/load-error"
@@ -276,7 +276,7 @@ function ProfilePage() {
   // Goes through the shared API client so it honours NEXT_PUBLIC_API_URL and
   // the 401 handling. A hand-rolled fetch here used to build the URL from the
   // env var directly, which produced "undefined/users/profile" when unset.
-  const loadProfile = async () => {
+  const loadProfile = useCallback(async () => {
     setIsLoadingProfile(true)
     setLoadError(null)
     const result = await api.users.getProfile()
@@ -288,12 +288,12 @@ function ProfilePage() {
       setLoadError(result.error || "Please try again.")
     }
     setIsLoadingProfile(false)
-  }
+  }, [setUser, setProfile])
 
   // Load profile data on mount
   useEffect(() => {
-    loadProfile()
-  }, [setUser, setProfile])
+    void loadProfile()
+  }, [loadProfile])
 
   // Load stats on mount
   useEffect(() => {

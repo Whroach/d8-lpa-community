@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useRef } from "react"
+import { useCallback, useEffect, useRef } from "react"
 import { usePathname } from "next/navigation"
 import { api } from "@/lib/api"
 import { getSocket } from "@/lib/socket"
@@ -47,8 +47,7 @@ export function RealtimeProvider() {
 
   // ---- initial counts -----------------------------------------------------
 
-  const refreshCounts = useRef(async () => {})
-  refreshCounts.current = async () => {
+  const loadCounts = useCallback(async () => {
     const lastViewedMatches =
       typeof window !== "undefined"
         ? new Date(localStorage.getItem("lastViewedMatches") || 0)
@@ -92,7 +91,13 @@ export function RealtimeProvider() {
     }
 
     setCounts(next)
-  }
+  }, [setCounts])
+  // The socket handlers below call this through a ref, so they are not torn
+  // down and re-subscribed when it changes.
+  const refreshCounts = useRef(loadCounts)
+  useEffect(() => {
+    refreshCounts.current = loadCounts
+  }, [loadCounts])
 
   useEffect(() => {
     if (!isAuthenticated) return

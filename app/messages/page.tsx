@@ -392,6 +392,8 @@ function MessagesScreen() {
     if (!selectedId) return
     writeDraft(selectedId, next)
     // Tell the other person we are typing, at most every two seconds.
+    // Only ever called from typing and click handlers, never while rendering.
+    // eslint-disable-next-line react-hooks/purity
     const now = Date.now()
     if (next && now - typingSentAt.current > 2000) {
       typingSentAt.current = now

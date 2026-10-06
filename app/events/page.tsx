@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useRef, useState } from "react"
+import { useCallback, useEffect, useRef, useState } from "react"
 import Image from "next/image"
 import {
   Calendar,
@@ -129,8 +129,27 @@ export default function EventsPage() {
   // The card that opened the details, so keyboard focus can go back to it.
   const openerRef = useRef<HTMLElement | null>(null)
 
+  const loadEvents = useCallback(async () => {
+    setIsLoading(true)
+    setLoadError(null)
+    const result = await api.events.getAll()
+    if (Array.isArray(result.data)) {
+      setEvents(result.data)
+      // A reminder or notification can link straight to one event.
+      const wanted = new URLSearchParams(window.location.search).get("event")
+      const found = wanted && result.data.find((e: Event) => String(e.id) === wanted)
+      if (found) {
+        if (isPastEvent(found)) setActiveTab("past")
+        setSelectedEvent(found)
+      }
+    } else {
+      setLoadError(result.error || "Please try again.")
+    }
+    setIsLoading(false)
+  }, [])
+
   useEffect(() => {
-    loadEvents()
+    void loadEvents()
     if (typeof window !== "undefined") {
       localStorage.setItem("lastViewedEvents", new Date().toISOString())
       window.dispatchEvent(new Event("eventsViewed"))
@@ -161,7 +180,7 @@ export default function EventsPage() {
       
       markEventNotificationsAsRead()
     }
-  }, [])
+  }, [loadEvents])
 
   useEffect(() => {
     let filtered = events.filter(
@@ -200,25 +219,6 @@ export default function EventsPage() {
   }
 
   const activeFiltersCount = (eventType !== "all" ? 1 : 0) + (startDate ? 1 : 0) + (endDate ? 1 : 0)
-
-  const loadEvents = async () => {
-    setIsLoading(true)
-    setLoadError(null)
-    const result = await api.events.getAll()
-    if (Array.isArray(result.data)) {
-      setEvents(result.data)
-      // A reminder or notification can link straight to one event.
-      const wanted = new URLSearchParams(window.location.search).get("event")
-      const found = wanted && result.data.find((e: Event) => String(e.id) === wanted)
-      if (found) {
-        if (isPastEvent(found)) setActiveTab("past")
-        setSelectedEvent(found)
-      }
-    } else {
-      setLoadError(result.error || "Please try again.")
-    }
-    setIsLoading(false)
-  }
 
   // Quick choices beside the date boxes.
   const setRange = (days: number | null) => {

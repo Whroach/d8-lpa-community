@@ -90,11 +90,7 @@ export default function BrowsePage() {
   const [displayCount, setDisplayCount] = useState(12)
   const loadMoreRef = useRef<HTMLDivElement>(null)
 
-  useEffect(() => {
-    loadProfiles()
-  }, [])
-
-  const loadProfiles = async () => {
+  const loadProfiles = useCallback(async () => {
     setIsLoading(true)
     setLoadError(null)
     const result = await api.browse.getProfiles()
@@ -118,7 +114,11 @@ export default function BrowsePage() {
       setLikeIds(likeIdMap)
     }
     setIsLoading(false)
-  }
+  }, [])
+
+  useEffect(() => {
+    void loadProfiles()
+  }, [loadProfiles])
 
   // The Activities filter lists the interests members here actually have.
   // It used to be a fixed list that left out most of the interests offered at

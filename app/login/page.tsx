@@ -56,7 +56,7 @@ export default function LoginPage() {
         localStorage.removeItem("db-lpa-remember-me")
       }
     }
-  }, [])
+  }, [setError])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()

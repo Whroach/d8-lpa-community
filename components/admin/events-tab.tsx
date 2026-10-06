@@ -111,6 +111,10 @@ export function EventsTab() {
     void load()
   }, [load])
 
+  // Each box changes only its own value, starting from the latest form - two
+  // boxes filled in quick succession (autofill does this) must not undo each other.
+  const patch = (changes: Partial<typeof EMPTY_FORM>) => setForm((prev) => ({ ...prev, ...changes }))
+
   const openCreate = () => {
     setEditing(null)
     setForm(EMPTY_FORM)
@@ -422,7 +426,7 @@ export function EventsTab() {
           <div className="space-y-4">
             <div className="space-y-2">
               <Label htmlFor="event-title" className="text-base">Event Title *</Label>
-              <Input id="event-title" placeholder="e.g., Fall Picnic" value={form.title} aria-required="true" onChange={(e) => setForm({ ...form, title: e.target.value })} />
+              <Input id="event-title" placeholder="e.g., Fall Picnic" value={form.title} aria-required="true" onChange={(e) => patch({ title: e.target.value })} />
             </div>
 
             <div className="space-y-2">
@@ -431,7 +435,7 @@ export function EventsTab() {
                 id="event-description"
                 placeholder="What to expect, what to bring, how to get in"
                 value={form.description}
-                onChange={(e) => setForm({ ...form, description: e.target.value })}
+                onChange={(e) => patch({ description: e.target.value })}
                 rows={3}
                 maxLength={2000}
                 className="text-base"
@@ -441,22 +445,22 @@ export function EventsTab() {
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <div className="space-y-2">
                 <Label htmlFor="event-start-date" className="text-base">Start Date *</Label>
-                <Input id="event-start-date" type="date" value={form.start_date} aria-required="true" onChange={(e) => setForm({ ...form, start_date: e.target.value })} />
+                <Input id="event-start-date" type="date" value={form.start_date} aria-required="true" onChange={(e) => patch({ start_date: e.target.value })} />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="event-start-time" className="text-base">Start Time *</Label>
-                <Input id="event-start-time" type="time" value={form.start_time} aria-required="true" onChange={(e) => setForm({ ...form, start_time: e.target.value })} />
+                <Input id="event-start-time" type="time" value={form.start_time} aria-required="true" onChange={(e) => patch({ start_time: e.target.value })} />
               </div>
             </div>
 
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <div className="space-y-2">
                 <Label htmlFor="event-end-date" className="text-base">End Date</Label>
-                <Input id="event-end-date" type="date" value={form.end_date} onChange={(e) => setForm({ ...form, end_date: e.target.value })} />
+                <Input id="event-end-date" type="date" value={form.end_date} onChange={(e) => patch({ end_date: e.target.value })} />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="event-end-time" className="text-base">End Time</Label>
-                <Input id="event-end-time" type="time" value={form.end_time} onChange={(e) => setForm({ ...form, end_time: e.target.value })} />
+                <Input id="event-end-time" type="time" value={form.end_time} onChange={(e) => patch({ end_time: e.target.value })} />
               </div>
             </div>
 
@@ -467,14 +471,14 @@ export function EventsTab() {
                 placeholder="e.g., Riverside Park Pavilion, Tulsa"
                 value={form.location}
                 aria-required="true"
-                onChange={(e) => setForm({ ...form, location: e.target.value })}
+                onChange={(e) => patch({ location: e.target.value })}
               />
             </div>
 
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <div className="space-y-2">
                 <Label htmlFor="event-category" className="text-base">Category</Label>
-                <Select value={form.category} onValueChange={(value) => setForm({ ...form, category: value })}>
+                <Select value={form.category} onValueChange={(value) => patch({ category: value })}>
                   <SelectTrigger id="event-category" className="min-h-11 text-base">
                     <SelectValue placeholder="Select category" />
                   </SelectTrigger>
@@ -494,7 +498,7 @@ export function EventsTab() {
                   inputMode="numeric"
                   placeholder="Blank = no limit"
                   value={form.max_attendees}
-                  onChange={(e) => setForm({ ...form, max_attendees: e.target.value })}
+                  onChange={(e) => patch({ max_attendees: e.target.value })}
                 />
               </div>
             </div>
@@ -509,7 +513,7 @@ export function EventsTab() {
                   <div className="h-32 overflow-hidden rounded-lg bg-muted">
                     <Image src={form.image} alt="Event preview" width={200} height={128} className="h-full w-full object-cover" />
                   </div>
-                  <Button variant="outline" className="min-h-11" onClick={() => setForm({ ...form, image: "" })}>
+                  <Button variant="outline" className="min-h-11" onClick={() => patch({ image: "" })}>
                     Remove photo
                   </Button>
                 </div>

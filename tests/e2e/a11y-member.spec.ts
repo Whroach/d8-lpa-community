@@ -1,6 +1,7 @@
 import { test, expect, type Page } from "@playwright/test"
 import AxeBuilder from "@axe-core/playwright"
 import { API, authHeaders, createMember, makePng, matchMembers, signedInContext } from "./helpers"
+import { shot, shotViewport } from "./shots"
 
 /**
  * axe on every member screen and every dialog on them, in light and dark:
@@ -33,7 +34,7 @@ for (const colorScheme of ["light", "dark"] as const) {
     await request.post(`${API}/browse/${liked.id}/like`, { headers: authHeaders(me.token) })
     await request.put(`${API}/favorites/${liked.id}`, { headers: authHeaders(me.token) })
 
-    const context = await signedInContext(browser, me, { colorScheme })
+    const context = await signedInContext(browser, me, { colorScheme, ...(shotViewport ? { viewport: shotViewport } : {}) })
     const page = await context.newPage()
     await page.goto("/browse")
     for (const member of [me, friend]) {
@@ -112,6 +113,7 @@ for (const colorScheme of ["light", "dark"] as const) {
         await page.waitForTimeout(400) // let the open animation finish before measuring contrast
       }
       await scan(page, step.name, problems)
+      await shot(page, "member", colorScheme, step.name)
     }
     const unique = [...new Set(problems)]
     expect(unique, unique.join("\n")).toEqual([])

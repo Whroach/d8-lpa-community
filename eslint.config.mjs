@@ -11,6 +11,7 @@ const config = [
       "server/.local-uploads/**",
       "playwright-report/**",
       "test-results/**",
+      "test-results-*/**",
       "public/sw.js",
       "next-env.d.ts",
     ],

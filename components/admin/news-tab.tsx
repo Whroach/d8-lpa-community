@@ -100,7 +100,7 @@ export function NewsTab() {
               placeholder="e.g., Picnic moved to Sunday"
               value={form.title}
               maxLength={150}
-              onChange={(e) => setForm({ ...form, title: e.target.value })}
+              onChange={(e) => setForm((prev) => ({ ...prev, title: e.target.value }))}
             />
           </div>
           <div className="space-y-2">
@@ -109,7 +109,7 @@ export function NewsTab() {
               id="news-message"
               value={form.message}
               maxLength={2000}
-              onChange={(e) => setForm({ ...form, message: e.target.value })}
+              onChange={(e) => setForm((prev) => ({ ...prev, message: e.target.value }))}
               rows={4}
               className="text-base"
             />

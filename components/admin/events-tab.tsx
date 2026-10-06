@@ -93,7 +93,7 @@ export function EventsTab() {
   const [going, setGoing] = useState<AdminEvent | null>(null)
   const [attendees, setAttendees] = useState<Attendee[] | null>(null)
   const [attendeesError, setAttendeesError] = useState("")
-  const [confirming, setConfirming] = useState<{ kind: "cancel" | "delete"; event: AdminEvent } | null>(null)
+  const [confirming, setConfirming] = useState<{ kind: "cancel" | "restore" | "delete"; event: AdminEvent } | null>(null)
   const [confirmBusy, setConfirmBusy] = useState(false)
   const [confirmError, setConfirmError] = useState("")
 
@@ -142,7 +142,9 @@ export function EventsTab() {
       end_time: end ? toLocalTimeInput(end) : "",
       location: event.location,
       max_attendees: event.max_attendees?.toString() || "",
-      category: event.category || "dating",
+      // An event saved without a category keeps none (it used to be given
+      // "Dating" just by opening Edit and saving).
+      category: event.category || "",
     })
     setShowForm(true)
   }
@@ -222,7 +224,7 @@ export function EventsTab() {
       end_date: endIso || (editing ? "" : undefined),
       location: form.location.trim(),
       max_attendees: places ? parseInt(places, 10) : editing ? "" : undefined,
-      category: form.category,
+      category: form.category || undefined,
     }
 
     setFormError("")
@@ -247,21 +249,11 @@ export function EventsTab() {
     setAttendeesError("")
     const result = await api.admin.getEventAttendees(event.id)
     if (result.error) {
+      // Not an empty list: a list that failed must not read as "nobody is going".
       setAttendeesError(`The list could not be loaded. ${result.error}`)
-      setAttendees([])
       return
     }
     setAttendees((result.data || []) as Attendee[])
-  }
-
-  const restore = async (event: AdminEvent) => {
-    const result = await api.admin.uncancelEvent(event.id)
-    if (result.error) {
-      adminToast.error(`The event was not restored. ${result.error}`)
-      return
-    }
-    await load()
-    adminToast.success(`"${event.title}" is back on - members going have been sent a notice`)
   }
 
   const confirm = async () => {
@@ -269,22 +261,32 @@ export function EventsTab() {
     const { kind, event } = confirming
     setConfirmBusy(true)
     setConfirmError("")
-    const result = kind === "cancel" ? await api.admin.cancelEvent(event.id) : await api.admin.deleteEvent(event.id)
+    const result =
+      kind === "cancel" ? await api.admin.cancelEvent(event.id) : kind === "restore" ? await api.admin.uncancelEvent(event.id) : await api.admin.deleteEvent(event.id)
     setConfirmBusy(false)
     if (result.error) {
-      setConfirmError(`The event was not ${kind === "cancel" ? "cancelled" : "deleted"}. ${result.error}`)
+      setConfirmError(`The event was not ${kind === "cancel" ? "cancelled" : kind === "restore" ? "restored" : "deleted"}. ${result.error}`)
       return
     }
     setConfirming(null)
     await load()
-    adminToast.success(kind === "cancel" ? `"${event.title}" is cancelled - members going have been sent a notice` : `"${event.title}" has been deleted`)
+    adminToast.success(
+      kind === "cancel"
+        ? `"${event.title}" is cancelled - members going have been sent a notice`
+        : kind === "restore"
+          ? `"${event.title}" is back on - members going have been sent a notice`
+          : `"${event.title}" has been deleted`
+    )
   }
 
   const now = new Date()
+  // An event is over once it has ended - or, with no end time, once it has started.
+  const isOver = (event: AdminEvent) => new Date(event.end_date || event.start_date) <= now
+  const membersGoing = (n: number) => `${n} ${n === 1 ? "member" : "members"} going`
   const counts = {
     total: events?.length || 0,
-    upcoming: (events || []).filter((e) => new Date(e.start_date) > now && !e.is_cancelled).length,
-    past: (events || []).filter((e) => new Date(e.start_date) <= now && !e.is_cancelled).length,
+    upcoming: (events || []).filter((e) => !isOver(e) && !e.is_cancelled).length,
+    past: (events || []).filter((e) => isOver(e) && !e.is_cancelled).length,
     cancelled: (events || []).filter((e) => e.is_cancelled).length,
   }
 
@@ -342,7 +344,7 @@ export function EventsTab() {
           ) : (
             <ul className="space-y-3">
               {events.map((event) => {
-                const isPast = new Date(event.start_date) <= now
+                const isPast = isOver(event)
                 return (
                   <li key={event.id} data-testid="event-row" className="space-y-3 rounded-lg border-2 border-border bg-card p-4">
                     <div className="flex items-start gap-3">
@@ -388,7 +390,7 @@ export function EventsTab() {
                         Edit<Whom name={event.title} />
                       </Button>
                       {event.is_cancelled ? (
-                        <Button variant="outline" className="min-h-11" onClick={() => restore(event)}>
+                        <Button variant="outline" className="min-h-11" onClick={() => { setConfirmError(""); setConfirming({ kind: "restore", event }) }}>
                           Restore event<Whom name={event.title} />
                         </Button>
                       ) : (
@@ -550,8 +552,9 @@ export function EventsTab() {
           </DialogHeader>
           {going && (
             <>
-              {attendeesError && <ErrorNote>{attendeesError}</ErrorNote>}
-              {attendees === null ? (
+              {attendeesError ? (
+                <ErrorNote>{attendeesError}</ErrorNote>
+              ) : attendees === null ? (
                 <div className="flex justify-center py-8" role="status">
                   <Loader2 className="h-6 w-6 animate-spin" aria-hidden="true" />
                   <span className="sr-only">Loading who is going</span>
@@ -584,18 +587,24 @@ export function EventsTab() {
 
       <ConfirmDialog
         open={confirming !== null}
-        title={confirming?.kind === "delete" ? `Delete "${confirming.event.title}"?` : `Cancel "${confirming?.event.title || ""}"?`}
-        confirmLabel={confirming?.kind === "delete" ? "Delete event" : "Cancel event"}
-        cancelLabel={confirming?.kind === "delete" ? "Keep event" : "Keep event on"}
-        destructive
+        title={`${confirming?.kind === "delete" ? "Delete" : confirming?.kind === "restore" ? "Restore" : "Cancel"} "${confirming?.event.title || ""}"?`}
+        confirmLabel={confirming?.kind === "delete" ? "Delete event" : confirming?.kind === "restore" ? "Restore event" : "Cancel event"}
+        cancelLabel={confirming?.kind === "delete" ? "Keep event" : confirming?.kind === "restore" ? "Leave it cancelled" : "Keep event on"}
+        destructive={confirming?.kind !== "restore"}
         busy={confirmBusy}
         error={confirmError}
         onConfirm={confirm}
         onClose={() => setConfirming(null)}
       >
-        {confirming?.kind === "delete"
-          ? `It will disappear from every member's Events page and cannot be brought back. The ${confirming.event.attendees} ${confirming.event.attendees === 1 ? "member" : "members"} going will NOT be told. If the event was due to happen, cancel it instead - that tells them.`
-          : `It stays on the Events page marked as cancelled, and the ${confirming?.event.attendees ?? 0} ${confirming?.event.attendees === 1 ? "member" : "members"} going will be sent a notice (unless they have switched event notices off). You can restore it later.`}
+        {!confirming
+          ? ""
+          : confirming.kind === "delete"
+            ? confirming.event.is_cancelled
+              ? "It will disappear from every member's Events page and cannot be brought back. It is already cancelled, so the members who were going have been told."
+              : `It will disappear from every member's Events page and cannot be brought back. The ${membersGoing(confirming.event.attendees)} will NOT be told. If the event was due to happen, cancel it instead - that tells them.`
+            : confirming.kind === "restore"
+              ? `It goes back on the Events page as normal, and the ${membersGoing(confirming.event.attendees)} will be sent a notice that it is on again (unless they have switched event notices off).`
+              : `It stays on the Events page marked as cancelled, and the ${membersGoing(confirming.event.attendees)} will be sent a notice (unless they have switched event notices off). You can restore it later.`}
       </ConfirmDialog>
     </section>
   )

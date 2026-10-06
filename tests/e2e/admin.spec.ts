@@ -596,8 +596,10 @@ test.describe("admin: every screen and button", () => {
       return list.some((n: any) => n.title === "Event Cancelled")
     }).toBe(true)
 
-    // Restore, then delete (which also asks first).
+    // Restore (asks first, because everyone going is sent a notice), then delete (which also asks first).
     await row.getByRole("button", { name: /^Restore event/ }).click()
+    await expect(confirm.getByRole("heading", { name: `Restore "${title}"?` })).toBeVisible()
+    await confirm.getByRole("button", { name: "Restore event" }).click()
     await expect(row.getByText("Cancelled", { exact: true })).toHaveCount(0)
     await expect(page.getByText(`"${title}" is back on`)).toBeVisible()
     await row.getByRole("button", { name: /^Delete/ }).click()

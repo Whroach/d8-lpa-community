@@ -223,6 +223,7 @@ export function AdminReports({ onWaiting }: { onWaiting?: (count: number) => voi
                       )}
                       <p className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
                         <span>Earlier warnings: {reported.warnings || 0}</span>
+                        {reported.is_deleted && <Chip>Account closed</Chip>}
                         {reported.is_suspended && <Chip tone="serious">Currently suspended</Chip>}
                         {reported.is_banned && <Chip tone="danger">Currently banned</Chip>}
                       </p>
@@ -244,9 +245,12 @@ export function AdminReports({ onWaiting }: { onWaiting?: (count: number) => voi
                       )}
                       {waiting && canAct && (
                         <>
-                          <Button variant="outline" className="min-h-11" disabled={busy === report.id} onClick={() => ask(report, "warn")}>
-                            Warn<Whom name={name} />
-                          </Button>
+                          {/* A banned member cannot sign in to read a warning, so it is not offered. */}
+                          {!reported.is_banned && (
+                            <Button variant="outline" className="min-h-11" disabled={busy === report.id} onClick={() => ask(report, "warn")}>
+                              Warn<Whom name={name} />
+                            </Button>
+                          )}
                           {!reported.is_suspended && !reported.is_banned && (
                             <Button variant="outline" className="min-h-11" disabled={busy === report.id} onClick={() => ask(report, "suspend")}>
                               Suspend<Whom name={name} />

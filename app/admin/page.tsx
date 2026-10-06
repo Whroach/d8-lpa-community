@@ -11,6 +11,7 @@ import { ActivityLog } from "@/components/admin/activity-log"
 import { EventsTab } from "@/components/admin/events-tab"
 import { MembersTab } from "@/components/admin/members-tab"
 import { NewsTab } from "@/components/admin/news-tab"
+import { api } from "@/lib/api"
 import { useAuthStore } from "@/lib/store/auth-store"
 
 // The access check lives in this wrapper so that AdminDashboard — which owns
@@ -76,6 +77,17 @@ function AdminDashboard() {
   const [tab, setTab] = useState<string>("reports")
   const [waiting, setWaiting] = useState<number | null>(null)
 
+  // The number on the Reports tab is brought up to date whenever the admin
+  // moves between tabs, not only while the Reports tab itself is open.
+  const changeTab = (next: string) => {
+    setTab(next)
+    if (next === "reports") return // that tab reports its own count as it loads
+    void api.admin.getReportsPage({ page: 1, limit: 1, status: "pending" }).then((result) => {
+      const count = (result.data as { counts?: { pending?: number } } | undefined)?.counts?.pending
+      if (typeof count === "number") setWaiting(count)
+    })
+  }
+
   return (
     <AppLayout>
       <div className="mx-auto max-w-5xl p-4 md:p-8">
@@ -90,7 +102,7 @@ function AdminDashboard() {
           </p>
         </div>
 
-        <Tabs value={tab} onValueChange={setTab} className="w-full">
+        <Tabs value={tab} onValueChange={changeTab} className="w-full">
           <TabsList className="mb-6 flex h-auto w-full flex-wrap justify-start gap-1 p-1">
             {TABS.map((item) => (
               <TabsTrigger key={item.value} value={item.value} className="min-h-11 gap-2 px-4 text-base">

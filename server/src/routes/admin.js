@@ -1014,13 +1014,15 @@ router.get('/reports', auth, checkAdmin, async (req, res) => {
     // filled them in and the admin saw ids instead of people.
     const ids = [...new Set(reports.flatMap(r => [r.reporter, r.reported_user]))].filter(isObjectId);
     const users = await User.find({ _id: { $in: ids } })
-      .select('first_name last_name email role is_banned is_suspended warnings');
+      .select('first_name last_name email role is_banned is_suspended warnings is_deleted');
     const usersById = new Map(users.map(u => [u._id.toString(), u]));
     const person = (id) => {
       const u = usersById.get(String(id));
+      // is_deleted: the member closed their account ("Delete account" keeps the
+      // record). The queue must not offer to warn, suspend or ban them.
       return u
         ? { id: u._id, first_name: u.first_name, last_name: u.last_name, email: u.email, role: u.role,
-            is_banned: u.is_banned, is_suspended: u.is_suspended, warnings: u.warnings }
+            is_banned: u.is_banned, is_suspended: u.is_suspended, warnings: u.warnings, is_deleted: u.is_deleted === true }
         : { id, first_name: 'Deleted', last_name: 'account', email: '', is_deleted: true };
     };
 

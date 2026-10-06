@@ -58,6 +58,14 @@ test.describe("admin at scale: 300 members and 250 reports", () => {
     await pages(page, "members").getByRole("button", { name: "Next" }).click()
     await expect(pages(page, "members")).toContainText(`Page 4 of ${all.totalPages}`)
     await expect(summary(page)).toHaveText(`Showing 76 to 100 of ${all.total} members`)
+    // Previous goes back one page, to the same people as before.
+    await pages(page, "members").getByRole("button", { name: "Previous" }).click()
+    await pages(page, "members").getByRole("button", { name: "Previous" }).click()
+    await expect(summary(page)).toHaveText(`Showing 26 to 50 of ${all.total} members`)
+    expect(await emailsOn()).toEqual(second)
+    await pages(page, "members").getByRole("button", { name: "Next" }).click()
+    await pages(page, "members").getByRole("button", { name: "Next" }).click()
+    await expect(summary(page)).toHaveText(`Showing 76 to 100 of ${all.total} members`)
 
     // Act on someone on page 4: still on page 4 afterwards, same people, new status and counts.
     const pageFour = await emailsOn()
@@ -132,6 +140,10 @@ test.describe("admin at scale: 300 members and 250 reports", () => {
 
     // Page 3, then dismiss the first report there: still page 3, one fewer waiting.
     await pages(page, "reports").getByRole("button", { name: "Next" }).click()
+    await pages(page, "reports").getByRole("button", { name: "Next" }).click()
+    await expect(summary(page)).toHaveText(`Showing 21 to 30 of ${waiting.counts.pending} reports`)
+    await pages(page, "reports").getByRole("button", { name: "Previous" }).click()
+    await expect(summary(page)).toHaveText(`Showing 11 to 20 of ${waiting.counts.pending} reports`)
     await pages(page, "reports").getByRole("button", { name: "Next" }).click()
     await expect(summary(page)).toHaveText(`Showing 21 to 30 of ${waiting.counts.pending} reports`)
     const second = await reports.nth(1).innerText()

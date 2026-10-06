@@ -459,12 +459,6 @@ export const api = {
         body: JSON.stringify({ content }),
       })
     },
-    updateNote: async (userId: string, noteId: string, content: string) => {
-      return apiRequest<any>(`/admin/users/${userId}/notes`, {
-        method: "PUT",
-        body: JSON.stringify({ noteId, content }),
-      })
-    },
     deleteNote: async (userId: string, noteId: string) => {
       return apiRequest<any>(`/admin/users/${userId}/notes?noteId=${noteId}`, {
         method: "DELETE",
@@ -486,18 +480,11 @@ export const api = {
       })
     },
     // Member reports waiting for a moderator
-    getReports: async (status: string = "pending") => apiRequest<any[]>(`/admin/reports?status=${status}`),
     updateReport: async (reportId: string, status: string, action_taken?: string) =>
       apiRequest<any>(`/admin/reports/${reportId}`, {
         method: "PUT",
         body: JSON.stringify({ status, action_taken }),
       }),
-    // Toggle event visibility
-    toggleEventVisibility: async (eventId: string) => {
-      return apiRequest<any>(`/admin/events/${eventId}/toggle-visibility`, {
-        method: "PUT",
-      })
-    },
     // Create event
     createEvent: async (eventData: any) => {
       return apiRequest<any>("/admin/events", {

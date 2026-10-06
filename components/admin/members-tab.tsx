@@ -120,7 +120,7 @@ export function MembersTab() {
               <Input
                 id="member-search"
                 type="search"
-                placeholder="Name or email address"
+                placeholder="Name, email address or member ID"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 className="pl-10"
@@ -262,20 +262,22 @@ function NotesDialog({
   const [deleting, setDeleting] = useState<AdminNote | null>(null)
   const [deleteBusy, setDeleteBusy] = useState(false)
   const [deleteError, setDeleteError] = useState("")
+  const [loadFailed, setLoadFailed] = useState("")
   const memberId = member?.id
 
   useEffect(() => {
     setNotes(null)
     setText("")
     setError("")
+    setLoadFailed("")
     setDeleting(null)
     if (!memberId) return
     let current = true
     void api.admin.getNotes(memberId).then((result) => {
       if (!current) return
       if (result.error) {
-        setError(`The notes could not be loaded. ${result.error}`)
-        setNotes([])
+        // Not an empty list: notes that failed to load must not read as "no notes".
+        setLoadFailed(`The notes could not be loaded. ${result.error} Close this and open it again to retry.`)
         return
       }
       setNotes((result.data || []) as AdminNote[])
@@ -300,7 +302,8 @@ function NotesDialog({
     }
     const next = [...(notes || []), result.data as AdminNote]
     setNotes(next)
-    onCount(member.id, next.length)
+    // If the earlier notes never loaded, the real total is not known here.
+    if (!loadFailed) onCount(member.id, next.length)
     setText("")
   }
 
@@ -346,7 +349,9 @@ function NotesDialog({
             </Button>
           </div>
           {error && <ErrorNote>{error}</ErrorNote>}
-          {notes === null ? (
+          {loadFailed ? (
+            <ErrorNote>{loadFailed}</ErrorNote>
+          ) : notes === null ? (
             <div className="flex justify-center py-6" role="status">
               <Loader2 className="h-6 w-6 animate-spin" aria-hidden="true" />
               <span className="sr-only">Loading notes</span>

@@ -204,3 +204,26 @@
     top: 0.75rem;
   }
 }
+
+/*
+ * Toasts ("Saved", "Report dismissed - Undo"). The library's own text is 13px
+ * and its green and red on tinted backgrounds fall short of WCAG AA (4.25:1,
+ * found by axe on the admin Undo toast). Same size as the rest of the app,
+ * darker words, and an Undo button big enough to press.
+ */
+html [data-sonner-toaster][data-theme='light'] {
+  --success-text: hsl(140, 100%, 20%);
+  --info-text: hsl(210, 92%, 33%);
+  --warning-text: hsl(31, 92%, 27%);
+  --error-text: hsl(360, 100%, 35%);
+}
+html [data-sonner-toast][data-styled='true'] {
+  font-size: 1rem;
+  line-height: 1.4;
+}
+html [data-sonner-toast][data-styled='true'] [data-button] {
+  font-size: 0.95rem;
+  height: auto;
+  min-height: 2.5rem;
+  padding: 0 0.875rem;
+}

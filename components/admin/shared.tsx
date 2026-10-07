@@ -67,11 +67,11 @@ export function useDebounced<T>(value: T, ms = 300): T {
 
 const CHIP_TONE = {
   neutral: "bg-muted text-foreground",
-  good: "bg-green-100 text-green-900",
-  caution: "bg-amber-100 text-amber-900",
+  good: "bg-green-100 text-green-900 dark:bg-green-950 dark:text-green-200",
+  caution: "bg-amber-100 text-amber-900 dark:bg-amber-950 dark:text-amber-200",
   serious: "bg-orange-700 text-white",
   danger: "bg-red-700 text-white",
-  info: "bg-blue-100 text-blue-900",
+  info: "bg-blue-100 text-blue-900 dark:bg-blue-950 dark:text-blue-200",
 } as const
 
 export function Chip({ tone = "neutral", className, children }: { tone?: keyof typeof CHIP_TONE; className?: string; children: ReactNode }) {

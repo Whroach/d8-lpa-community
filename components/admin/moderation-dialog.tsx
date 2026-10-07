@@ -184,7 +184,7 @@ export function ModerationDialog({
           <AlertDialogTitle className="text-xl">{copy.title}</AlertDialogTitle>
           <AlertDialogDescription className="text-base text-foreground">{copy.consequence}</AlertDialogDescription>
         </AlertDialogHeader>
-        <p className="break-all text-base text-muted-foreground">{member.email}</p>
+        <p className="[overflow-wrap:anywhere] text-base text-muted-foreground">{member.email}</p>
         <div className="space-y-2">
           <Label htmlFor="moderation-reason" className="text-base">{copy.label}</Label>
           <Textarea

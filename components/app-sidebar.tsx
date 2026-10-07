@@ -96,7 +96,7 @@ export function AppSidebar() {
   }
 
   return (
-    <aside className="fixed left-0 top-0 z-40 hidden h-screen w-64 flex-col border-r border-sidebar-border bg-sidebar md:flex">
+    <aside className="fixed left-0 top-0 z-40 hidden h-screen w-64 flex-col border-r border-sidebar-border bg-sidebar lg:flex">
       <Link href="/browse" className="flex items-center gap-2 border-b border-sidebar-border px-6 py-5">
         <Heart className="h-8 w-8 shrink-0 fill-primary text-primary" aria-hidden="true" />
         <span className="text-xl font-bold text-sidebar-foreground">D8-LPA</span>

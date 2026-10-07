@@ -462,6 +462,11 @@ export default function OnboardingPage() {
     setTimeout(() => headingRef.current?.focus(), 0)
   }
 
+  // The box that says answers are missing must not stay once they are all there.
+  useEffect(() => {
+    if (step1Valid) setError((current) => (current && current.startsWith("Some required answers are missing") ? null : current))
+  }, [step1Valid])
+
   const handleNext = () => {
     if (currentStep === 1 && !step1Valid) {
       setShowStep1Errors(true)
@@ -500,7 +505,7 @@ export default function OnboardingPage() {
     })
 
     if (result.error || !result.data) {
-      setError(result.error || "We could not save your profile just now. Please try again.")
+      setError(!result.error || /^error /i.test(result.error) ? "We could not save your profile just now. Nothing is lost - please press Complete Setup again in a moment." : result.error)
       setSaving(false)
       return
     }
@@ -932,7 +937,7 @@ export default function OnboardingPage() {
                   <Label htmlFor="occupation" className="text-base">Occupation</Label>
                   <Input
                     id="occupation"
-                    placeholder="e.g. Teacher, nurse, business owner, retired"
+                    placeholder="e.g. Teacher, nurse, retired"
                     value={data.occupation}
                     maxLength={100}
                     onChange={(e) => updateData({ occupation: e.target.value })}
@@ -944,7 +949,7 @@ export default function OnboardingPage() {
                   <Label htmlFor="education" className="text-base">Education</Label>
                   <Input
                     id="education"
-                    placeholder="e.g. High school, trade school, college degree"
+                    placeholder="e.g. High school, college"
                     value={data.education}
                     maxLength={100}
                     onChange={(e) => updateData({ education: e.target.value })}
@@ -965,7 +970,7 @@ export default function OnboardingPage() {
                 >
                   <AddYourOwn
                     label="Add your own interest"
-                    placeholder="Add your own interest..."
+                    placeholder="Your own interest"
                     onAdd={(v) => updateData({ interests: addTo(data.interests, v) })}
                   />
                 </ChipGroup>
@@ -978,7 +983,7 @@ export default function OnboardingPage() {
                 >
                   <AddYourOwn
                     label="Add your own music"
-                    placeholder="Add your own kind of music..."
+                    placeholder="Your own kind of music"
                     onAdd={(v) => updateData({ favorite_music: addTo(data.favorite_music, v) })}
                   />
                 </ChipGroup>
@@ -991,7 +996,7 @@ export default function OnboardingPage() {
                 >
                   <AddYourOwn
                     label="Add your own animal"
-                    placeholder="Add your own animal..."
+                    placeholder="Your own animal"
                     onAdd={(v) => updateData({ animals: addTo(data.animals, v) })}
                   />
                 </ChipGroup>
@@ -1005,7 +1010,7 @@ export default function OnboardingPage() {
                 >
                   <AddYourOwn
                     label="Add your own pet peeve"
-                    placeholder="Add your own pet peeve..."
+                    placeholder="Your own pet peeve"
                     onAdd={(v) => updateData({ pet_peeves: addTo(data.pet_peeves, v) })}
                   />
                 </ChipGroup>

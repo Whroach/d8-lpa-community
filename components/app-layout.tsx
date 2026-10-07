@@ -21,7 +21,7 @@ export function AppLayout({ children }: AppLayoutProps) {
         </a>
         <RealtimeProvider />
         <AppSidebar />
-        <main id="main-content" tabIndex={-1} className="pb-24 outline-none md:ml-64 md:pb-0">
+        <main id="main-content" tabIndex={-1} className="pb-24 outline-none lg:ml-64 lg:pb-0">
           <OfflineBanner />
           {children}
         </main>

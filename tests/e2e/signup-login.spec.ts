@@ -437,7 +437,7 @@ test.describe("forgotten password: the rest of the screens", () => {
     await expect(page.getByRole("button", { name: "Reset Password" })).toBeDisabled()
     await page.locator("#confirmPassword").fill("Reset-Pass-2026!")
     await page.getByRole("button", { name: "Reset Password" }).click()
-    await expect(alertBox(page)).toContainText("Invalid or expired reset token")
+    await expect(alertBox(page)).toContainText("This reset link has been used already or is more than an hour old")
 
     // A real link works once; the success message shows before the move to log in.
     const link = (await latestEmail(request, member.email)).text.match(/https?:\/\/\S+reset-password\?token=[a-f0-9]+/)![0]
@@ -452,7 +452,7 @@ test.describe("forgotten password: the rest of the screens", () => {
     await page.locator("#password").fill("Reset-Pass-2027!")
     await page.locator("#confirmPassword").fill("Reset-Pass-2027!")
     await page.getByRole("button", { name: "Reset Password" }).click()
-    await expect(alertBox(page)).toContainText("Invalid or expired reset token")
+    await expect(alertBox(page)).toContainText("This reset link has been used already or is more than an hour old")
   })
 })
 

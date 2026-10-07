@@ -78,12 +78,13 @@ export function ActivityLog() {
         <CardContent className="grid gap-4 p-4 sm:grid-cols-[1fr_auto]">
           <div className="space-y-2">
             <Label htmlFor="activity-search" className="text-base">Search the log</Label>
+            <p id="activity-search-hint" className="text-sm text-muted-foreground">By a member, an admin, or words from the reason.</p>
             <div className="relative">
               <Search className="pointer-events-none absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-muted-foreground" aria-hidden="true" />
               <Input
                 id="activity-search"
                 type="search"
-                placeholder="A member, an admin, or words from the reason"
+                placeholder="Search" aria-describedby="activity-search-hint"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 className="pl-10"
@@ -136,11 +137,11 @@ export function ActivityLog() {
                     <span className="font-semibold">{ACTION_LABEL[entry.action] || entry.action}</span>
                     {": "}
                     <span className="font-semibold">{entry.target.name || "Deleted account"}</span>{" "}
-                    {entry.target.email && <span className="break-all text-muted-foreground">({entry.target.email})</span>}
+                    {entry.target.email && <span className="[overflow-wrap:anywhere] text-muted-foreground">({entry.target.email})</span>}
                   </p>
                   <p className="text-sm text-muted-foreground">
                     {formatDateTime(entry.created_at)} · By: {entry.admin.name || "Admin"}{" "}
-                    <span className="break-all">({entry.admin.email})</span>
+                    <span className="[overflow-wrap:anywhere]">({entry.admin.email})</span>
                   </p>
                   <p className="whitespace-pre-wrap break-words text-base text-foreground">
                     {entry.reason ? `Reason: ${entry.reason}` : "No reason was given."}

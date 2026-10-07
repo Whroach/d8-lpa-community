@@ -141,7 +141,7 @@ for (const colorScheme of ["light", "dark"] as const) {
     await step("reset password + link no longer valid message", async () => {
       await page.locator("#confirmPassword").fill("Reset-Pass-2026!")
       await page.getByRole("button", { name: /Reset Password/i }).click()
-      await expect(alertBox(page)).toContainText("Invalid or expired reset token")
+      await expect(alertBox(page)).toContainText("This reset link has been used already or is more than an hour old")
     })
 
     // ---- reading pages and dead ends ----

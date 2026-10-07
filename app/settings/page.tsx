@@ -561,6 +561,7 @@ export default function SettingsPage() {
                   >
                     <input
                       type="radio"
+                      className="h-5 w-5 shrink-0"
                       name="text-size"
                       value={size.value}
                       checked={textSize === size.value}
@@ -592,6 +593,7 @@ export default function SettingsPage() {
                   >
                     <input
                       type="radio"
+                      className="h-5 w-5 shrink-0"
                       name="theme"
                       value={option.value}
                       checked={(theme || "system") === option.value}
@@ -620,8 +622,8 @@ export default function SettingsPage() {
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="flex items-center justify-between">
-              <div>
+            <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
+              <div className="min-w-[12rem] flex-1">
                 <Label htmlFor="matches">New Matches</Label>
                 <p className="text-sm text-muted-foreground">
                   Get notified when you match with someone
@@ -639,8 +641,8 @@ export default function SettingsPage() {
               </div>
             </div>
             <Separator />
-            <div className="flex items-center justify-between">
-              <div>
+            <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
+              <div className="min-w-[12rem] flex-1">
                 <Label htmlFor="messages">Messages</Label>
                 <p className="text-sm text-muted-foreground">
                   Get notified when you receive a message
@@ -658,8 +660,8 @@ export default function SettingsPage() {
               </div>
             </div>
             <Separator />
-            <div className="flex items-center justify-between">
-              <div>
+            <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
+              <div className="min-w-[12rem] flex-1">
                 <Label htmlFor="likes">Likes</Label>
                 <p className="text-sm text-muted-foreground">
                   Get notified when someone likes your profile
@@ -677,8 +679,8 @@ export default function SettingsPage() {
               </div>
             </div>
             <Separator />
-            <div className="flex items-center justify-between">
-              <div>
+            <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
+              <div className="min-w-[12rem] flex-1">
                 <Label htmlFor="events">Events</Label>
                 <p className="text-sm text-muted-foreground">
                   Get notified about event updates
@@ -696,8 +698,8 @@ export default function SettingsPage() {
               </div>
             </div>
             <Separator />
-            <div className="flex items-center justify-between">
-              <div>
+            <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
+              <div className="min-w-[12rem] flex-1">
                 <Label htmlFor="admin_news">Admin Announcements</Label>
                 <p className="text-sm text-muted-foreground">
                   Get notified about admin news and announcements
@@ -715,8 +717,8 @@ export default function SettingsPage() {
               </div>
             </div>
             <Separator />
-            <div className="flex items-center justify-between">
-              <div>
+            <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
+              <div className="min-w-[12rem] flex-1">
                 <Label htmlFor="sound">Notification Sound</Label>
                 <p className="text-sm text-muted-foreground">
                   Play a chime when a message or alert arrives while you have
@@ -917,8 +919,8 @@ export default function SettingsPage() {
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="flex items-center justify-between">
-              <div>
+            <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
+              <div className="min-w-[12rem] flex-1">
                 <Label htmlFor="profileVisible">Show my profile in Browse</Label>
                 <p className="text-sm text-muted-foreground">
                   Switch this off to pause your profile: nobody new will see you. Your matches and messages stay.
@@ -936,8 +938,8 @@ export default function SettingsPage() {
               </div>
             </div>
             <Separator />
-            <div className="flex items-center justify-between">
-              <div>
+            <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
+              <div className="min-w-[12rem] flex-1">
                 <Label htmlFor="selectiveMode">Only show me to people I have liked</Label>
                 <p className="text-sm text-muted-foreground">
                   Your profile is hidden from everyone except members you have liked.
@@ -1259,7 +1261,7 @@ export default function SettingsPage() {
                   I understand this is permanent and I'm 100% sure I want to delete my account
                 </Label>
               </div>
-              <div className="flex gap-3 pt-4">
+              <div className="flex flex-col-reverse gap-3 pt-4 sm:flex-row">
                 <Button
                   variant="outline"
                   onClick={() => {
@@ -1425,7 +1427,7 @@ export default function SettingsPage() {
                 <PasswordInput
                   id="current-password"
                   
-                  placeholder="Enter your current password"
+                  placeholder="Current password"
                   value={currentPassword}
                   onChange={(e) => setCurrentPassword(e.target.value)}
                   disabled={isChangingPassword}
@@ -1440,7 +1442,7 @@ export default function SettingsPage() {
                 <PasswordInput
                   id="new-password"
                   
-                  placeholder="Enter a new password"
+                  placeholder="New password"
                   value={newPassword}
                   onChange={(e) => setNewPassword(e.target.value)}
                   disabled={isChangingPassword}
@@ -1458,7 +1460,7 @@ export default function SettingsPage() {
                 <PasswordInput
                   id="confirm-password"
                   
-                  placeholder="Confirm your new password"
+                  placeholder="Type it again"
                   value={confirmPassword}
                   onChange={(e) => setConfirmPassword(e.target.value)}
                   disabled={isChangingPassword}

@@ -227,3 +227,21 @@ html [data-sonner-toast][data-styled='true'] [data-button] {
   min-height: 2.5rem;
   padding: 0 0.875rem;
 }
+html [data-sonner-toast][data-styled='true'] [data-close-button] {
+  width: 1.75rem;
+  height: 1.75rem;
+}
+html [data-sonner-toast][data-styled='true'] [data-close-button] svg {
+  width: 1rem;
+  height: 1rem;
+}
+
+/* The browser's own controls - radio buttons, date and time boxes, list boxes,
+   scroll bars - follow the chosen theme. Without this, dark mode drew them in
+   their light colours (unselected radio buttons looked filled in). */
+:root {
+  color-scheme: light;
+}
+.dark {
+  color-scheme: dark;
+}

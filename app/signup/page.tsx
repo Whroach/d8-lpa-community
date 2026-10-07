@@ -386,7 +386,7 @@ export default function SignupPage() {
                 </div>
                 <h1 className="text-3xl font-bold text-foreground mb-2">Verify your email</h1>
                 <p className="text-muted-foreground text-base">
-                  We sent a 6-digit code to <strong className="text-foreground break-all">{signupData?.email}</strong>
+                  We sent a 6-digit code to <strong className="text-foreground [overflow-wrap:anywhere]">{signupData?.email}</strong>
                 </p>
               </div>
 

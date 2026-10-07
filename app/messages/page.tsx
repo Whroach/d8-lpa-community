@@ -592,7 +592,7 @@ function MessagesScreen() {
         {announcement}
       </div>
 
-      <div className="flex h-[calc(100dvh-5.5rem)] md:h-screen">
+      <div className="flex h-[calc(100dvh-5.5rem-var(--dev-banner-h,0px))] lg:h-[calc(100dvh-var(--dev-banner-h,0px))]">
         {/* Conversation list */}
         <section
           aria-label="Your conversations"

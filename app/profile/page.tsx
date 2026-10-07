@@ -1141,7 +1141,7 @@ function ProfilePage() {
                       <div className="flex gap-2">
                         <Input
                           aria-label="Add your own interest"
-                  placeholder="Type an interest and press Enter"
+                  placeholder="Type an interest"
                           value={customInterest}
                           onChange={(e) => setCustomInterest(e.target.value)}
                           onKeyDown={handleCustomInterestKeyPress}

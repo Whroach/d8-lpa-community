@@ -572,7 +572,7 @@ export function EventsTab() {
                       {attendees.map((person) => (
                         <li key={person.id} className="rounded-lg border-2 border-border bg-card p-3">
                           <p className="text-base font-semibold text-foreground">{person.first_name} {person.last_name}</p>
-                          <p className="break-all text-base text-muted-foreground">{person.email}</p>
+                          <p className="[overflow-wrap:anywhere] text-base text-muted-foreground">{person.email}</p>
                           {person.note && <p className="mt-1 break-words text-base text-foreground">Their note: {person.note}</p>}
                         </li>
                       ))}

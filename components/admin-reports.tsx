@@ -153,12 +153,13 @@ export function AdminReports({ onWaiting }: { onWaiting?: (count: number) => voi
         <CardContent className="space-y-4 p-4">
           <div className="space-y-2">
             <Label htmlFor="report-search" className="text-base">Search reports</Label>
+            <p id="report-search-hint" className="text-sm text-muted-foreground">By a name, an email address, or words from the report.</p>
             <div className="relative">
               <Search className="pointer-events-none absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-muted-foreground" aria-hidden="true" />
               <Input
                 id="report-search"
                 type="search"
-                placeholder="A name, an email address, or words from the report"
+                placeholder="Search" aria-describedby="report-search-hint"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 className="pl-10"
@@ -213,7 +214,7 @@ export function AdminReports({ onWaiting }: { onWaiting?: (count: number) => voi
                     <div className="space-y-1 text-base">
                       <p>
                         <span className="font-semibold">{name}</span>{" "}
-                        {reported.email && <span className="break-all text-muted-foreground">({reported.email})</span>} was reported by{" "}
+                        {reported.email && <span className="[overflow-wrap:anywhere] text-muted-foreground">({reported.email})</span>} was reported by{" "}
                         <span className="font-semibold">{fullName(report.reporter)}</span> {SOURCE_LABEL[report.source] || ""} on{" "}
                         {formatDate(report.created_at)}.
                       </p>
@@ -264,7 +265,7 @@ export function AdminReports({ onWaiting }: { onWaiting?: (count: number) => voi
                         </>
                       )}
                       {waiting ? (
-                        <Button variant="ghost" className="min-h-11 underline" disabled={busy === report.id} onClick={() => dismiss(report)}>
+                        <Button variant="ghost" className="min-h-11 underline sm:ml-auto" disabled={busy === report.id} onClick={() => dismiss(report)}>
                           Dismiss report<Whom name={name} joiner="about" />
                         </Button>
                       ) : (

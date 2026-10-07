@@ -115,12 +115,13 @@ export function MembersTab() {
         <CardContent className="space-y-4 p-4">
           <div className="space-y-2">
             <Label htmlFor="member-search" className="text-base">Search members</Label>
+            <p id="member-search-hint" className="text-sm text-muted-foreground">By name, email address or member ID.</p>
             <div className="relative">
               <Search className="pointer-events-none absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-muted-foreground" aria-hidden="true" />
               <Input
                 id="member-search"
                 type="search"
-                placeholder="Name, email address or member ID"
+                placeholder="Search" aria-describedby="member-search-hint"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 className="pl-10"
@@ -181,7 +182,7 @@ export function MembersTab() {
                           <StatusChip member={member} />
                           {isAdmin && <Chip tone="info">Admin</Chip>}
                         </div>
-                        <p className="break-all text-base text-muted-foreground">{member.email}</p>
+                        <p data-testid="member-email" className="[overflow-wrap:anywhere] text-base text-muted-foreground">{member.email}</p>
                         <p className="text-sm text-muted-foreground">
                           Joined {formatDate(member.created_at)} · Last active {formatDate(member.last_active)}
                         </p>

@@ -48,7 +48,7 @@ test.describe("admin at scale: 300 members and 250 reports", () => {
     expect(all.counts.suspended).toBeGreaterThan(5)
 
     // Next / Previous show different people each time.
-    const emailsOn = async () => rows(page).locator("p.break-all").allInnerTexts()
+    const emailsOn = async () => rows(page).getByTestId("member-email").allInnerTexts()
     const first = await emailsOn()
     await pages(page, "members").getByRole("button", { name: "Next" }).click()
     await expect(summary(page)).toHaveText(`Showing 26 to 50 of ${all.total} members`)
@@ -70,7 +70,7 @@ test.describe("admin at scale: 300 members and 250 reports", () => {
     // Act on someone on page 4: still on page 4 afterwards, same people, new status and counts.
     const pageFour = await emailsOn()
     const target = rows(page).filter({ has: page.getByRole("button", { name: /^Suspend / }) }).first()
-    const email = await target.locator("p.break-all").innerText()
+    const email = await target.getByTestId("member-email").innerText()
     const name = await target.getByRole("heading").innerText()
     await target.getByRole("button", { name: /^Suspend / }).click()
     const dialog = page.getByRole("alertdialog")

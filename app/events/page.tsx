@@ -94,18 +94,26 @@ interface Event {
 // Helper function to get category badge color
 const getCategoryColor = (category?: string): string => {
   const categoryColorMap: Record<string, string> = {
-    "social": "bg-blue-100 text-blue-800 border-blue-200",
-    "regional": "bg-purple-100 text-purple-800 border-purple-200",
-    "national": "bg-green-100 text-green-800 border-green-200",
-    "local-chapter": "bg-pink-100 text-pink-800 border-pink-200",
-    "workshop": "bg-orange-100 text-orange-800 border-orange-200",
-    "networking": "bg-indigo-100 text-indigo-800 border-indigo-200",
-    "dating": "bg-red-100 text-red-800 border-red-200",
+    "social": "bg-blue-100 text-blue-800 border-blue-200 dark:bg-blue-950 dark:text-blue-200 dark:border-blue-800",
+    "regional": "bg-purple-100 text-purple-800 border-purple-200 dark:bg-purple-950 dark:text-purple-200 dark:border-purple-800",
+    "national": "bg-green-100 text-green-800 border-green-200 dark:bg-green-950 dark:text-green-200 dark:border-green-800",
+    "local-chapter": "bg-pink-100 text-pink-800 border-pink-200 dark:bg-pink-950 dark:text-pink-200 dark:border-pink-800",
+    "workshop": "bg-orange-100 text-orange-800 border-orange-200 dark:bg-orange-950 dark:text-orange-200 dark:border-orange-800",
+    "networking": "bg-indigo-100 text-indigo-800 border-indigo-200 dark:bg-indigo-950 dark:text-indigo-200 dark:border-indigo-800",
+    "dating": "bg-red-100 text-red-800 border-red-200 dark:bg-red-950 dark:text-red-200 dark:border-red-800",
   };
   
   const normalizedCategory = category?.toLowerCase() || "dating";
-  return categoryColorMap[normalizedCategory] || "bg-gray-100 text-gray-800 border-gray-200";
+  return categoryColorMap[normalizedCategory] || "bg-gray-100 text-gray-800 border-gray-200 dark:bg-gray-800 dark:text-gray-100 dark:border-gray-600";
 };
+
+// The same names the admin chooses from when creating an event.
+const CATEGORY_NAMES: Record<string, string> = {
+  "local-chapter": "Local Chapter Event",
+  food: "Food & Drink",
+  arts: "Arts & Culture",
+};
+const categoryName = (category: string) => CATEGORY_NAMES[category.toLowerCase()] || category;
 
 const isPastEvent = (event: Event): boolean =>
   new Date(event.end_date || event.start_date) < new Date()
@@ -517,7 +525,7 @@ export default function EventsPage() {
                             )}
                             {event.category && (
                               <Badge className={`text-sm capitalize border ${getCategoryColor(event.category)}`}>
-                                {event.category}
+                                {categoryName(event.category)}
                               </Badge>
                             )}
                             {event.is_cancelled && (
@@ -623,7 +631,7 @@ export default function EventsPage() {
                   )}
                   {selectedEvent.category && (
                     <Badge className={`text-sm capitalize border ${getCategoryColor(selectedEvent.category)}`}>
-                      {selectedEvent.category}
+                      {categoryName(selectedEvent.category)}
                     </Badge>
                   )}
                   {selectedEvent.is_cancelled && (

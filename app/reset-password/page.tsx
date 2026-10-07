@@ -39,7 +39,11 @@ export default function ResetPasswordPage() {
     const result = await api.auth.resetPassword({ token, password })
 
     if (result.error) {
-      setError(result.error)
+      setError(
+        /invalid or expired/i.test(result.error)
+          ? "This reset link has been used already or is more than an hour old. Please ask for a new one."
+          : result.error
+      )
       setIsLoading(false)
       return
     }
@@ -89,14 +93,19 @@ export default function ResetPasswordPage() {
             <div className="mb-8">
               <h2 className="text-2xl font-bold text-foreground">Reset your password</h2>
               <p className="text-muted-foreground mt-2">
-                Enter a new password for your account. Password must be at least 8 characters long.
+                Enter a new password for your account. It needs at least 8 characters, with a capital letter, a small letter, a number and a symbol such as ! or ?
               </p>
             </div>
 
             <form onSubmit={handleSubmit} className="space-y-6">
               {error && (
                 <div role="alert" className="p-3 bg-destructive/10 border border-destructive/20 rounded-lg text-destructive text-base">
-                  {error}
+                  <p>{error}</p>
+                  {error.startsWith("This reset link") && (
+                    <Button type="button" variant="outline" className="mt-3 w-full" onClick={() => router.push("/forgot-password")}>
+                      Request New Reset Link
+                    </Button>
+                  )}
                 </div>
               )}
 

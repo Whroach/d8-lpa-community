@@ -99,7 +99,7 @@ export default function SavedPage() {
                 <Card>
                   <CardContent className="flex gap-4 p-4">
                     <img
-                      src={profile.profile_picture_url || "/placeholder-user.jpg"}
+                      src={profile.profile_picture_url || "/placeholder.svg"}
                       alt=""
                       className="h-24 w-24 shrink-0 rounded-xl object-cover"
                     />

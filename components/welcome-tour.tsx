@@ -31,7 +31,7 @@ const STEPS = [
   {
     icon: Compass,
     title: "Browse: meet other members",
-    body: "Browse shows members one card at a time. Tap a card to read the whole profile. Tap Like if you would enjoy talking to them - they are only told who you are if they like you too.",
+    body: "Browse shows a card for each member. Tap a card to read the whole profile. Tap Like if you would enjoy talking to them - they are only told who you are if they like you too.",
   },
   {
     icon: Heart,

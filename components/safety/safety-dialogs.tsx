@@ -76,7 +76,7 @@ export function BlockDialog({
           <DialogDescription asChild>
             <div className="space-y-2 text-base text-foreground">
               <p>If you block {firstName}:</p>
-              <ul className="list-disc space-y-1 pl-6">
+              <ul className="list-disc space-y-1 pl-6 text-left">
                 <li>they will not be able to see your profile or write to you</li>
                 <li>you will not see them in Browse, Matches or Messages</li>
                 <li>your match and your conversation with them are removed</li>

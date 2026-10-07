@@ -94,3 +94,52 @@ How it was reviewed: 13 screens were captured at phone (390px), tablet (820px) a
 - The photo crop step is on My Profile only; the onboarding photo upload does not use it yet.
 - Custom music / animal / pet-peeve entries are added with Enter only (no Add button).
 - No testing with real members, a real screen reader, or a physical phone.
+
+---
+
+# Round 3 - 2026-10-06
+
+## Exactly what was looked at
+
+- **Captured:** every state the three accessibility specs visit - 31 member screens and dialogs, 19 signed-out screens (log in, sign up, verify, forgot / reset password, terms, privacy, not-found, offline), 23 onboarding steps, dialogs, tour cards, Help and Safety, and 36 admin tabs and dialogs: 109 states - at phone (390px), tablet (820px) and desktop (1440px) widths, in light and dark. In light mode a page longer than the screen was saved screen by screen (up to four screens deep), so content below the first screen is included; in dark mode the first screen of each state. Tiled into 268 sheets at a readable size (8 phone, 4 tablet or 2 desktop pictures per sheet).
+- **Inspected, every picture on every sheet:** phone light (27 sheets) and dark (14), tablet light (49) and dark (28), desktop light (97). That is 215 sheets.
+- **Not inspected:** desktop dark (55 sheets). Onboarding step 2 below its fourth screen (its Back / Next buttons) is not in any picture.
+- **Not re-inspected:** the fixes below were made after the inspection and checked by tests, not by looking at new pictures.
+- **axe:** full WCAG 2.0 / 2.1 A and AA rule sets on all 109 states in light and dark (admin also at phone size): 0 serious or critical findings. One rule (`scrollable-region-focusable`) is set aside for an open list of options, which is moved through with the arrow keys - the test checks that instead.
+- Still no testing with real members, a real screen reader, or a physical phone.
+
+## Found and fixed
+
+| Where | Found | Fixed |
+|---|---|---|
+| Every dialog | Delete-account dialog ran off the right edge of a phone (button and "Show" cut off); tall dialogs (event form with a photo, position-your-photo, photo manager) hid their buttons below the screen; the phone menu bar showed over dialog bottoms | All dialogs are limited to the screen's height and width and scroll inside; long content wraps; the menu bar sits under dialogs |
+| Tablet (820px) | With the side menu only about 435px was left: another member's profile buttons clipped ("Liked - tap to undc"), profile editor fields cut off, event cards squeezed, Saved card a narrow strip, admin tabs and tiles cramped | The side menu now needs 1024px; an upright tablet gets the full width and the bottom menu bar |
+| Messages | The message box sat partly below the screen (open since round 1) | The development banner's height is taken off; in production there is no banner |
+| Saved | A member without a photo showed a broken-image icon (the placeholder file was not a real image) | Uses the working placeholder |
+| Settings, phone | "Notification Sound" text squeezed to one or two words a line; radio dots shrank where labels wrapped | Rows wrap; dots keep their size |
+| Dark mode | Unselected radio buttons looked filled in; disabled buttons were dark text on muddy rose; "Warned", "Active" and category chips kept pale light-mode colours | Browser controls follow the theme; disabled buttons are plain grey; chips have dark colours |
+| Toasts | 13px text at 4.25:1 contrast (axe); tiny close mark | 16px, darker text, larger Undo and close buttons |
+| Onboarding step 1 | "Some required answers are missing" stayed on screen after everything was filled in | Goes away once nothing is missing |
+| Reset password | "Invalid or expired reset token" with no way forward; page said only "at least 8 characters" | Plain words plus "Request New Reset Link"; the real rules are stated |
+| Onboarding | "Error completing onboarding" shown to the member | Plain message saying nothing is lost |
+| Events | Members saw "Local-Chapter" where admins chose "Local Chapter Event" | Same names |
+| Welcome tour | Said Browse shows "one card at a time" (it shows a grid) | Corrected |
+| Admin | Search placeholders cut off ("Name, email address or mem"); emails broke mid-word; Dismiss sat beside Ban when buttons wrapped | Hint written beside the box; emails wrap only when they must; Dismiss moves to the far side |
+| Block dialog | Bullet dots detached from centred text on a phone | Left-aligned |
+| Placeholders | Cut off on a phone in onboarding and change-password | Shortened |
+
+## Found, still open (none blocks use; in rough order of worth)
+
+- Position-your-photo and the admin event form are still taller than a small screen: they now scroll, but the buttons are not pinned in view.
+- Tick boxes are small (16px); "Remember my email" and the "I understand" confirmations are easy to miss.
+- Log in / sign up field labels, the password-rule checklist, Terms text, text typed into multi-line boxes and list options are smaller than the app's main text. Member-area confirmation dialogs use smaller text and smaller side-by-side buttons than the admin dialogs.
+- The dialog close "x" is small, and its focus ring is a tall narrow pill.
+- "Take a break" opens a red "Disable Your Account" dialog that looks like Delete; "Blocked Members" opens "Blocked Users".
+- My Profile: in edit mode the subtitle still says "Choose Edit to change it"; Occupation appears in two places; Languages and Religion show an empty heading when blank; a lone briefcase icon in the preview when occupation is empty.
+- A member's location is written four different ways across Browse, Liked, Saved, profile and preview.
+- Lilac / purple is used beside the crimson scheme (interest chips, the Message button on match cards, "+ Add", the highlighted list option); interest chips come in three styles.
+- Matches on a phone: the two tabs and the Active / History pills wrap to two lines. Notification and Saved buttons are smaller than buttons elsewhere.
+- The welcome-tour dialog changes height between steps, so Next moves. Events dated next year show no year. Age range tops out at 99 in Settings and 100 in onboarding.
+- Privacy link opens the combined page at the top (Terms first). The fraud-report address on the Safety page is not a link. The offline page uses another typeface. "Tap" is used on desktop. Spelling mixes British and American.
+- Admin: raw server wording inside some error messages ("Error adding note"); the event photo field is the browser's plain file control; three styles of "nothing found".
+- Earlier "still open" items from rounds 1 and 2 that this round did not change: Settings and the profile editor are long single pages; Like is below the first screen on a phone profile.

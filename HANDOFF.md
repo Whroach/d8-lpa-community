@@ -1,6 +1,6 @@
 # Handoff - improvements/2026-10-04
 
-Last updated: 2026-10-05 (end of round 2). Branch `improvements/2026-10-04`, draft PR #3. Nothing here has touched production; `main` is untouched.
+Last updated: 2026-10-06 (round 3 stopped early at the owner's request - read the Round 3 section at the end first; the notes below it are from round 2 and partly out of date). Branch `improvements/2026-10-04`, draft PR #3. Nothing here has touched production; `main` is untouched.
 
 ## Where things stand
 
@@ -34,13 +34,26 @@ The repo is public and its history holds a production database connection string
 
 ---
 
-# Round 3 (2026-10-06) - running notes
+# Round 3 (2026-10-06)
 
-The first attempt at this round was cut off by an outage about an hour in; a second session picked it up. This section is kept up to date as the work goes.
+The first attempt at this round was cut off by an outage about an hour in; a second session picked it up and was then asked to wrap up before it had finished. Nothing touched production; `main` is untouched; the pull request is still a draft.
+
+## Where things stand
+
+- **Tests:** 167 unit/API/realtime (`npm test`, all pass), 175 browser tests (`npm run test:e2e`), 3 switch-build tests (`npm run test:e2e:switches`), 9 production-build smoke tests (`npm run smoke:prod`). Typecheck clean; ESLint 0 errors, 0 warnings. `npm audit`: 0 known vulnerabilities, website and API.
+- **Inventory:** 533 rows - 369 work, 1 tested on the server only (nothing to click), 139 fixed, 24 changed, **0 broken, 0 not verified**.
+- **No `test.fixme` or skipped tests.**
+
+## Not finished - read this
+
+- **Three consecutive full browser runs were not done.** One full run was made early in the session (166 of 167; the one failure, toast contrast, is fixed). After the last batch of design fixes only the most affected specs were re-run (72 of 72: admin-edges, admin-scale, settings, signup-login, chat, community, a11y sign-up/onboarding) plus the member accessibility spec at phone and tablet size. The whole suite has **not** been run on the final commit locally - check CI on the pull request, and run `npm run test:e2e` three times before merging.
+- **The "suspending a member signs them out" test** was fixed by the interrupted attempt (commit `8daa6c7`: a real app race - signing out re-ran the page guard, which replaced the explanation with the login page; 8 failures in 30 before, 60 of 60 after, 30 of them under full CPU load, by that attempt's own count). In this session it passed in the one full run and in the community.spec re-run; it was not re-run repeatedly under load.
+- **Design review, not finished:** the 55 desktop dark sheets were captured but not inspected. The fixes made after the review were not re-captured and looked at again (only checked by the tests above). Findings left open are listed in `docs/DESIGN-REVIEW.md`.
+- `npm run smoke:prod` was last run (9 of 9) after the dependency updates but before the final design fixes.
 
 ## What the interrupted attempt left, and what happened to it
 
-Pushed before the outage (all kept, all re-run): the suspension-notice fix (the intermittent test), the admin API (reasons required, activity log, server-side pages and search, local bulk seed), the rebuilt admin panel, the hygiene pass (mock data, 32 unused components and hooks, 41 unused dependencies removed), the onboarding crop step, the AUTH-07 switch build, the production-like smoke run and `docs/RELEASE-CHECKLIST.md`.
+Pushed before the outage (all kept): the suspension-notice fix, the admin API (reasons required, activity log, server-side pages and search, local bulk seed), the rebuilt admin panel, the hygiene pass (mock data, 32 unused components and hooks, 41 unused dependencies removed, ESLint warnings cleared), the onboarding crop step, the AUTH-07 switch build, the production-like smoke run and `docs/RELEASE-CHECKLIST.md`.
 
 Six files were uncommitted:
 
@@ -51,15 +64,22 @@ Six files were uncommitted:
 | `tests/e2e/a11y-admin.spec.ts`, `a11y-signup-onboarding.spec.ts` (new) | Kept and finished - 6 of their 8 tests failed as left |
 | `components/ui/select.tsx` (page behind an open list made inert) | **Was broken**: it also ran for closed lists, which switched the whole page off (nothing could be clicked). Fixed to act only when the list is really open, then kept |
 
-## Done so far in the second session
+## Done in the second session
 
-- Inventory: section 17 rewritten row by row for the rebuilt admin panel (a helper read every row against its test). That found 17 admin rows with no browser test; all 17 are now tested in `tests/e2e/admin-edges.spec.ts`. **0 not verified, 0 broken** (533 rows).
-- Defects found while writing those tests, all fixed: a report about a closed account still offered Warn / Suspend / Ban; Warn offered for a banned member; Restore event had no confirmation; failed loads of notes and "who is going" read as "none"; an event under way was labelled Past; delete wording on a cancelled event; stale waiting number on the Reports tab; toast text 13px and below AA contrast.
-- `npm audit`: 0 known vulnerabilities in website and API after non-breaking updates (commit `e4110e0`, on its own so it can be reverted alone; it is large because `server/node_modules` is committed).
-- `npm run smoke:prod` 9 of 9 after the dependency updates.
+- **Inventory:** section 17 rewritten row by row for the rebuilt admin panel, each row checked against the test linked from it. That found 17 admin rows with no browser test; all are now tested in `tests/e2e/admin-edges.spec.ts` (8 tests), with Previous-page checks added to `admin-scale.spec.ts`.
+- **Admin defects found by those tests, fixed:** a report about a closed account still offered Warn / Suspend / Ban; Warn offered for a banned member; Restore event had no confirmation; failed loads of notes and "who is going" read as "none"; an event under way was labelled Past; delete wording on a cancelled event; stale waiting number on the Reports tab.
+- **Accessibility:** axe (full WCAG 2.0/2.1 A + AA) now also covers log in, sign up, verify, forgot/reset password, terms, not-found, offline, every onboarding step and dialog, the welcome tour, Help, Safety, and every admin tab and dialog (desktop and phone), light and dark. 0 serious or critical findings.
+- **Design review:** every state those specs visit (109 per theme) was captured at 390, 820 and 1440px in light and dark and tiled into readable sheets; 213 of 268 sheets were inspected (all phone and tablet sheets, all desktop light sheets). See `docs/DESIGN-REVIEW.md` for what was found, fixed and left.
+- **Dependencies:** the non-breaking `npm audit` fixes, in a commit of their own (`e4110e0`).
+- **Docs:** `docs/ROLLOUT.md` section 2b, `docs/RELEASE-CHECKLIST.md`, `docs/LOCAL-DEVELOPMENT.md`, this file.
 
-## Still to do in this round (updated as it goes)
+## Useful to know (round 3)
 
-- Screenshot review of every screen and dialog at three widths, light and dark.
-- Three consecutive full browser runs.
-- Docs: design review, rollout, local development, PR description.
+- Screenshots for review: see "Screenshots for design review" in `docs/LOCAL-DEVELOPMENT.md`. In a full-page capture the side menu and bottom bar are drawn once, so later slices of a long page show a blank column - that is the capture, not the app.
+- `npm run smoke:prod` builds into `.next-smoke`; Next.js then edits `tsconfig.json`. The script now puts it back - do not commit such a change.
+- The side menu appears from 1024px wide (was 768px). Tablets held upright use the bottom menu bar.
+- Ports used: 4120-4127. All stopped.
+
+## Owner decisions - unchanged, still open (details in `docs/ROLLOUT.md` section 5)
+
+1. Insist on verified email at sign-in? 2. Schedule the email summary? 3. What should "Delete account" mean? 4. Keep the committed `server/node_modules`? 5. Terms and Privacy text to be read by whoever is responsible for it. 6. LPA membership-number verification.

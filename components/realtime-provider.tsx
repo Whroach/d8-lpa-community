@@ -1,11 +1,11 @@
 "use client"
 
-import { useEffect, useRef } from "react"
+import { useCallback, useEffect, useRef } from "react"
 import { usePathname } from "next/navigation"
 import { api } from "@/lib/api"
 import { getSocket } from "@/lib/socket"
 import { useAuthStore } from "@/lib/store/auth-store"
-import { useNotificationStore } from "@/lib/store/notification-store"
+import { useNotificationStore, isWithinQuietHours } from "@/lib/store/notification-store"
 import {
   playNotificationSound,
   unlockNotificationSound,
@@ -47,8 +47,7 @@ export function RealtimeProvider() {
 
   // ---- initial counts -----------------------------------------------------
 
-  const refreshCounts = useRef(async () => {})
-  refreshCounts.current = async () => {
+  const loadCounts = useCallback(async () => {
     const lastViewedMatches =
       typeof window !== "undefined"
         ? new Date(localStorage.getItem("lastViewedMatches") || 0)
@@ -92,7 +91,13 @@ export function RealtimeProvider() {
     }
 
     setCounts(next)
-  }
+  }, [setCounts])
+  // The socket handlers below call this through a ref, so they are not torn
+  // down and re-subscribed when it changes.
+  const refreshCounts = useRef(loadCounts)
+  useEffect(() => {
+    refreshCounts.current = loadCounts
+  }, [loadCounts])
 
   useEffect(() => {
     if (!isAuthenticated) return
@@ -109,6 +114,11 @@ export function RealtimeProvider() {
       const result = await api.settings.get()
       if (!cancelled && result.data) {
         setSoundEnabled(result.data.notifications?.sound !== false)
+        useNotificationStore.getState().setQuietHours(
+          Boolean(result.data.notifications?.quiet_hours_enabled),
+          result.data.notifications?.quiet_hours_start || "21:00",
+          result.data.notifications?.quiet_hours_end || "08:00"
+        )
       }
     }
     void loadPreference()
@@ -138,16 +148,19 @@ export function RealtimeProvider() {
     const socket = getSocket()
     if (!socket.connected) socket.connect()
 
-    const joinRoom = () => socket.emit("join", userId)
-    joinRoom()
-    // Re-join after a dropped connection, or the user stops receiving pings
-    // for the rest of the session.
+    // The server puts each signed-in connection in its own personal room, so
+    // there is nothing to join. After a dropped connection, re-read the counts
+    // in case something arrived while we were away.
+    const joinRoom = () => void refreshCounts.current()
     socket.on("connect", joinRoom)
 
     const handlePing = (ping: RealtimePing) => {
       // Read the preference at fire time — the user may have just changed it.
-      if (useNotificationStore.getState().soundEnabled) {
+      // Quiet hours silence the chime; the badge below still updates.
+      const { soundEnabled, quietHours } = useNotificationStore.getState()
+      if (soundEnabled && !isWithinQuietHours(quietHours)) {
         playNotificationSound()
+        window.dispatchEvent(new Event("d8lpa:chime"))
       }
 
       switch (ping?.type) {
@@ -166,6 +179,11 @@ export function RealtimeProvider() {
           break
         case "event":
           incrementCount("events")
+          incrementCount("notifications")
+          break
+        case "like":
+        case "news":
+        case "system":
           incrementCount("notifications")
           break
         default:

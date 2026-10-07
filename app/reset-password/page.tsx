@@ -7,6 +7,7 @@ import { useRouter, useSearchParams } from "next/navigation"
 import { Heart, Loader2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import { PasswordInput } from "@/components/ui/password-input"
 import { Label } from "@/components/ui/label"
 import { api } from "@/lib/api"
 
@@ -21,7 +22,10 @@ export default function ResetPasswordPage() {
   const [error, setError] = useState<string | null>(null)
   const [isSuccess, setIsSuccess] = useState(false)
 
-  const isValidPassword = password.length >= 8
+  // Same rules as the server, so the form never accepts a password the
+  // server will then refuse.
+  const isValidPassword =
+    password.length >= 8 && /[A-Z]/.test(password) && /[a-z]/.test(password) && /[0-9]/.test(password) && /[!@#$%^&*(),.?":{}|<>]/.test(password)
   const passwordsMatch = password === confirmPassword && password.length > 0
   const canSubmit = isValidPassword && passwordsMatch
 
@@ -35,7 +39,11 @@ export default function ResetPasswordPage() {
     const result = await api.auth.resetPassword({ token, password })
 
     if (result.error) {
-      setError(result.error)
+      setError(
+        /invalid or expired/i.test(result.error)
+          ? "This reset link has been used already or is more than an hour old. Please ask for a new one."
+          : result.error
+      )
       setIsLoading(false)
       return
     }
@@ -85,22 +93,27 @@ export default function ResetPasswordPage() {
             <div className="mb-8">
               <h2 className="text-2xl font-bold text-foreground">Reset your password</h2>
               <p className="text-muted-foreground mt-2">
-                Enter a new password for your account. Password must be at least 8 characters long.
+                Enter a new password for your account. It needs at least 8 characters, with a capital letter, a small letter, a number and a symbol such as ! or ?
               </p>
             </div>
 
             <form onSubmit={handleSubmit} className="space-y-6">
               {error && (
-                <div className="p-3 bg-destructive/10 border border-destructive/20 rounded-lg text-destructive text-sm">
-                  {error}
+                <div role="alert" className="p-3 bg-destructive/10 border border-destructive/20 rounded-lg text-destructive text-base">
+                  <p>{error}</p>
+                  {error.startsWith("This reset link") && (
+                    <Button type="button" variant="outline" className="mt-3 w-full" onClick={() => router.push("/forgot-password")}>
+                      Request New Reset Link
+                    </Button>
+                  )}
                 </div>
               )}
 
               <div className="space-y-2">
                 <Label htmlFor="password">New Password</Label>
-                <Input
+                <PasswordInput
                   id="password"
-                  type="password"
+                  
                   placeholder="Enter new password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
@@ -108,15 +121,15 @@ export default function ResetPasswordPage() {
                   className="h-12"
                 />
                 {password && !isValidPassword && (
-                  <p className="text-sm text-destructive">Password must be at least 8 characters</p>
+                  <p className="text-sm text-destructive">Use at least 8 characters, with a capital letter, a small letter, a number and a symbol such as ! or ?</p>
                 )}
               </div>
 
               <div className="space-y-2">
                 <Label htmlFor="confirmPassword">Confirm Password</Label>
-                <Input
+                <PasswordInput
                   id="confirmPassword"
-                  type="password"
+                  
                   placeholder="Confirm new password"
                   value={confirmPassword}
                   onChange={(e) => setConfirmPassword(e.target.value)}

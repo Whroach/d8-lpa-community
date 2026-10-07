@@ -1,12 +1,13 @@
+import { requireMongoUri, requireEnv } from './utils/script-env.js';
 import mongoose from 'mongoose';
 import User from './models/User.js';
 import Profile from './models/Profile.js';
 
 // Production database URI
-const MONGODB_URI = 'mongodb+srv://lpa-d8:Qd1gXd48ljTQDzGP3477UeNrlQrdRjhG7eXpQ@cluster0.iogpu.mongodb.net/prod?retryWrites=true&w=majority&appName=Cluster0';
+const MONGODB_URI = requireMongoUri();
 
 const adminEmail = 'williamsonroach@gmail.com';
-const adminPassword = 'UhhcHB5SGVuc';
+const adminPassword = requireEnv('ADMIN_PASSWORD');
 
 async function createAdminAccount() {
   try {

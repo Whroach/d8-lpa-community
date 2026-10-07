@@ -1,10 +1,5 @@
 import { create } from "zustand"
 import { persist } from "zustand/middleware"
-import { mockUser, mockProfile } from "@/lib/mock-data"
-
-// Set to true to use mock data for demo purposes
-const USE_MOCK_DATA = false
-
 export interface User {
   id: string
   /** Mongo returns _id; several endpoints echo it back alongside id. */
@@ -26,6 +21,8 @@ export interface User {
   is_banned?: boolean
   is_suspended?: boolean
   has_warning?: boolean
+  has_seen_tour?: boolean
+  email_verified?: boolean
 }
 
 export interface Profile {
@@ -166,11 +163,11 @@ const initialOnboardingData: OnboardingData = {
 export const useAuthStore = create<AuthState>()(
   persist(
     (set, get) => ({
-      user: USE_MOCK_DATA ? (mockUser as User) : null,
-      profile: USE_MOCK_DATA ? (mockProfile as Profile) : null,
-      token: USE_MOCK_DATA ? "mock-token-12345" : null,
-      sessionTimestamp: USE_MOCK_DATA ? Date.now() : null,
-      isAuthenticated: USE_MOCK_DATA,
+      user: null,
+      profile: null,
+      token: null,
+      sessionTimestamp: null,
+      isAuthenticated: false,
       isLoading: false,
       error: null,
       onboardingData: initialOnboardingData,

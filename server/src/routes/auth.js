@@ -9,9 +9,16 @@ import LPAMembership from '../models/LPAMembership.js';
 import { auth } from '../middleware/auth.js';
 import { sendVerificationEmail, sendPasswordResetEmail } from '../utils/email.js';
 import logger from '../utils/logger.js';
+import config from '../config/env.js';
+import { calculateAge, keepOwnPhotos, normalizeLookingFor, validationMessage } from '../utils/helpers.js';
 
 const router = express.Router();
-const isProduction = process.env.NODE_ENV === 'production';
+// Production always sends real verification emails. Elsewhere accounts are
+// auto-verified unless REQUIRE_EMAIL_VERIFICATION=true (used by the tests).
+const isProduction = config.requireEmailVerification;
+// Opt-in: refuse sign-in until the email address has been verified.
+const enforceVerificationAtLogin = () => process.env.ENFORCE_EMAIL_VERIFICATION === 'true';
+const INVALID_LOGIN = 'That email or password is not right. Please check both and try again.';
 
 // Generate JWT token with expiration
 const generateToken = (userId) => {
@@ -36,7 +43,7 @@ const validatePasswordStrength = (password) => {
 
 // Generate verification code
 const generateVerificationCode = () => {
-  return Math.floor(100000 + Math.random() * 900000).toString();
+  return crypto.randomInt(100000, 1000000).toString();
 };
 
 // POST /api/auth/signup
@@ -56,15 +63,49 @@ router.post('/signup', [
     // Validate password strength
     const passwordValidation = validatePasswordStrength(password);
     if (!passwordValidation.isValid) {
-      logger.warn('[SIGNUP] Weak password attempt for email:', email);
       return res.status(400).json({ message: 'Password does not meet security requirements', errors: passwordValidation.errors });
     }
 
     // Check if user exists
     const existingUser = await User.findOne({ email });
     if (existingUser) {
-      logger.warn('[SIGNUP] Duplicate email registration attempt:', email);
-      return res.status(400).json({ message: 'Email already registered' });
+      // Someone who signed up, then left the code screen (pressed "Back",
+      // reloaded, closed the tab) used to be stuck: signing up again said
+      // "Email already registered" and nothing led back to the code screen.
+      // If the account is still unverified and has never been set up, and the
+      // password given is that account's password, this is the same person
+      // picking up where they left off: send a fresh code and return to the
+      // code screen. Anything else gets exactly the answer it always got, so
+      // this tells a stranger nothing new (with the right password they could
+      // already sign in).
+      const canResume =
+        isProduction &&
+        !existingUser.email_verified &&
+        !existingUser.onboarding_completed &&
+        !existingUser.is_banned &&
+        !existingUser.is_suspended &&
+        !existingUser.is_deleted &&
+        existingUser.role !== 'admin' &&
+        (await existingUser.comparePassword(password));
+      if (!canResume) {
+        return res.status(400).json({ message: 'Email already registered' });
+      }
+
+      const freshCode = generateVerificationCode();
+      existingUser.verification_code = freshCode;
+      existingUser.verification_code_expires = new Date(Date.now() + 10 * 60 * 1000);
+      await existingUser.save();
+      sendVerificationEmail(email, freshCode).catch((emailError) => {
+        logger.error('[SIGNUP] Failed to send verification email:', emailError.message);
+      });
+      logger.info(`[SIGNUP] Unverified sign-up resumed: ${existingUser._id}`);
+      return res.status(200).json({
+        user_id: existingUser._id,
+        email: existingUser.email,
+        token: generateToken(existingUser._id),
+        requiresVerification: true,
+        resumed: true
+      });
     }
 
     // Generate verification code
@@ -93,29 +134,14 @@ router.post('/signup', [
 
     const token = generateToken(user._id);
 
-    logger.info(`[SIGNUP] Account created successfully: ${email}, requiresVerification: ${isProduction}`);
-    console.log(`[SIGNUP] NODE_ENV check: process.env.NODE_ENV = "${process.env.NODE_ENV}", isProduction = ${isProduction}`);
+    logger.info(`[SIGNUP] Account created: ${user._id}, requiresVerification: ${isProduction}`);
 
     // Send verification email in background (don't await, don't block response)
     if (isProduction) {
-      console.log(`[SIGNUP] Starting background email send to ${email}`);
       sendVerificationEmail(email, verificationCode)
-        .then((result) => {
-          console.log(`[SIGNUP] Email promise resolved, result: ${result}`);
-          logger.info(`[SIGNUP] Verification email sent to: ${email}`);
-        })
         .catch((emailError) => {
-          console.error(`[SIGNUP] Email promise rejected with error:`, emailError);
-          logger.error(`[SIGNUP] Failed to send verification email to ${email}:`, emailError.message);
-          logger.error(`[SIGNUP] Email error details:`, {
-            code: emailError.code,
-            command: emailError.command,
-            message: emailError.message,
-            stack: emailError.stack
-          });
+          logger.error('[SIGNUP] Failed to send verification email:', emailError.message);
         });
-    } else {
-      logger.log(`[DEV] Auto-verifying user: ${email} (verification code: ${verificationCode})`);
     }
 
     res.status(201).json({
@@ -127,7 +153,7 @@ router.post('/signup', [
   } catch (error) {
     logger.error('[SIGNUP] Error creating account:', error.message);
     logger.error('[SIGNUP] Error stack:', error.stack);
-    res.status(500).json({ message: 'Error creating account', error: error.message });
+    res.status(500).json({ message: 'We could not create your account just now. Please try again.' });
   }
 });
 
@@ -145,28 +171,21 @@ router.post('/verify-email', [
 
     const { email, code } = req.body;
 
-    logger.log('[VERIFY] Email verification attempt for:', email);
 
     const user = await User.findOne({ email });
     if (!user) {
-      logger.warn('[VERIFY] User not found:', email);
-      return res.status(404).json({ message: 'User not found' });
-    }
-
-    if (user.email_verified) {
-      logger.log('[VERIFY] Email already verified for:', email);
-      return res.json({ message: 'Email already verified' });
-    }
-
-    logger.debug('[VERIFY] Verification attempt for:', email, 'with code:', code.substring(0, 3) + '***');
-
-    if (user.verification_code !== code) {
-      logger.warn('[VERIFY] Invalid code attempt for:', email);
       return res.status(400).json({ message: 'Invalid verification code' });
     }
 
-    if (user.verification_code_expires < new Date()) {
-      logger.warn('[VERIFY] Expired code attempt for:', email);
+    if (user.email_verified) {
+      return res.json({ message: 'Email already verified' });
+    }
+
+    if (!user.verification_code || user.verification_code !== String(code)) {
+      return res.status(400).json({ message: 'Invalid verification code' });
+    }
+
+    if (!user.verification_code_expires || user.verification_code_expires < new Date()) {
       return res.status(400).json({ message: 'Verification code expired' });
     }
 
@@ -175,7 +194,7 @@ router.post('/verify-email', [
     user.verification_code_expires = undefined;
     await user.save();
 
-    logger.info('[VERIFY] Email verified successfully for:', email);
+    logger.info('[VERIFY] Email verified for user id:', String(user._id));
     res.json({ message: 'Email verified successfully' });
   } catch (error) {
     logger.error('[VERIFY] Error verifying email:', error.message);
@@ -191,17 +210,12 @@ router.post('/resend-verification', [
   try {
     const { email } = req.body;
 
-    logger.log('[RESEND] Verification code resend requested for:', email);
 
     const user = await User.findOne({ email });
-    if (!user) {
-      logger.warn('[RESEND] User not found:', email);
-      return res.status(404).json({ message: 'User not found' });
-    }
-
-    if (user.email_verified) {
-      logger.log('[RESEND] Email already verified for:', email);
-      return res.json({ message: 'Email already verified' });
+    if (!user || user.email_verified) {
+      // Same answer either way, so this can't be used to test which
+      // addresses have accounts.
+      return res.json({ message: 'Verification code sent' });
     }
 
     const verificationCode = generateVerificationCode();
@@ -209,31 +223,20 @@ router.post('/resend-verification', [
     user.verification_code_expires = new Date(Date.now() + 10 * 60 * 1000);
     await user.save();
 
-    logger.log('[RESEND] Verification code generated for:', email);
 
     // Send verification email in background (don't await, don't block response)
     if (isProduction) {
       sendVerificationEmail(email, verificationCode)
-        .then(() => {
-          logger.info('[RESEND] Verification email sent successfully to:', email);
-        })
         .catch((emailError) => {
-          logger.error('[RESEND] Failed to send verification email to', email, ':', emailError.message);
-          logger.error('[RESEND] Email error details:', {
-            code: emailError.code,
-            message: emailError.message,
-            command: emailError.command
-          });
+          logger.error('[RESEND] Failed to send verification email:', emailError.message);
         });
-    } else {
-      logger.log(`[DEV] New verification code for ${email}: ${verificationCode}`);
     }
 
     res.json({ message: 'Verification code sent' });
   } catch (error) {
     logger.error('[RESEND] Error sending verification code:', error.message);
     logger.error('[RESEND] Error stack:', error.stack);
-    res.status(500).json({ message: 'Error sending verification code', error: error.message });
+    res.status(500).json({ message: 'Error sending verification code' });
   }
 });
 
@@ -246,37 +249,44 @@ router.post('/login', [
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
       logger.warn('[LOGIN] Validation error:', errors.array()[0].msg);
-      return res.status(400).json({ message: 'Invalid email or password' });
+      return res.status(400).json({ message: INVALID_LOGIN });
     }
 
     const { email, password } = req.body;
-    
-    logger.log(`[LOGIN] Login attempt for email: ${email}`);
+    if (typeof password !== 'string') {
+      return res.status(400).json({ message: INVALID_LOGIN });
+    }
 
+    // One answer for "no such account" and "wrong password", so the login
+    // form can't be used to discover who is a member.
     const user = await User.findOne({ email });
     if (!user) {
-      logger.warn(`[LOGIN] User not found: ${email}`);
-      return res.status(401).json({ message: 'Invalid email' });
+      return res.status(401).json({ message: INVALID_LOGIN });
     }
 
     const isMatch = await user.comparePassword(password);
     if (!isMatch) {
-      logger.warn(`[LOGIN] Invalid password for user: ${email}`);
-      return res.status(401).json({ message: 'Invalid password' });
+      logger.warn(`[LOGIN] Wrong password for user id: ${user._id}`);
+      return res.status(401).json({ message: INVALID_LOGIN });
+    }
+
+    if (enforceVerificationAtLogin() && !user.email_verified && user.role !== 'admin') {
+      return res.status(403).json({
+        message: 'Please verify your email address first. Use the code we emailed you, or ask for a new one.',
+        requiresVerification: true,
+        email: user.email
+      });
     }
 
     if (user.is_banned) {
-      logger.warn(`[LOGIN] Login attempt on banned account: ${email}`);
       return res.status(403).json({ message: 'Your account has been suspended or banned. Please contact d8lpa.community@gmail.com for more info.' });
     }
 
     if (user.is_suspended) {
-      logger.warn(`[LOGIN] Login attempt on suspended account: ${email}`);
       return res.status(403).json({ message: 'Your account has been suspended or banned. Please contact d8lpa.community@gmail.com for more info.' });
     }
 
     if (user.is_deleted) {
-      logger.warn(`[LOGIN] Login attempt on deleted account: ${email}`);
       return res.status(403).json({ message: 'Your account has been deleted. Please contact d8lpa.community@gmail.com if you believe this is an error.' });
     }
 
@@ -286,7 +296,7 @@ router.post('/login', [
       user.is_disabled = false;
       user.disabled_at = null;
       user.disable_reason = '';
-      logger.info(`[LOGIN] Reactivated disabled account on login: ${email}`);
+      logger.info(`[LOGIN] Reactivated disabled account on login: ${user._id}`);
     }
 
     const profile = await Profile.findOne({ user_id: user._id });
@@ -295,7 +305,7 @@ router.post('/login', [
     user.last_active = new Date();
     await user.save();
 
-    logger.info(`[LOGIN] Successful login for user: ${email}, User ID: ${user._id}`);
+    logger.info(`[LOGIN] Successful login, user id: ${user._id}`);
 
     const userJson = user.toJSON();
     res.json({
@@ -379,16 +389,40 @@ router.put('/complete-onboarding', auth, async (req, res) => {
       relationship_values,
       show_affection,
       build_with_person,
-      agreed_to_guidelines
+      agreed_to_guidelines,
+      age_preference_min,
+      age_preference_max
     } = req.body;
 
-    logger.log('[ONBOARDING] Updating profile for user:', req.userId);
-    logger.log('[ONBOARDING] Received payload keys:', Object.keys(req.body));
+    // Members must be adults. The form checks this too, but the form is not
+    // the only way to reach this endpoint.
+    if (birthdate) {
+      const age = calculateAge(birthdate);
+      if (age === null || age < 18 || age > 120) {
+        return res.status(400).json({ message: 'You must be 18 or older to join. Please check your date of birth.' });
+      }
+    }
 
     // Get fresh user object from database
     const user = await User.findById(req.userId);
     if (!user) {
       return res.status(404).json({ message: 'User not found' });
+    }
+
+    // Setting up can be finished early ("Skip for now"), but never without
+    // the required first step: a name, a date of birth (the 18+ check above
+    // only ran when one was sent, so leaving it out used to get round the age
+    // rule), a gender and agreement to the Community Guidelines. Values the
+    // account already has count, so nobody set up earlier is affected.
+    const clean = (value) => (typeof value === 'string' ? value.trim() : '');
+    const missing = [];
+    if (!clean(first_name) && !user.first_name) missing.push('your first name');
+    if (!clean(last_name) && !user.last_name) missing.push('your last name');
+    if (!birthdate && !user.birthdate) missing.push('your date of birth');
+    if (!gender && !user.gender) missing.push('your gender');
+    if (agreed_to_guidelines !== true && !user.agreed_to_guidelines) missing.push('your agreement to the Community Guidelines');
+    if (missing.length > 0) {
+      return res.status(400).json({ message: `Please complete the first step: we still need ${missing.join(', ')}.` });
     }
 
     // Update user with only basic info
@@ -400,14 +434,13 @@ router.put('/complete-onboarding', auth, async (req, res) => {
     user.onboarding_completed = true;
     await user.save();
 
-    logger.log('[ONBOARDING] User saved with:', { first_name, last_name, birthdate, gender });
 
     // Update or create profile
     let profile = await Profile.findOne({ user_id: req.userId });
     if (!profile) {
       profile = new Profile({ user_id: req.userId });
     }
-    
+
     // Basic profile info
     profile.location_state = location_state || profile.location_state;
     profile.location_city = location_city || profile.location_city;
@@ -416,14 +449,28 @@ router.put('/complete-onboarding', auth, async (req, res) => {
     profile.bio = bio || profile.bio;
     profile.occupation = occupation || profile.occupation;
     profile.education = education || profile.education;
-    profile.photos = photos || profile.photos;
-    
-    // Set profile picture from photos array (use first photo if available)
-    if (photos && Array.isArray(photos) && photos.length > 0 && !profile.profile_picture_url) {
-      profile.profile_picture_url = photos[0];
-      logger.log('[ONBOARDING] Set profile picture to first photo:', photos[0]);
+    // Photos are uploaded through /users/photos; this list may only reorder
+    // or drop them, never add a URL of the client's choosing.
+    if (Array.isArray(photos)) {
+      const kept = keepOwnPhotos(photos, profile.photos);
+      if (kept.length > 0 || photos.length === 0) profile.photos = kept;
     }
-    
+
+    // Keep the profile picture pointing at a photo that still exists. (An
+    // empty list used to clear the photos but leave the old picture address
+    // behind, so a "removed" picture stayed on the profile.)
+    if (!profile.photos.includes(profile.profile_picture_url)) {
+      profile.profile_picture_url = profile.photos[0] || null;
+    }
+
+    // Age range chosen during onboarding (it used to be thrown away here).
+    if (age_preference_min !== undefined || age_preference_max !== undefined) {
+      const min = Math.min(120, Math.max(18, Number(age_preference_min) || 18));
+      const max = Math.min(120, Math.max(18, Number(age_preference_max) || 99));
+      profile.age_preference_min = Math.min(min, max);
+      profile.age_preference_max = Math.max(min, max);
+    }
+
     // Interests and preferences
     profile.interests = interests || profile.interests;
     profile.favorite_music = favorite_music || profile.favorite_music;
@@ -432,10 +479,10 @@ router.put('/complete-onboarding', auth, async (req, res) => {
     profile.custom_animal = custom_animal || profile.custom_animal;
     profile.pet_peeves = pet_peeves || profile.pet_peeves;
     profile.custom_peeve = custom_peeve || profile.custom_peeve;
-    
+
     // Looking for
     if (looking_for && Array.isArray(looking_for)) {
-      profile.looking_for_gender = looking_for;
+      profile.looking_for_gender = normalizeLookingFor(looking_for);
     }
     profile.looking_for_relationship = looking_for_relationship || profile.looking_for_relationship;
     profile.looking_for_description = looking_for_description ? (Array.isArray(looking_for_description) ? looking_for_description : [looking_for_description]) : profile.looking_for_description;
@@ -444,19 +491,19 @@ router.put('/complete-onboarding', auth, async (req, res) => {
     profile.cultural_background = cultural_background || profile.cultural_background;
     profile.religion = religion || profile.religion;
     profile.personal_preferences = personal_preferences || profile.personal_preferences;
-    
+
     // Prompts
     profile.prompt_good_at = prompt_good_at || profile.prompt_good_at;
     profile.prompt_perfect_weekend = prompt_perfect_weekend || profile.prompt_perfect_weekend;
     profile.prompt_message_if = prompt_message_if || profile.prompt_message_if;
-    
+
     // Open-ended questions
     profile.hoping_to_find = hoping_to_find || profile.hoping_to_find;
     profile.great_day = great_day || profile.great_day;
     profile.relationship_values = relationship_values || profile.relationship_values;
     profile.show_affection = show_affection || profile.show_affection;
     profile.build_with_person = build_with_person || profile.build_with_person;
-    
+
     await profile.save();
 
     logger.log('[ONBOARDING] Profile saved successfully');
@@ -465,10 +512,10 @@ router.put('/complete-onboarding', auth, async (req, res) => {
     if (lpa_membership_id) {
       try {
         const normalizedId = lpa_membership_id.trim().toUpperCase();
-        
+
         // Check if membership already exists and update, or create new
         let membership = await LPAMembership.findOne({ user_id: req.userId });
-        
+
         if (membership) {
           membership.lpa_membership_id = normalizedId;
           membership.is_active = true;
@@ -479,7 +526,7 @@ router.put('/complete-onboarding', auth, async (req, res) => {
             is_active: true
           });
         }
-        
+
         await membership.save();
         logger.log('[ONBOARDING] LPA Membership saved for user:', req.userId);
       } catch (error) {
@@ -494,8 +541,9 @@ router.put('/complete-onboarding', auth, async (req, res) => {
     });
   } catch (error) {
     logger.error('[ONBOARDING] Error completing onboarding:', error.message);
-    logger.error('[ONBOARDING] Error stack:', error.stack);
-    res.status(500).json({ message: 'Error completing onboarding', error: error.message });
+    const friendly = validationMessage(error);
+    if (friendly) return res.status(400).json({ message: friendly });
+    res.status(500).json({ message: 'We could not save your profile just now. Please try again.' });
   }
 });
 
@@ -505,13 +553,11 @@ router.post('/forgot-password', [
 ], async (req, res, next) => {
   try {
     const { email } = req.body;
-    
-    logger.log(`[FORGOT-PASSWORD] Request initiated for email: ${email}`);
+
 
     const user = await User.findOne({ email });
     if (!user) {
       // Don't reveal if email exists
-      logger.warn(`[FORGOT-PASSWORD] Account not found for email: ${email}`);
       return res.json({ message: 'If an account exists, a reset link will be sent' });
     }
 
@@ -520,22 +566,13 @@ router.post('/forgot-password', [
     user.password_reset_expires = new Date(Date.now() + 60 * 60 * 1000); // 1 hour
     await user.save();
 
-    logger.log(`[FORGOT-PASSWORD] Reset token generated for: ${email}`);
-    logger.log(`[FORGOT-PASSWORD] Reset token expiry: ${user.password_reset_expires}`);
 
     // Send reset email in background (don't await, don't block response)
     if (isProduction) {
       sendPasswordResetEmail(email, resetToken)
-        .then(() => {
-          logger.info(`[FORGOT-PASSWORD] Password reset email sent successfully to: ${email}`);
-        })
         .catch((emailError) => {
-          logger.error(`[FORGOT-PASSWORD] Failed to send email to ${email}:`, emailError.message);
-          logger.error(`[FORGOT-PASSWORD] Email error details:`, emailError);
+          logger.error('[FORGOT-PASSWORD] Failed to send email:', emailError.message);
         });
-    } else {
-      logger.log(`[DEV] Password reset token for ${email}: ${resetToken}`);
-      logger.log(`[DEV] Reset link: ${process.env.FRONTEND_URL}/reset-password?token=${resetToken}`);
     }
 
     res.json({ message: 'If an account exists, a reset link will be sent' });
@@ -553,8 +590,9 @@ router.post('/reset-password', [
 ], async (req, res, next) => {
   try {
     const { token, password } = req.body;
-    
-    logger.log(`[RESET-PASSWORD] Reset attempt with token: ${token.substring(0, 10)}...`);
+    if (typeof token !== 'string' || typeof password !== 'string' || token.length < 32) {
+      return res.status(400).json({ message: 'Invalid or expired reset token' });
+    }
 
     const user = await User.findOne({
       password_reset_token: token,
@@ -566,12 +604,10 @@ router.post('/reset-password', [
       return res.status(400).json({ message: 'Invalid or expired reset token' });
     }
 
-    logger.log(`[RESET-PASSWORD] Valid token found for user: ${user.email}`);
 
     // Validate password strength
     const passwordValidation = validatePasswordStrength(password);
     if (!passwordValidation.isValid) {
-      logger.warn(`[RESET-PASSWORD] Weak password attempted for user: ${user.email}`);
       return res.status(400).json({ message: 'Password does not meet security requirements', errors: passwordValidation.errors });
     }
 
@@ -580,7 +616,7 @@ router.post('/reset-password', [
     user.password_reset_expires = undefined;
     await user.save();
 
-    logger.info(`[RESET-PASSWORD] Password reset successfully for user: ${user.email}`);
+    logger.info(`[RESET-PASSWORD] Password reset for user id: ${user._id}`);
 
     res.json({ message: 'Password reset successfully' });
   } catch (error) {
@@ -591,41 +627,43 @@ router.post('/reset-password', [
 });
 
 // POST /api/auth/check-membership-id - Check if LPA membership ID exists
-router.post('/check-membership-id', async (req, res) => {
+router.post('/check-membership-id', auth, async (req, res) => {
   try {
     const { lpa_membership_id } = req.body;
 
-    if (!lpa_membership_id || lpa_membership_id.trim() === '') {
-      return res.status(400).json({ 
+    if (typeof lpa_membership_id !== 'string' || lpa_membership_id.trim() === '') {
+      return res.status(400).json({
         exists: false,
-        message: 'Membership ID is required' 
+        message: 'Membership ID is required'
       });
     }
 
     const normalizedId = lpa_membership_id.trim().toUpperCase();
 
     // Check if membership ID already exists
-    const existingMembership = await LPAMembership.findOne({ 
+    const existingMembership = await LPAMembership.findOne({
       lpa_membership_id: normalizedId,
-      is_active: true
+      is_active: true,
+      // Your own number is not "already taken".
+      user_id: { $ne: req.userId.toString() }
     });
 
     if (existingMembership) {
-      return res.json({ 
+      return res.json({
         exists: true,
-        message: 'This LPA Membership ID already exists' 
+        message: 'This LPA Membership ID already exists'
       });
     }
 
-    res.json({ 
+    res.json({
       exists: false,
-      message: 'Membership ID is available' 
+      message: 'Membership ID is available'
     });
   } catch (error) {
     logger.error('[CHECK-MEMBERSHIP-ID] Error:', error.message);
-    res.status(500).json({ 
+    res.status(500).json({
       exists: false,
-      message: 'Error checking membership ID' 
+      message: 'Error checking membership ID'
     });
   }
 });
@@ -637,69 +675,43 @@ router.post('/check-membership-id', async (req, res) => {
 router.post('/change-password', auth, async (req, res) => {
   try {
     const { current_password, new_password } = req.body;
-    const userId = req.user?.id;
 
-    logger.info('[CHANGE-PASSWORD] Request initiated for user:', userId);
-
-    // Validation
-    if (!current_password || !new_password) {
-      logger.warn('[CHANGE-PASSWORD] Missing required fields');
-      return res.status(400).json({
-        error: 'Current password and new password are required'
-      });
+    if (typeof current_password !== 'string' || typeof new_password !== 'string' || !current_password || !new_password) {
+      return res.status(400).json({ message: 'Please enter your current password and a new password.' });
     }
 
-    if (new_password.length < 8) {
-      logger.warn('[CHANGE-PASSWORD] New password too short');
-      return res.status(400).json({
-        error: 'New password must be at least 8 characters'
-      });
+    const strength = validatePasswordStrength(new_password);
+    if (!strength.isValid) {
+      return res.status(400).json({ message: strength.errors[0], errors: strength.errors });
     }
 
-    // Get user from database
-    const user = await User.findById(userId).select('+password');
+    const user = await User.findById(req.userId);
     if (!user) {
-      logger.error('[CHANGE-PASSWORD] User not found:', userId);
-      return res.status(404).json({
-        error: 'User not found'
-      });
+      return res.status(404).json({ message: 'User not found' });
     }
 
-    // Verify current password
     const isPasswordValid = await bcryptjs.compare(current_password, user.password);
     if (!isPasswordValid) {
-      logger.warn('[CHANGE-PASSWORD] Current password incorrect for user:', userId);
-      return res.status(401).json({
-        error: 'Current password is incorrect'
-      });
+      // 400, not 401: the client treats 401 as "session ended" and would sign
+      // the member out for a simple typo.
+      return res.status(400).json({ message: 'Your current password is not right. Please try again.' });
     }
 
-    // Ensure new password is different from current
-    const isSamePassword = await bcryptjs.compare(new_password, user.password);
-    if (isSamePassword) {
-      logger.warn('[CHANGE-PASSWORD] New password same as current for user:', userId);
-      return res.status(400).json({
-        error: 'New password must be different from current password'
-      });
+    if (await bcryptjs.compare(new_password, user.password)) {
+      return res.status(400).json({ message: 'Your new password must be different from your current one.' });
     }
 
-    // Hash new password
-    const hashedPassword = await bcryptjs.hash(new_password, 10);
-
-    // Update password in database
-    user.password = hashedPassword;
+    // Assign the plain password and let the model's pre-save hook hash it.
+    // This used to hash here as well, so the stored value was a hash of a
+    // hash and the member could never sign in again after changing password.
+    user.password = new_password;
     await user.save();
 
-    logger.info('[CHANGE-PASSWORD] Password changed successfully for user:', userId);
-
-    return res.status(200).json({
-      message: 'Password changed successfully'
-    });
+    logger.info('[CHANGE-PASSWORD] Password changed for user id:', String(req.userId));
+    return res.status(200).json({ message: 'Password changed successfully' });
   } catch (error) {
     logger.error('[CHANGE-PASSWORD] Error:', error.message);
-    return res.status(500).json({
-      error: 'Error changing password. Please try again.'
-    });
+    return res.status(500).json({ message: 'We could not change your password just now. Please try again.' });
   }
 });
 

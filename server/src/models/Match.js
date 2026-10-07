@@ -24,7 +24,7 @@ const matchSchema = new mongoose.Schema({
   unread_counts: {
     type: Map,
     of: Number,
-    default: new Map()
+    default: () => new Map()
   },
   is_active: {
     type: Boolean,

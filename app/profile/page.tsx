@@ -2,7 +2,12 @@
 
 import React from "react"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useMemo, useRef, useCallback } from "react"
+import { useRouter } from "next/navigation"
+import { toast } from "sonner"
+import { LoadError } from "@/components/load-error"
+import { PhotoCropDialog, PHOTO_TIPS, PHOTO_FILE_TYPES, MAX_PHOTO_FILE_BYTES } from "@/components/profile/photo-crop-dialog"
+import { profileCompleteness, type CompletenessItem } from "@/lib/profile-completeness"
 import Image from "next/image"
 import Link from "next/link"
 import {
@@ -56,6 +61,7 @@ import {
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
@@ -194,6 +200,47 @@ export default function ProfilePageWrapper() {
   return <ProfilePage />
 }
 
+type AuthUser = ReturnType<typeof useAuthStore.getState>["user"]
+type AuthProfile = ReturnType<typeof useAuthStore.getState>["profile"]
+
+/** The editor's fields, filled from what is saved. Cancel goes back to this. */
+function buildForm(user: AuthUser, profile: AuthProfile) {
+  return {
+    first_name: user?.first_name || "",
+    last_name: user?.last_name || "",
+    bio: profile?.bio || "",
+    occupation: profile?.occupation || "",
+    education: profile?.education || "",
+    district_number: profile?.district_number || "",
+    location_city: profile?.location_city || "",
+    location_state: profile?.location_state || "",
+    interests: profile?.interests || [],
+    // New fields
+    looking_for: Array.isArray(profile?.looking_for_description) ? profile?.looking_for_description : (profile?.looking_for_description ? [profile?.looking_for_description] : []),
+    life_goals: Array.isArray(profile?.life_goals) ? profile?.life_goals : (profile?.life_goals ? [profile?.life_goals] : []),
+    languages: profile?.languages || [],
+    cultural_background: profile?.cultural_background || "",
+    religion: profile?.religion || "",
+    personal_preferences: profile?.personal_preferences || "",
+    favorite_music: Array.isArray(profile?.favorite_music) ? profile?.favorite_music : (typeof profile?.favorite_music === 'string' && profile?.favorite_music ? [profile?.favorite_music] : []),
+    animals: Array.isArray(profile?.animals) ? profile?.animals : (typeof profile?.animals === 'string' && profile?.animals ? [profile?.animals] : []),
+    pet_peeves: Array.isArray(profile?.pet_peeves) ? profile?.pet_peeves : (typeof profile?.pet_peeves === 'string' && profile?.pet_peeves ? [profile?.pet_peeves] : []),
+    prompt_good_at: profile?.prompt_good_at || "",
+    prompt_perfect_weekend: profile?.prompt_perfect_weekend || "",
+    prompt_message_if: profile?.prompt_message_if || "",
+    hoping_to_find: profile?.hoping_to_find || "",
+    great_day: profile?.great_day || "",
+    relationship_values: profile?.relationship_values || "",
+    show_affection: profile?.show_affection || "",
+    build_with_person: profile?.build_with_person || "",
+  }
+}
+type ProfileForm = ReturnType<typeof buildForm>
+
+// The server allows nine photos. This screen used to say ten, so the tenth
+// upload always failed with an error.
+const MAX_PHOTOS = 9
+
 function ProfilePage() {
   const { user, profile, setUser, setProfile } = useAuthStore()
   const [isEditing, setIsEditing] = useState(false)
@@ -204,8 +251,13 @@ function ProfilePage() {
   const [photoUploading, setPhotoUploading] = useState(false)
   const [photoSaving, setPhotoSaving] = useState(false)
   const [uploadError, setUploadError] = useState<string | null>(null)
+  const [cropFile, setCropFile] = useState<File | null>(null)
+  const [cropError, setCropError] = useState<string | null>(null)
+  const [photoToRemove, setPhotoToRemove] = useState<number | null>(null)
+  const fileInputRef = useRef<HTMLInputElement>(null)
   const [saveError, setSaveError] = useState<string | null>(null)
   const [isLoadingProfile, setIsLoadingProfile] = useState(true)
+  const [loadError, setLoadError] = useState<string | null>(null)
   const [customInterest, setCustomInterest] = useState("")
   const [customMusic, setCustomMusic] = useState("")
   const [customAnimal, setCustomAnimal] = useState("")
@@ -224,23 +276,24 @@ function ProfilePage() {
   // Goes through the shared API client so it honours NEXT_PUBLIC_API_URL and
   // the 401 handling. A hand-rolled fetch here used to build the URL from the
   // env var directly, which produced "undefined/users/profile" when unset.
-  const loadProfile = async () => {
+  const loadProfile = useCallback(async () => {
     setIsLoadingProfile(true)
+    setLoadError(null)
     const result = await api.users.getProfile()
     if (result.data) {
       setUser(result.data.user)
       setProfile(result.data.profile)
       setPhotos(result.data.profile?.photos || [])
     } else {
-      console.error('Failed to load profile:', result.error)
+      setLoadError(result.error || "Please try again.")
     }
     setIsLoadingProfile(false)
-  }
+  }, [setUser, setProfile])
 
   // Load profile data on mount
   useEffect(() => {
-    loadProfile()
-  }, [setUser, setProfile])
+    void loadProfile()
+  }, [loadProfile])
 
   // Load stats on mount
   useEffect(() => {
@@ -287,69 +340,45 @@ function ProfilePage() {
     loadStats()
   }, [])
   
-  const [formData, setFormData] = useState({
-    first_name: user?.first_name || "",
-    last_name: user?.last_name || "",
-    bio: profile?.bio || "",
-    occupation: profile?.occupation || "",
-    education: profile?.education || "",
-    district_number: profile?.district_number || "",
-    location_city: profile?.location_city || "",
-    location_state: profile?.location_state || "",
-    interests: profile?.interests || [],
-    // New fields
-    looking_for: Array.isArray(profile?.looking_for_description) ? profile?.looking_for_description : (profile?.looking_for_description ? [profile?.looking_for_description] : []),
-    life_goals: Array.isArray(profile?.life_goals) ? profile?.life_goals : (profile?.life_goals ? [profile?.life_goals] : []),
-    languages: profile?.languages || [],
-    cultural_background: profile?.cultural_background || "",
-    religion: profile?.religion || "",
-    personal_preferences: profile?.personal_preferences || "",
-    favorite_music: Array.isArray(profile?.favorite_music) ? profile?.favorite_music : (typeof profile?.favorite_music === 'string' && profile?.favorite_music ? [profile?.favorite_music] : []),
-    animals: Array.isArray(profile?.animals) ? profile?.animals : (typeof profile?.animals === 'string' && profile?.animals ? [profile?.animals] : []),
-    pet_peeves: Array.isArray(profile?.pet_peeves) ? profile?.pet_peeves : (typeof profile?.pet_peeves === 'string' && profile?.pet_peeves ? [profile?.pet_peeves] : []),
-    prompt_good_at: profile?.prompt_good_at || "",
-    prompt_perfect_weekend: profile?.prompt_perfect_weekend || "",
-    prompt_message_if: profile?.prompt_message_if || "",
-    hoping_to_find: profile?.hoping_to_find || "",
-    great_day: profile?.great_day || "",
-    relationship_values: profile?.relationship_values || "",
-    show_affection: profile?.show_affection || "",
-    build_with_person: profile?.build_with_person || "",
-  })
+  const [formData, setFormData] = useState<ProfileForm>(() => buildForm(user, profile))
+  // What is saved on the server right now, in the same shape as the form.
+  const savedForm = useMemo(() => buildForm(user, profile), [user, profile])
+  const [discardOpen, setDiscardOpen] = useState(false)
+  const [leaveTo, setLeaveTo] = useState<string | null>(null)
+  const router = useRouter()
 
   // Update formData when user/profile data loads
   useEffect(() => {
-    if (user || profile) {
-      setFormData({
-        first_name: user?.first_name || "",
-        last_name: user?.last_name || "",
-        bio: profile?.bio || "",
-        occupation: profile?.occupation || "",
-        education: profile?.education || "",
-        district_number: profile?.district_number || "",
-        location_city: profile?.location_city || "",
-        location_state: profile?.location_state || "",
-        interests: profile?.interests || [],
-        looking_for: Array.isArray(profile?.looking_for_description) ? profile?.looking_for_description : (profile?.looking_for_description ? [profile?.looking_for_description] : []),
-        life_goals: Array.isArray(profile?.life_goals) ? profile?.life_goals : (profile?.life_goals ? [profile?.life_goals] : []),
-        languages: profile?.languages || [],
-        cultural_background: profile?.cultural_background || "",
-        religion: profile?.religion || "",
-        personal_preferences: profile?.personal_preferences || "",
-        favorite_music: Array.isArray(profile?.favorite_music) ? profile?.favorite_music : (typeof profile?.favorite_music === 'string' && profile?.favorite_music ? [profile?.favorite_music] : []),
-        animals: Array.isArray(profile?.animals) ? profile?.animals : (typeof profile?.animals === 'string' && profile?.animals ? [profile?.animals] : []),
-        pet_peeves: Array.isArray(profile?.pet_peeves) ? profile?.pet_peeves : (typeof profile?.pet_peeves === 'string' && profile?.pet_peeves ? [profile?.pet_peeves] : []),
-        prompt_good_at: profile?.prompt_good_at || "",
-        prompt_perfect_weekend: profile?.prompt_perfect_weekend || "",
-        prompt_message_if: profile?.prompt_message_if || "",
-        hoping_to_find: profile?.hoping_to_find || "",
-        great_day: profile?.great_day || "",
-        relationship_values: profile?.relationship_values || "",
-        show_affection: profile?.show_affection || "",
-        build_with_person: profile?.build_with_person || "",
-      })
-    }
+    if (user || profile) setFormData(buildForm(user, profile))
   }, [user, profile])
+
+  const isDirty = isEditing && JSON.stringify(formData) !== JSON.stringify(savedForm)
+
+  // Unsaved changes: warn before the tab is closed or reloaded, and before a
+  // link elsewhere in the app is followed.
+  useEffect(() => {
+    if (!isDirty) return
+    const beforeUnload = (e: BeforeUnloadEvent) => {
+      e.preventDefault()
+      e.returnValue = ""
+    }
+    const onClick = (e: MouseEvent) => {
+      const link = (e.target as HTMLElement | null)?.closest?.("a[href]") as HTMLAnchorElement | null
+      if (!link || link.target === "_blank" || e.defaultPrevented) return
+      const url = new URL(link.href, window.location.href)
+      if (url.origin !== window.location.origin || url.pathname === window.location.pathname) return
+      e.preventDefault()
+      e.stopPropagation()
+      setLeaveTo(url.pathname + url.search)
+      setDiscardOpen(true)
+    }
+    window.addEventListener("beforeunload", beforeUnload)
+    document.addEventListener("click", onClick, true)
+    return () => {
+      window.removeEventListener("beforeunload", beforeUnload)
+      document.removeEventListener("click", onClick, true)
+    }
+  }, [isDirty])
 
   const getInitials = () => {
     const first = formData.first_name?.[0] || ""
@@ -414,6 +443,7 @@ function ProfilePage() {
         setCustomAnimal('')
         setCustomPetPeeve('')
         setIsEditing(false)
+        toast.success("Profile saved")
       }
     } catch (error) {
       console.error('[PROFILE] Save exception:', error)
@@ -423,9 +453,31 @@ function ProfilePage() {
     }
   }
 
-  const handleCancel = () => {
+  // Cancel puts every field back to what is saved. (It used to leave the
+  // edited text on screen, looking saved, and the next Save stored it.)
+  const discardChanges = () => {
+    setFormData(savedForm)
+    setCustomInterest("")
+    setCustomMusic("")
+    setCustomAnimal("")
+    setCustomPetPeeve("")
     setSaveError(null)
     setIsEditing(false)
+    setDiscardOpen(false)
+    if (leaveTo) {
+      const to = leaveTo
+      setLeaveTo(null)
+      router.push(to)
+    }
+  }
+
+  const handleCancel = () => {
+    if (isDirty) {
+      setLeaveTo(null)
+      setDiscardOpen(true)
+    } else {
+      discardChanges()
+    }
   }
 
   const toggleInterest = (interest: string) => {
@@ -522,58 +574,99 @@ function ProfilePage() {
       setPhotos(photos)
     } else {
       setProfile({ ...(profile || {}), photos: nextPhotos })
+      toast.success("Photo removed")
     }
     setPhotoSaving(false)
   }
 
-  const handleAddPhoto = () => {
-    // Create a hidden file input element
-    const fileInput = document.createElement('input')
-    fileInput.type = 'file'
-    fileInput.accept = 'image/*'
-    fileInput.onchange = async (e: Event) => {
-      const target = e.target as HTMLInputElement
-      const files = target.files
-      if (!files || files.length === 0) return
+  const handleAddPhoto = () => fileInputRef.current?.click()
 
-      const file = files[0]
-      if (!file.type.startsWith('image/')) {
-        setUploadError('That file is not a photo. Please choose a JPG or PNG image.')
-        return
-      }
-
-      // The server rejects anything over 5MB; catching it here gives a clear
-      // message instead of a generic upload failure.
-      if (file.size > 5 * 1024 * 1024) {
-        setUploadError('That photo is too large. Please choose an image under 5MB.')
-        return
-      }
-
-      if (photos.length >= 10) {
-        setUploadError('You can have up to 10 photos. Remove one to add another.')
-        return
-      }
-
-      setPhotoUploading(true)
-      setUploadError(null)
-
-      const formData = new FormData()
-      formData.append('photo', file)
-
-      const result = await api.users.uploadPhoto(formData)
-
-      if (result.error) {
-        setUploadError(result.error)
-      } else if (result.data) {
-        const nextPhotos = [...photos, result.data.url]
-        setPhotos(nextPhotos)
-        setProfile({ ...(profile || {}), photos: nextPhotos })
-      }
-
-      setPhotoUploading(false)
+  // ---- "Your profile is N% complete" ------------------------------------
+  const HIDE_KEY = "d8lpa-hide-completeness"
+  const [helperHidden, setHelperHidden] = useState(false)
+  useEffect(() => {
+    try {
+      setHelperHidden(localStorage.getItem(HIDE_KEY) === "1")
+    } catch {
+      // private browsing: the card simply shows
     }
-    // Trigger the file picker
-    fileInput.click()
+  }, [])
+  const completeness = useMemo(
+    () => profileCompleteness({ ...(profile || {}), photos }),
+    [profile, photos]
+  )
+
+  const FIELD_FOR: Partial<Record<CompletenessItem["key"], { form?: keyof ProfileForm; label?: string; chip?: string }>> = {
+    bio: { form: "bio", label: "About me" },
+    interests: { label: "Add your own interest" },
+    looking_for: { chip: "Friendship" },
+    prompt_good_at: { form: "prompt_good_at", label: "I'm weirdly good at..." },
+    prompt_perfect_weekend: { form: "prompt_perfect_weekend", label: "My perfect weekend..." },
+    hoping_to_find: { form: "hoping_to_find", label: "What are you hoping to find on this site?" },
+    prompt_message_if: { form: "prompt_message_if", label: "Message me if..." },
+    languages: { chip: "English" },
+    occupation: { label: "Occupation" },
+  }
+
+  /** Opens the editor at the field for this suggestion, optionally with an example filled in. */
+  const startOn = (item: CompletenessItem, example?: string) => {
+    if (item.key === "photo") {
+      setShowPhotoManager(true)
+      return
+    }
+    const target = FIELD_FOR[item.key]
+    if (!target) return
+    setIsEditing(true)
+    if (example && target.form) setFormData((prev) => ({ ...prev, [target.form as string]: example }))
+    window.setTimeout(() => {
+      const el = target.label
+        ? document.querySelector<HTMLElement>(`[aria-label="${target.label}"]`)
+        : Array.from(document.querySelectorAll<HTMLElement>('[role="button"][aria-pressed]')).find(
+            (node) => node.textContent?.trim() === target.chip
+          )
+      el?.scrollIntoView({ block: "center" })
+      el?.focus()
+    }, 100)
+  }
+
+  // A picture was chosen: check it, then show the tips and the crop step.
+  const handleFileChosen = (file: File | undefined) => {
+    if (!file) return
+    setUploadError(null)
+    setCropError(null)
+    if (!PHOTO_FILE_TYPES.includes(file.type)) {
+      setUploadError('That file is not a photo we can use. Please choose a JPG or PNG image.')
+      return
+    }
+    // Phone photos are often larger than this; they are made smaller before
+    // upload, so only refuse files that are unreasonably big.
+    if (file.size > MAX_PHOTO_FILE_BYTES) {
+      setUploadError('That photo is too large. Please choose an image under 25MB.')
+      return
+    }
+    if (photos.length >= MAX_PHOTOS) {
+      setUploadError(`You can have up to ${MAX_PHOTOS} photos. Remove one to add another.`)
+      return
+    }
+    setCropFile(file)
+  }
+
+  const uploadPrepared = async (blob: Blob) => {
+    setPhotoUploading(true)
+    setCropError(null)
+    const body = new FormData()
+    body.append('photo', blob, 'photo.jpg')
+    const result = await api.users.uploadPhoto(body)
+    setPhotoUploading(false)
+    if (result.error || !result.data) {
+      setCropError(result.error || 'We could not upload that picture. Please try again.')
+      return
+    }
+    const nextPhotos = [...photos, result.data.url]
+    setPhotos(nextPhotos)
+    setProfile({ ...(profile || {}), photos: nextPhotos })
+    setCropFile(null)
+    toast.success(nextPhotos.length === 1 ? "Photo added. It is now your main photo." : "Photo added")
   }
 
   const age = calculateAge()
@@ -592,35 +685,26 @@ function ProfilePage() {
         {/* Loading State */}
         {isLoadingProfile && (
           <div className="flex items-center justify-center py-12">
-            <Loader2 className="h-8 w-8 animate-spin text-primary" />
-            <span className="ml-3 text-muted-foreground">Loading profile...</span>
+            <Loader2 className="h-8 w-8 animate-spin text-primary" aria-hidden="true" />
+            <span className="ml-3 text-muted-foreground" role="status">Loading profile...</span>
           </div>
         )}
 
-        {!isLoadingProfile && (
-          <>
-            {/* Profile Incomplete Warning */}
-            {!user?.onboarding_completed && (
-              <div className="mb-6 flex items-center gap-3 p-4 rounded-lg bg-amber-50 border border-amber-200 text-amber-800">
-                <AlertTriangle className="h-5 w-5 shrink-0 text-amber-600" />
-                <div className="flex-1">
-                  <p className="font-medium">Complete Your Profile</p>
-                  <p className="text-sm text-amber-700">
-                    Add more details to your profile to increase your visibility and get more matches.
-                  </p>
-                </div>
-              </div>
-            )}
+        {!isLoadingProfile && loadError && (
+          <LoadError what="your profile" detail={loadError} onRetry={loadProfile} />
+        )}
 
+        {!isLoadingProfile && !loadError && (
+          <>
             {/* Header */}
-            <div className="flex items-center justify-between mb-8">
+            <div className="flex flex-wrap items-center justify-between gap-3 mb-8">
               <div>
                 <h1 className="text-2xl md:text-3xl font-bold text-foreground">My Profile</h1>
             <p className="text-muted-foreground mt-1">
-              Manage your dating profile
+              This is what other members see. Choose Edit to change it.
             </p>
           </div>
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2">
             <Button variant="outline" onClick={() => setShowPreview(true)} className="bg-white border-2 border-black dark:bg-slate-950 dark:border-white hover:bg-slate-50 dark:hover:bg-slate-900">
               <Eye className="h-4 w-4 mr-2" />
               Preview
@@ -648,12 +732,83 @@ function ProfilePage() {
           </div>
         </div>
 
+        {!isEditing && !helperHidden && completeness.percent < 100 && (
+          <section aria-labelledby="completeness-title" data-testid="completeness" className="mb-6 rounded-xl border-2 border-primary/40 bg-card p-5">
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <h2 id="completeness-title" className="text-xl font-semibold">
+                Your profile is {completeness.percent}% complete
+              </h2>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => {
+                  setHelperHidden(true)
+                  try {
+                    localStorage.setItem(HIDE_KEY, "1")
+                  } catch {
+                    // not remembered; that is all
+                  }
+                }}
+              >
+                Hide for now
+              </Button>
+            </div>
+            <div
+              role="progressbar"
+              aria-label="Profile completeness"
+              aria-valuemin={0}
+              aria-valuemax={100}
+              aria-valuenow={completeness.percent}
+              aria-valuetext={`${completeness.percent} percent`}
+              className="mt-3 h-3 w-full overflow-hidden rounded-full bg-muted"
+            >
+              <div className="h-full rounded-full bg-primary" style={{ width: `${completeness.percent}%` }} />
+            </div>
+            <p className="mt-3 text-muted-foreground">
+              Only you see this. {completeness.missing.length === 1 ? "One thing would finish it:" : "Next, you could:"}
+            </p>
+            <ul className="mt-3 space-y-4">
+              {completeness.missing.slice(0, 3).map((item) => (
+                <li key={item.key} data-testid={`suggestion-${item.key}`} className="rounded-lg border border-border p-3">
+                  <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                    <div className="min-w-0 sm:flex-1">
+                      <p className="font-semibold">{item.label}</p>
+                      <p className="text-muted-foreground">{item.reason}</p>
+                    </div>
+                    <Button size="sm" onClick={() => startOn(item)} aria-label={`Add this: ${item.label}`}>
+                      Add this
+                    </Button>
+                  </div>
+                  {item.examples && (
+                    <div className="mt-3">
+                      <p className="text-sm font-medium">Stuck for words? Start from an example and make it yours:</p>
+                      <div className="mt-2 flex flex-col gap-2">
+                        {item.examples.map((example) => (
+                          <Button
+                            key={example}
+                            type="button"
+                            variant="outline"
+                            className="h-auto min-h-11 justify-start whitespace-normal py-2 text-left font-normal"
+                            onClick={() => startOn(item, example)}
+                          >
+                            &ldquo;{example}&rdquo;
+                          </Button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </li>
+              ))}
+            </ul>
+          </section>
+        )}
+
         {saveError && (
-          <div className="mb-6 flex items-start gap-3 p-4 rounded-lg bg-destructive/10 border border-destructive/20 text-destructive">
-            <AlertTriangle className="h-5 w-5 shrink-0 mt-0.5" />
+          <div role="alert" className="mb-6 flex items-start gap-3 p-4 rounded-lg bg-card border-2 border-destructive/50">
+            <AlertTriangle className="h-5 w-5 shrink-0 mt-0.5 text-destructive" aria-hidden="true" />
             <div>
-              <p className="font-medium">We couldn&apos;t save your profile</p>
-              <p className="text-sm">{saveError}</p>
+              <p className="font-semibold">We couldn&apos;t save your profile</p>
+              <p>{saveError} Your changes are still here - please try Save again.</p>
             </div>
           </div>
         )}
@@ -674,83 +829,87 @@ function ProfilePage() {
                   />
                 </div>
                 {isEditing && (
-                  <button 
+                  <button
+                    type="button"
+                    aria-label="Change photos"
                     onClick={() => setShowPhotoManager(true)}
-                    className="absolute bottom-2 right-2 p-2 rounded-full bg-primary text-primary-foreground shadow-lg hover:bg-primary/90 transition-colors"
+                    className="absolute bottom-2 right-2 flex h-11 w-11 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-lg hover:bg-primary/90 transition-colors"
                   >
-                    <Camera className="h-4 w-4" />
+                    <Camera className="h-5 w-5" aria-hidden="true" />
                   </button>
                 )}
               </div>
               
               {/* Profile Info */}
               <div className="flex-1 space-y-3">
-                <h2 className="text-2xl md:text-3xl font-bold text-foreground">
+                <h2 className="text-2xl md:text-3xl font-bold text-foreground" data-testid="my-name">
                   {formData.first_name} {formData.last_name}
                   {age ? `, ${age}` : ""}
                 </h2>
                 
-                <div className="flex flex-col gap-2">
-                  {/* District Number */}
-                  {isEditing ? (
-                    <div className="flex items-center gap-2">
-                      <span className="text-sm font-medium text-muted-foreground">District #</span>
-                      <Input
-                        value={formData.district_number}
-                        onChange={(e) => setFormData({ ...formData, district_number: e.target.value })}
-                        className="w-20 h-8"
-                        placeholder="e.g. 5"
-                      />
+                {isEditing ? (
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    <div className="space-y-1">
+                      <Label htmlFor="edit-first-name">First name</Label>
+                      <Input id="edit-first-name" value={formData.first_name} maxLength={50} autoComplete="given-name"
+                        onChange={(e) => setFormData({ ...formData, first_name: e.target.value })} />
                     </div>
-                  ) : formData.district_number ? (
-                    <span className="flex items-center gap-1 text-foreground font-medium">
-                      <span className="text-primary">District #{formData.district_number}</span>
-                    </span>
-                  ) : null}
-                  
-                  {/* Location */}
-                  {isEditing ? (
-                    <div className="flex items-center gap-2">
-                      <MapPin className="h-4 w-4 text-muted-foreground" />
-                      <Input
-                        value={formData.location_state}
-                        onChange={(e) => setFormData({ ...formData, location_state: e.target.value })}
-                        className="w-48 h-8"
-                        placeholder="State"
-                      />
+                    <div className="space-y-1">
+                      <Label htmlFor="edit-last-name">Last name</Label>
+                      <Input id="edit-last-name" value={formData.last_name} maxLength={50} autoComplete="family-name"
+                        onChange={(e) => setFormData({ ...formData, last_name: e.target.value })} />
                     </div>
-                  ) : (
-                    <span className="flex items-center gap-1 text-muted-foreground">
-                      <MapPin className="h-4 w-4" />
-                      {formData.location_state}
-                    </span>
-                  )}
-                  
-                  {/* Occupation (Optional) */}
-                  {isEditing ? (
-                    <div className="flex items-center gap-2">
-                      <Briefcase className="h-4 w-4 text-muted-foreground" />
-                      <Input
-                        value={formData.occupation}
-                        onChange={(e) => setFormData({ ...formData, occupation: e.target.value })}
-                        className="w-48 h-8"
-                        placeholder="Occupation (optional)"
-                      />
+                    <div className="space-y-1">
+                      <Label htmlFor="edit-city">City or town</Label>
+                      <Input id="edit-city" value={formData.location_city} maxLength={80}
+                        onChange={(e) => setFormData({ ...formData, location_city: e.target.value })} />
                     </div>
-                  ) : formData.occupation ? (
-                    <span className="flex items-center gap-1 text-muted-foreground">
-                      <Briefcase className="h-4 w-4" />
-                      {formData.occupation}
-                    </span>
-                  ) : null}
-                </div>
+                    <div className="space-y-1">
+                      <Label htmlFor="edit-state">State</Label>
+                      <Input id="edit-state" value={formData.location_state} maxLength={40}
+                        onChange={(e) => setFormData({ ...formData, location_state: e.target.value })} />
+                    </div>
+                    <div className="space-y-1">
+                      <Label htmlFor="edit-district">LPA district number</Label>
+                      <Input id="edit-district" inputMode="numeric" maxLength={2} placeholder="e.g. 8"
+                        value={String(formData.district_number).replace("district_", "")}
+                        onChange={(e) => setFormData({ ...formData, district_number: e.target.value.replace(/[^0-9]/g, "") })} />
+                    </div>
+                    <div className="space-y-1">
+                      <Label htmlFor="edit-occupation-top">Occupation (optional)</Label>
+                      <Input id="edit-occupation-top" value={formData.occupation} maxLength={100}
+                        onChange={(e) => setFormData({ ...formData, occupation: e.target.value })} />
+                    </div>
+                    <p className="text-muted-foreground sm:col-span-2">
+                      Your birthday cannot be changed here. If it is wrong, please contact us and we will correct it.
+                    </p>
+                  </div>
+                ) : (
+                  <div className="flex flex-col gap-2">
+                    {formData.district_number ? (
+                      <span className="font-medium text-primary">District {String(formData.district_number).replace("district_", "")}</span>
+                    ) : null}
+                    {(formData.location_city || formData.location_state) && (
+                      <span className="flex items-center gap-1 text-muted-foreground" data-testid="my-location">
+                        <MapPin className="h-4 w-4" aria-hidden="true" />
+                        {[formData.location_city, formData.location_state].filter(Boolean).join(", ")}
+                      </span>
+                    )}
+                    {formData.occupation ? (
+                      <span className="flex items-center gap-1 text-muted-foreground">
+                        <Briefcase className="h-4 w-4" aria-hidden="true" />
+                        {formData.occupation}
+                      </span>
+                    ) : null}
+                  </div>
+                )}
               </div>
             </div>
           </CardContent>
         </Card>
 
         {/* Quick Stats */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-6">
           <Link href="/matches">
             <Card className="bg-gradient-to-br from-primary/10 to-primary/5 border-primary/20 hover:shadow-md hover:border-primary/40 transition-all cursor-pointer">
               <CardContent className="p-5">
@@ -813,6 +972,7 @@ function ProfilePage() {
                 <Textarea
                   value={formData.bio}
                   onChange={(e) => setFormData({ ...formData, bio: e.target.value.slice(0, 500) })}
+                  aria-label="About me"
                   placeholder="Tell others about yourself..."
                   rows={4}
                   className="resize-none"
@@ -845,24 +1005,24 @@ function ProfilePage() {
           <CardContent>
             {photos.length === 0 ? (
               <button
+                type="button"
                 onClick={() => setShowPhotoManager(true)}
                 className="w-full flex flex-col items-center justify-center gap-3 py-10 rounded-lg border-2 border-dashed border-muted-foreground/30 text-muted-foreground hover:border-primary hover:text-primary transition-colors"
               >
                 <Camera className="h-10 w-10" />
                 <span className="text-base font-medium">Add your first photo</span>
                 <span className="text-sm">
-                  Members with photos get far more responses
+                  A photo helps other members recognise you
                 </span>
               </button>
             ) : (
             <div className="grid grid-cols-3 gap-2">
               {visiblePhotos.map((photo, index) => (
-                <div
+                <button
+                  type="button"
                   key={index}
-                  className={cn(
-                    "relative aspect-[4/5] rounded-lg overflow-hidden cursor-pointer group",
-                    index === 5 && remainingCount > 0 && "relative"
-                  )}
+                  aria-label={index === 5 && remainingCount > 0 ? `Manage photos (${remainingCount} more)` : `Photo ${index + 1}. Manage photos`}
+                  className="relative aspect-[4/5] rounded-lg overflow-hidden group"
                   onClick={() => setShowPhotoManager(true)}
                 >
                   <Image
@@ -879,7 +1039,7 @@ function ProfilePage() {
                       <span className="text-white text-2xl font-bold">+{remainingCount}</span>
                     </div>
                   )}
-                </div>
+                </button>
               ))}
             </div>
             )}
@@ -902,6 +1062,7 @@ function ProfilePage() {
                 <Input
                   value={formData.occupation}
                   onChange={(e) => setFormData({ ...formData, occupation: e.target.value })}
+                  aria-label="Occupation"
                   placeholder="Enter your occupation"
                 />
               ) : (
@@ -922,7 +1083,7 @@ function ProfilePage() {
                   value={formData.education}
                   onValueChange={(v) => setFormData({ ...formData, education: v })}
                 >
-                  <SelectTrigger className="w-full">
+                  <SelectTrigger aria-label="Education" className="w-full">
                     <SelectValue placeholder="Select your education level" />
                   </SelectTrigger>
                   <SelectContent>
@@ -950,20 +1111,22 @@ function ProfilePage() {
                   {/* Selected Interests */}
                   {formData.interests.length > 0 && (
                     <div className="space-y-2">
-                      <p className="text-xs font-medium text-foreground">Your Interests ({formData.interests.length}/10)</p>
+                      <p className="text-sm font-medium text-foreground">Your Interests ({formData.interests.length}/10)</p>
                       <div className="flex flex-wrap gap-2">
                         {formData.interests.map((interest) => (
                           <Badge
                             key={interest}
                             variant="default"
-                            className="cursor-pointer transition-all hover:scale-105 pr-1"
+                            className="text-sm pr-1"
                           >
                             {interest}
                             <button
+                              type="button"
+                              aria-label={`Remove ${interest}`}
                               onClick={() => toggleInterest(interest)}
-                              className="ml-1 hover:bg-primary-foreground/20 rounded-full p-0.5"
+                              className="ml-1 flex h-8 w-8 items-center justify-center hover:bg-primary-foreground/20 rounded-full"
                             >
-                              <X className="h-3 w-3" />
+                              <X className="h-4 w-4" aria-hidden="true" />
                             </button>
                           </Badge>
                         ))}
@@ -974,13 +1137,14 @@ function ProfilePage() {
                   {/* Custom Interest Input */}
                   {formData.interests.length < 10 && (
                     <div className="space-y-2">
-                      <p className="text-xs font-medium text-foreground">Add Custom Interest</p>
+                      <p className="text-sm font-medium text-foreground">Add Custom Interest</p>
                       <div className="flex gap-2">
                         <Input
-                          placeholder="Type an interest and press Enter"
+                          aria-label="Add your own interest"
+                  placeholder="Type an interest"
                           value={customInterest}
                           onChange={(e) => setCustomInterest(e.target.value)}
-                          onKeyPress={handleCustomInterestKeyPress}
+                          onKeyDown={handleCustomInterestKeyPress}
                           className="flex-1"
                         />
                         <Button
@@ -999,7 +1163,7 @@ function ProfilePage() {
 
                   {/* Predefined Interests */}
                   <div className="space-y-2">
-                    <p className="text-xs font-medium text-foreground">Suggested Interests</p>
+                    <p className="text-sm font-medium text-foreground">Suggested Interests</p>
                     <div className="flex flex-wrap gap-2">
                       {AVAILABLE_INTERESTS.filter(i => !formData.interests.includes(i)).map((interest) => (
                         <Badge
@@ -1048,6 +1212,7 @@ function ProfilePage() {
                     <Badge
                       key={option}
                       variant={formData.looking_for.includes(option) ? "default" : "outline"}
+                      aria-pressed={formData.looking_for.includes(option)}
                       className="cursor-pointer transition-all hover:scale-105"
                       onClick={() => {
                         if (formData.looking_for.includes(option)) {
@@ -1090,6 +1255,7 @@ function ProfilePage() {
                     <Badge
                       key={option}
                       variant={formData.life_goals.includes(option) ? "default" : "outline"}
+                      aria-pressed={formData.life_goals.includes(option)}
                       className="cursor-pointer transition-all hover:scale-105"
                       onClick={() => {
                         if (formData.life_goals.includes(option)) {
@@ -1132,6 +1298,7 @@ function ProfilePage() {
                     <Badge
                       key={lang}
                       variant={formData.languages.includes(lang) ? "default" : "outline"}
+                      aria-pressed={formData.languages.includes(lang)}
                       className="cursor-pointer transition-all hover:scale-105"
                       onClick={() => {
                         if (formData.languages.includes(lang)) {
@@ -1163,6 +1330,7 @@ function ProfilePage() {
                 <Input
                   value={formData.cultural_background}
                   onChange={(e) => setFormData({ ...formData, cultural_background: e.target.value })}
+                  aria-label="Cultural background"
                   placeholder="Enter your cultural background"
                 />
               ) : (
@@ -1180,7 +1348,7 @@ function ProfilePage() {
                   value={formData.religion}
                   onValueChange={(v) => setFormData({ ...formData, religion: v })}
                 >
-                  <SelectTrigger className="w-full">
+                  <SelectTrigger aria-label="Religion" className="w-full">
                     <SelectValue placeholder="Select your religion" />
                   </SelectTrigger>
                   <SelectContent>
@@ -1209,7 +1377,8 @@ function ProfilePage() {
                   <Textarea
                     value={formData.personal_preferences}
                     onChange={(e) => setFormData({ ...formData, personal_preferences: e.target.value.slice(0, 500) })}
-                    placeholder="Share what you value in a partner and relationship..."
+                    aria-label="Personal preferences"
+                  placeholder="Share what you value in a partner and relationship..."
                     rows={4}
                     className="resize-none"
                   />
@@ -1244,6 +1413,7 @@ function ProfilePage() {
                       <Badge
                         key={option}
                         variant={formData.favorite_music.includes(option) ? "default" : "outline"}
+                      aria-pressed={formData.favorite_music.includes(option)}
                         className="cursor-pointer transition-all hover:scale-105"
                         onClick={() => {
                           if (formData.favorite_music.includes(option)) {
@@ -1267,6 +1437,7 @@ function ProfilePage() {
                             key={item}
                             variant="default"
                             className="cursor-pointer"
+                            aria-label={`Remove ${item}`}
                             onClick={() => {
                               setFormData({ ...formData, favorite_music: formData.favorite_music.filter(m => m !== item) })
                             }}
@@ -1280,7 +1451,8 @@ function ProfilePage() {
                     <p className="text-xs text-muted-foreground mb-2">Or add custom:</p>
                     <Input
                       type="text"
-                      placeholder="Add custom music genre or artist..."
+                      aria-label="Add your own music"
+                  placeholder="Add custom music genre or artist..."
                       value={customMusic}
                       onChange={(e) => setCustomMusic(e.target.value)}
                       onKeyDown={(e) => {
@@ -1322,6 +1494,7 @@ function ProfilePage() {
                       <Badge
                         key={option}
                         variant={formData.animals.includes(option) ? "default" : "outline"}
+                      aria-pressed={formData.animals.includes(option)}
                         className="cursor-pointer transition-all hover:scale-105"
                         onClick={() => {
                           if (formData.animals.includes(option)) {
@@ -1345,6 +1518,7 @@ function ProfilePage() {
                             key={item}
                             variant="default"
                             className="cursor-pointer"
+                            aria-label={`Remove ${item}`}
                             onClick={() => {
                               setFormData({ ...formData, animals: formData.animals.filter(a => a !== item) })
                             }}
@@ -1358,7 +1532,8 @@ function ProfilePage() {
                     <p className="text-xs text-muted-foreground mb-2">Or add custom:</p>
                     <Input
                       type="text"
-                      placeholder="Add custom animal..."
+                      aria-label="Add your own animal"
+                  placeholder="Add custom animal..."
                       value={customAnimal}
                       onChange={(e) => setCustomAnimal(e.target.value)}
                       onKeyDown={(e) => {
@@ -1400,6 +1575,7 @@ function ProfilePage() {
                       <Badge
                         key={option}
                         variant={formData.pet_peeves.includes(option) ? "default" : "outline"}
+                      aria-pressed={formData.pet_peeves.includes(option)}
                         className="cursor-pointer transition-all hover:scale-105"
                         onClick={() => {
                           if (formData.pet_peeves.includes(option)) {
@@ -1423,6 +1599,7 @@ function ProfilePage() {
                             key={item}
                             variant="default"
                             className="cursor-pointer"
+                            aria-label={`Remove ${item}`}
                             onClick={() => {
                               setFormData({ ...formData, pet_peeves: formData.pet_peeves.filter(p => p !== item) })
                             }}
@@ -1436,7 +1613,8 @@ function ProfilePage() {
                     <p className="text-xs text-muted-foreground mb-2">Or add custom:</p>
                     <Input
                       type="text"
-                      placeholder="Add custom pet peeve..."
+                      aria-label="Add your own pet peeve"
+                  placeholder="Add custom pet peeve..."
                       value={customPetPeeve}
                       onChange={(e) => setCustomPetPeeve(e.target.value)}
                       onKeyDown={(e) => {
@@ -1481,6 +1659,7 @@ function ProfilePage() {
                 <Textarea
                   value={formData.prompt_good_at}
                   onChange={(e) => setFormData({ ...formData, prompt_good_at: e.target.value.slice(0, 250) })}
+                  aria-label="I'm weirdly good at..."
                   placeholder="Share something you're uniquely good at..."
                   rows={3}
                   className="resize-none"
@@ -1499,6 +1678,7 @@ function ProfilePage() {
                 <Textarea
                   value={formData.prompt_perfect_weekend}
                   onChange={(e) => setFormData({ ...formData, prompt_perfect_weekend: e.target.value.slice(0, 250) })}
+                  aria-label="My perfect weekend..."
                   placeholder="Describe your ideal weekend..."
                   rows={3}
                   className="resize-none"
@@ -1517,6 +1697,7 @@ function ProfilePage() {
                 <Textarea
                   value={formData.prompt_message_if}
                   onChange={(e) => setFormData({ ...formData, prompt_message_if: e.target.value.slice(0, 250) })}
+                  aria-label="Message me if..."
                   placeholder="What should someone mention when they message you?"
                   rows={3}
                   className="resize-none"
@@ -1539,7 +1720,8 @@ function ProfilePage() {
                   <Textarea
                     value={formData.hoping_to_find}
                     onChange={(e) => setFormData({ ...formData, hoping_to_find: e.target.value.slice(0, 250) })}
-                    placeholder="Share what you're looking for..."
+                    aria-label="What are you hoping to find on this site?"
+                  placeholder="Share what you're looking for..."
                     rows={3}
                     className="resize-none"
                   />
@@ -1557,7 +1739,8 @@ function ProfilePage() {
                   <Textarea
                     value={formData.great_day}
                     onChange={(e) => setFormData({ ...formData, great_day: e.target.value.slice(0, 250) })}
-                    placeholder="Describe your ideal day..."
+                    aria-label="What does a great day look like for you?"
+                  placeholder="Describe your ideal day..."
                     rows={3}
                     className="resize-none"
                   />
@@ -1575,7 +1758,8 @@ function ProfilePage() {
                   <Textarea
                     value={formData.relationship_values}
                     onChange={(e) => setFormData({ ...formData, relationship_values: e.target.value.slice(0, 250) })}
-                    placeholder="Share the values that are important to you..."
+                    aria-label="What values matter most to you in a relationship?"
+                  placeholder="Share the values that are important to you..."
                     rows={3}
                     className="resize-none"
                   />
@@ -1593,7 +1777,8 @@ function ProfilePage() {
                   <Textarea
                     value={formData.show_affection}
                     onChange={(e) => setFormData({ ...formData, show_affection: e.target.value.slice(0, 250) })}
-                    placeholder="Describe how you express care and appreciation..."
+                    aria-label="How do you like to show appreciation or affection?"
+                  placeholder="Describe how you express care and appreciation..."
                     rows={3}
                     className="resize-none"
                   />
@@ -1611,7 +1796,8 @@ function ProfilePage() {
                   <Textarea
                     value={formData.build_with_person}
                     onChange={(e) => setFormData({ ...formData, build_with_person: e.target.value.slice(0, 250) })}
-                    placeholder="Share your vision for the future..."
+                    aria-label="What kind of life do you want to build with the right person?"
+                  placeholder="Share your vision for the future..."
                     rows={3}
                     className="resize-none"
                   />
@@ -1630,14 +1816,36 @@ function ProfilePage() {
               <DialogTitle>Manage Photos</DialogTitle>
             </DialogHeader>
             <div className="space-y-4">
-              <p className="text-sm text-muted-foreground">
+              <p className="text-muted-foreground">
                 Your first photo is your main profile picture. Use the arrows to
                 reorder, or drag a photo to a new spot. Changes save automatically.
               </p>
-              <div className="grid grid-cols-3 gap-3">
+              <details className="rounded-lg border border-border p-3">
+                <summary className="cursor-pointer font-medium">Tips for a good photo</summary>
+                <ul className="mt-2 list-disc space-y-1 pl-5 text-muted-foreground">
+                  {PHOTO_TIPS.map((tip) => (
+                    <li key={tip}>{tip}</li>
+                  ))}
+                </ul>
+              </details>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/jpeg,image/png,image/webp,image/gif"
+                className="sr-only"
+                aria-label="Choose a photo to add"
+                tabIndex={-1}
+                data-testid="photo-file-input"
+                onChange={(e) => {
+                  handleFileChosen(e.target.files?.[0])
+                  e.target.value = ""
+                }}
+              />
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
                 {photos.map((photo, index) => (
                   <div
                     key={photo}
+                    data-testid="managed-photo"
                     draggable
                     onDragStart={() => handleDragStart(index)}
                     onDragOver={(e) => handleDragOver(e, index)}
@@ -1658,40 +1866,44 @@ function ProfilePage() {
                         hover does not exist on the phones and tablets most of
                         our members use. */}
                     <button
-                      onClick={() => handleDeletePhoto(index)}
+                      type="button"
+                      onClick={() => setPhotoToRemove(index)}
                       disabled={photoSaving}
                       aria-label={`Remove photo ${index + 1}`}
-                      className="absolute top-2 right-2 p-2 rounded-full bg-destructive text-destructive-foreground shadow-md hover:bg-destructive/90 disabled:opacity-50"
+                      className="absolute top-2 right-2 flex h-11 w-11 items-center justify-center rounded-full bg-destructive text-destructive-foreground shadow-md hover:bg-destructive/90 disabled:opacity-50"
                     >
-                      <Trash2 className="h-4 w-4" />
+                      <Trash2 className="h-5 w-5" aria-hidden="true" />
                     </button>
                     <div className="absolute bottom-2 right-2 flex gap-1">
                       <button
                         onClick={() => movePhoto(index, -1)}
                         disabled={index === 0 || photoSaving}
                         aria-label={`Move photo ${index + 1} earlier`}
-                        className="p-2 rounded-full bg-black/60 text-white shadow-md hover:bg-black/80 disabled:opacity-30"
+                        type="button"
+                        className="flex h-11 w-11 items-center justify-center rounded-full bg-black/70 text-white shadow-md hover:bg-black/80 disabled:opacity-30"
                       >
-                        <ChevronLeft className="h-4 w-4" />
+                        <ChevronLeft className="h-5 w-5" aria-hidden="true" />
                       </button>
                       <button
                         onClick={() => movePhoto(index, 1)}
                         disabled={index === photos.length - 1 || photoSaving}
                         aria-label={`Move photo ${index + 1} later`}
-                        className="p-2 rounded-full bg-black/60 text-white shadow-md hover:bg-black/80 disabled:opacity-30"
+                        type="button"
+                        className="flex h-11 w-11 items-center justify-center rounded-full bg-black/70 text-white shadow-md hover:bg-black/80 disabled:opacity-30"
                       >
-                        <ChevronRight className="h-4 w-4" />
+                        <ChevronRight className="h-5 w-5" aria-hidden="true" />
                       </button>
                     </div>
                     {index === 0 && (
-                      <div className="absolute bottom-2 left-2 px-2 py-1 bg-primary text-primary-foreground text-xs rounded font-medium">
+                      <div className="absolute top-2 left-2 px-2 py-1 bg-primary text-primary-foreground text-sm rounded font-medium">
                         Main
                       </div>
                     )}
                   </div>
                 ))}
-                {photos.length < 10 && (
+                {photos.length < MAX_PHOTOS && (
                   <button
+                    type="button"
                     onClick={handleAddPhoto}
                     disabled={photoUploading}
                     className="aspect-[4/5] rounded-lg border-2 border-dashed border-muted-foreground/30 flex flex-col items-center justify-center gap-2 text-muted-foreground hover:border-primary hover:text-primary transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
@@ -1711,19 +1923,19 @@ function ProfilePage() {
                 )}
               </div>
               {photos.length === 0 && !photoUploading && (
-                <p className="text-sm text-muted-foreground text-center py-2">
-                  You have no photos yet. Profiles with photos get far more
-                  responses — add your first one above.
+                <p className="text-muted-foreground text-center py-2">
+                  You have no photos yet. A photo helps other members recognise
+                  you at events - add your first one above.
                 </p>
               )}
               {uploadError && (
-                <div className="text-sm text-destructive flex items-center gap-2">
-                  <AlertTriangle className="h-4 w-4 shrink-0" />
+                <div role="alert" className="font-medium text-destructive flex items-center gap-2">
+                  <AlertTriangle className="h-4 w-4 shrink-0" aria-hidden="true" />
                   {uploadError}
                 </div>
               )}
               <div className="flex items-center justify-between gap-2 pt-4">
-                <span className="text-sm text-muted-foreground flex items-center gap-2">
+                <span className="text-muted-foreground flex items-center gap-2" role="status">
                   {photoSaving ? (
                     <>
                       <Loader2 className="h-4 w-4 animate-spin" />
@@ -1741,9 +1953,59 @@ function ProfilePage() {
           </DialogContent>
         </Dialog>
 
+        <PhotoCropDialog
+          file={cropFile}
+          open={cropFile !== null}
+          busy={photoUploading}
+          error={cropError}
+          onCancel={() => { setCropFile(null); setCropError(null) }}
+          onConfirm={uploadPrepared}
+        />
+
+        {/* Remove a photo: ask first */}
+        <Dialog open={photoToRemove !== null} onOpenChange={(open) => !open && setPhotoToRemove(null)}>
+          <DialogContent className="sm:max-w-md">
+            <DialogHeader>
+              <DialogTitle>Remove this photo?</DialogTitle>
+              <DialogDescription>
+                It will be taken off your profile. This cannot be undone, but you can add the photo again.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="flex flex-col-reverse gap-2 pt-2 sm:flex-row sm:justify-end">
+              <Button variant="outline" onClick={() => setPhotoToRemove(null)} autoFocus>Keep photo</Button>
+              <Button
+                variant="destructive"
+                onClick={() => {
+                  const index = photoToRemove
+                  setPhotoToRemove(null)
+                  if (index !== null) void handleDeletePhoto(index)
+                }}
+              >
+                Remove photo
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
+
+        {/* Unsaved changes: ask before throwing them away */}
+        <Dialog open={discardOpen} onOpenChange={(open) => { if (!open) { setDiscardOpen(false); setLeaveTo(null) } }}>
+          <DialogContent className="sm:max-w-md">
+            <DialogHeader>
+              <DialogTitle>Discard your changes?</DialogTitle>
+              <DialogDescription>
+                You have changes that are not saved. If you discard them, your profile stays as it was.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="flex flex-col-reverse gap-2 pt-2 sm:flex-row sm:justify-end">
+              <Button variant="outline" onClick={() => { setDiscardOpen(false); setLeaveTo(null) }} autoFocus>Keep editing</Button>
+              <Button variant="destructive" onClick={discardChanges}>Discard changes</Button>
+            </div>
+          </DialogContent>
+        </Dialog>
+
         {/* Profile Preview Dialog */}
         <Dialog open={showPreview} onOpenChange={setShowPreview}>
-          <DialogContent className="max-w-md p-0 overflow-hidden">
+          <DialogContent className="max-w-md p-0 overflow-hidden [&>button:last-child]:hidden">
             <ProfilePreviewCard
               photos={photos}
               name={formData.first_name}
@@ -1800,9 +2062,10 @@ function ProfilePreviewCard({
     <div className="bg-card">
       {/* Header */}
       <div className="px-4 py-3 border-b border-border flex items-center justify-between">
-        <span className="text-sm font-medium text-muted-foreground">Profile Preview</span>
-        <Button variant="ghost" size="sm" onClick={onClose} className="h-8 px-2">
-          <X className="h-4 w-4" />
+        <DialogTitle className="text-base font-semibold">Profile Preview</DialogTitle>
+        <Button variant="ghost" size="sm" onClick={onClose}>
+          <X aria-hidden="true" />
+          Close
         </Button>
       </div>
 
@@ -1820,15 +2083,20 @@ function ProfilePreviewCard({
           <div className="absolute top-3 left-0 right-0 flex justify-center gap-1.5 px-4">
             {photos.map((_, index) => (
               <button
+                type="button"
                 key={index}
+                aria-label={`Go to photo ${index + 1}`}
+                aria-current={index === currentPhotoIndex}
                 onClick={() => setCurrentPhotoIndex(index)}
-                className={cn(
-                  "h-1 rounded-full transition-all",
-                  index === currentPhotoIndex
-                    ? "bg-white w-6"
-                    : "bg-white/50 w-4 hover:bg-white/70"
-                )}
-              />
+                className="flex h-8 items-center"
+              >
+                <span
+                  className={cn(
+                    "block h-1.5 rounded-full transition-all",
+                    index === currentPhotoIndex ? "bg-white w-6" : "bg-white/60 w-4"
+                  )}
+                />
+              </button>
             ))}
           </div>
         )}
@@ -1837,16 +2105,20 @@ function ProfilePreviewCard({
         {photos.length > 1 && (
           <>
             <button
+              type="button"
+              aria-label="Previous photo"
               onClick={prevPhoto}
-              className="absolute left-2 top-1/2 -translate-y-1/2 p-2 rounded-full bg-black/30 text-white hover:bg-black/50 transition-colors"
+              className="absolute left-2 top-1/2 -translate-y-1/2 flex h-11 w-11 items-center justify-center rounded-full bg-black/60 text-white hover:bg-black/80 transition-colors"
             >
-              <ChevronLeft className="h-5 w-5" />
+              <ChevronLeft className="h-5 w-5" aria-hidden="true" />
             </button>
             <button
+              type="button"
+              aria-label="Next photo"
               onClick={nextPhoto}
-              className="absolute right-2 top-1/2 -translate-y-1/2 p-2 rounded-full bg-black/30 text-white hover:bg-black/50 transition-colors"
+              className="absolute right-2 top-1/2 -translate-y-1/2 flex h-11 w-11 items-center justify-center rounded-full bg-black/60 text-white hover:bg-black/80 transition-colors"
             >
-              <ChevronRight className="h-5 w-5" />
+              <ChevronRight className="h-5 w-5" aria-hidden="true" />
             </button>
           </>
         )}

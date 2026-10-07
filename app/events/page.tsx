@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useCallback, useEffect, useRef, useState } from "react"
 import Image from "next/image"
 import {
   Calendar,
@@ -40,12 +40,39 @@ import {
 } from "@/components/ui/popover"
 import { cn } from "@/lib/utils"
 import { api } from "@/lib/api"
+import { toast } from "sonner"
+import { EventExtras } from "@/components/event-extras"
+import { LoadError } from "@/components/load-error"
 
+/**
+ * A day typed into a date box ("2026-11-07") means that day on the member's
+ * own clock. `new Date("2026-11-07")` reads it as midnight in London, which
+ * in the United States is the evening before - so "From" let in the previous
+ * evening's events, "To" left out the chosen day, and the chips showed the
+ * day before.
+ */
+const localDay = (value: string, endOfDay = false): Date => {
+  const [y, m, d] = value.split("-").map(Number)
+  return endOfDay ? new Date(y, m - 1, d, 23, 59, 59, 999) : new Date(y, m - 1, d)
+}
+const dayValue = (date: Date) =>
+  `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`
+const dayLabel = (value: string) =>
+  localDay(value).toLocaleDateString([], { weekday: "short", month: "short", day: "numeric", year: "numeric" })
+
+// These are the event categories the server stores. The old list filtered on
+// a field that does not exist, so choosing any type hid every event.
 const EVENT_TYPES = [
   { value: "all", label: "All Types" },
-  { value: "local_chapter", label: "Local Chapter" },
+  { value: "local-chapter", label: "Local Chapter" },
   { value: "regional", label: "Regional" },
   { value: "national", label: "National" },
+  { value: "social", label: "Social" },
+  { value: "dating", label: "Singles" },
+  { value: "food", label: "Food" },
+  { value: "outdoor", label: "Outdoor" },
+  { value: "fitness", label: "Fitness" },
+  { value: "arts", label: "Arts" },
 ]
 
 interface Event {
@@ -67,18 +94,26 @@ interface Event {
 // Helper function to get category badge color
 const getCategoryColor = (category?: string): string => {
   const categoryColorMap: Record<string, string> = {
-    "social": "bg-blue-100 text-blue-800 border-blue-200",
-    "regional": "bg-purple-100 text-purple-800 border-purple-200",
-    "national": "bg-green-100 text-green-800 border-green-200",
-    "local-chapter": "bg-pink-100 text-pink-800 border-pink-200",
-    "workshop": "bg-orange-100 text-orange-800 border-orange-200",
-    "networking": "bg-indigo-100 text-indigo-800 border-indigo-200",
-    "dating": "bg-red-100 text-red-800 border-red-200",
+    "social": "bg-blue-100 text-blue-800 border-blue-200 dark:bg-blue-950 dark:text-blue-200 dark:border-blue-800",
+    "regional": "bg-purple-100 text-purple-800 border-purple-200 dark:bg-purple-950 dark:text-purple-200 dark:border-purple-800",
+    "national": "bg-green-100 text-green-800 border-green-200 dark:bg-green-950 dark:text-green-200 dark:border-green-800",
+    "local-chapter": "bg-pink-100 text-pink-800 border-pink-200 dark:bg-pink-950 dark:text-pink-200 dark:border-pink-800",
+    "workshop": "bg-orange-100 text-orange-800 border-orange-200 dark:bg-orange-950 dark:text-orange-200 dark:border-orange-800",
+    "networking": "bg-indigo-100 text-indigo-800 border-indigo-200 dark:bg-indigo-950 dark:text-indigo-200 dark:border-indigo-800",
+    "dating": "bg-red-100 text-red-800 border-red-200 dark:bg-red-950 dark:text-red-200 dark:border-red-800",
   };
   
   const normalizedCategory = category?.toLowerCase() || "dating";
-  return categoryColorMap[normalizedCategory] || "bg-gray-100 text-gray-800 border-gray-200";
+  return categoryColorMap[normalizedCategory] || "bg-gray-100 text-gray-800 border-gray-200 dark:bg-gray-800 dark:text-gray-100 dark:border-gray-600";
 };
+
+// The same names the admin chooses from when creating an event.
+const CATEGORY_NAMES: Record<string, string> = {
+  "local-chapter": "Local Chapter Event",
+  food: "Food & Drink",
+  arts: "Arts & Culture",
+};
+const categoryName = (category: string) => CATEGORY_NAMES[category.toLowerCase()] || category;
 
 const isPastEvent = (event: Event): boolean =>
   new Date(event.end_date || event.start_date) < new Date()
@@ -98,9 +133,31 @@ export default function EventsPage() {
   const [startDate, setStartDate] = useState("")
   const [endDate, setEndDate] = useState("")
   const [showFilters, setShowFilters] = useState(false)
+  const [loadError, setLoadError] = useState<string | null>(null)
+  // The card that opened the details, so keyboard focus can go back to it.
+  const openerRef = useRef<HTMLElement | null>(null)
+
+  const loadEvents = useCallback(async () => {
+    setIsLoading(true)
+    setLoadError(null)
+    const result = await api.events.getAll()
+    if (Array.isArray(result.data)) {
+      setEvents(result.data)
+      // A reminder or notification can link straight to one event.
+      const wanted = new URLSearchParams(window.location.search).get("event")
+      const found = wanted && result.data.find((e: Event) => String(e.id) === wanted)
+      if (found) {
+        if (isPastEvent(found)) setActiveTab("past")
+        setSelectedEvent(found)
+      }
+    } else {
+      setLoadError(result.error || "Please try again.")
+    }
+    setIsLoading(false)
+  }, [])
 
   useEffect(() => {
-    loadEvents()
+    void loadEvents()
     if (typeof window !== "undefined") {
       localStorage.setItem("lastViewedEvents", new Date().toISOString())
       window.dispatchEvent(new Event("eventsViewed"))
@@ -118,6 +175,11 @@ export default function EventsPage() {
             for (const notification of unreadEventNotifications) {
               await api.notifications.markAsRead(notification.id || notification._id)
             }
+            // Let the menu badges re-read the real counts.
+            if (unreadEventNotifications.length > 0) {
+              window.dispatchEvent(new Event("notificationsRead"))
+              window.dispatchEvent(new Event("eventsViewed"))
+            }
           }
         } catch (error) {
           console.error('Error marking event notifications as read:', error)
@@ -126,7 +188,7 @@ export default function EventsPage() {
       
       markEventNotificationsAsRead()
     }
-  }, [])
+  }, [loadEvents])
 
   useEffect(() => {
     let filtered = events.filter(
@@ -137,18 +199,17 @@ export default function EventsPage() {
     
     // Filter by event type
     if (eventType !== "all") {
-      filtered = filtered.filter(event => event.event_type === eventType)
+      filtered = filtered.filter(event => event.category === eventType)
     }
     
     // Filter by date range
     if (startDate) {
-      const start = new Date(startDate)
+      const start = localDay(startDate)
       filtered = filtered.filter(event => new Date(event.start_date) >= start)
     }
     
     if (endDate) {
-      const end = new Date(endDate)
-      end.setHours(23, 59, 59, 999)
+      const end = localDay(endDate, true)
       filtered = filtered.filter(event => new Date(event.start_date) <= end)
     }
 
@@ -167,13 +228,16 @@ export default function EventsPage() {
 
   const activeFiltersCount = (eventType !== "all" ? 1 : 0) + (startDate ? 1 : 0) + (endDate ? 1 : 0)
 
-  const loadEvents = async () => {
-    setIsLoading(true)
-    const result = await api.events.getAll()
-    if (result.data) {
-      setEvents(result.data)
+  // Quick choices beside the date boxes.
+  const setRange = (days: number | null) => {
+    if (days === null) {
+      setStartDate("")
+      setEndDate("")
+      return
     }
-    setIsLoading(false)
+    const today = new Date()
+    setStartDate(dayValue(today))
+    setEndDate(dayValue(new Date(today.getFullYear(), today.getMonth(), today.getDate() + days)))
   }
 
   const handleJoinLeave = async (event: Event) => {
@@ -191,6 +255,10 @@ export default function EventsPage() {
       setIsActioning(null)
       return
     }
+
+    toast.success(event.is_joined ? `You are no longer going to ${event.title}` : `You are going to ${event.title}`, {
+      description: event.is_joined ? undefined : "Add it to your calendar so you do not forget.",
+    })
 
     setEvents((prev) =>
       prev.map((e) =>
@@ -239,9 +307,19 @@ export default function EventsPage() {
       <AppLayout>
         <div className="flex items-center justify-center min-h-[80vh]">
           <div className="flex flex-col items-center gap-4">
-            <Loader2 className="h-10 w-10 animate-spin text-primary" />
-            <p className="text-muted-foreground">Loading events...</p>
+            <Loader2 className="h-10 w-10 animate-spin text-primary" aria-hidden="true" />
+            <p className="text-muted-foreground" role="status">Loading events...</p>
           </div>
+        </div>
+      </AppLayout>
+    )
+  }
+
+  if (loadError) {
+    return (
+      <AppLayout>
+        <div className="p-6 md:p-8">
+          <LoadError what="the events" detail={loadError} onRetry={loadEvents} />
         </div>
       </AppLayout>
     )
@@ -249,25 +327,27 @@ export default function EventsPage() {
 
   return (
     <AppLayout>
-        <div className="p-6 md:p-8 max-w-4xl mx-auto">
+        <div className="p-4 sm:p-6 md:p-8 max-w-4xl mx-auto">
         {/* Header */}
         <div className="mb-6">
           <h1 className="text-2xl md:text-3xl font-bold text-foreground">Events</h1>
           <p className="text-muted-foreground mt-1">
-            Meet new people at local events
+            Get-togethers for members. Choose one to read more and say if you are going.
           </p>
         </div>
 
         {/* Tabs */}
-        <div className="flex items-center gap-2 mb-6">
+        <div className="flex items-center gap-2 mb-6" role="group" aria-label="Which events">
           <Button
             variant={activeTab === "upcoming" ? "default" : "outline"}
+            aria-pressed={activeTab === "upcoming"}
             onClick={() => setActiveTab("upcoming")}
           >
             Upcoming Events
           </Button>
           <Button
             variant={activeTab === "past" ? "default" : "outline"}
+            aria-pressed={activeTab === "past"}
             onClick={() => setActiveTab("past")}
           >
             Past Events
@@ -280,6 +360,7 @@ export default function EventsPage() {
             <div className="relative flex-1">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
+                aria-label="Search events by name or place"
                 placeholder="Search events..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
@@ -292,18 +373,18 @@ export default function EventsPage() {
                   <Filter className="h-4 w-4 mr-2" />
                   Filters
                   {activeFiltersCount > 0 && (
-                    <Badge className="ml-2 h-5 w-5 p-0 flex items-center justify-center text-xs">
-                      {activeFiltersCount}
+                    <Badge className="ml-2 px-2 py-0 text-sm">
+                      {activeFiltersCount}<span className="sr-only"> in use</span>
                     </Badge>
                   )}
                 </Button>
               </PopoverTrigger>
-              <PopoverContent className="w-80" align="end">
+              <PopoverContent className="w-[min(22rem,calc(100vw-2rem))]" align="end">
                 <div className="space-y-4">
                   <div className="flex items-center justify-between">
-                    <h4 className="font-medium">Filters</h4>
+                    <h2 className="font-semibold">Filters</h2>
                     {activeFiltersCount > 0 && (
-                      <Button variant="ghost" size="sm" onClick={clearFilters} className="h-auto py-1 px-2 text-xs">
+                      <Button variant="ghost" size="sm" onClick={clearFilters}>
                         Clear all
                       </Button>
                     )}
@@ -311,9 +392,9 @@ export default function EventsPage() {
                   
                   {/* Event Type */}
                   <div className="space-y-2">
-                    <label className="text-sm font-medium text-muted-foreground">Event Type</label>
+                    <label id="event-type-label" className="font-medium">Kind of event</label>
                     <Select value={eventType} onValueChange={setEventType}>
-                      <SelectTrigger>
+                      <SelectTrigger aria-labelledby="event-type-label">
                         <SelectValue placeholder="Select type" />
                       </SelectTrigger>
                       <SelectContent>
@@ -328,11 +409,17 @@ export default function EventsPage() {
                   
                   {/* Date Range */}
                   <div className="space-y-2">
-                    <label className="text-sm font-medium text-muted-foreground">Date Range</label>
+                    <p className="font-medium">When</p>
+                    <div className="flex flex-wrap gap-2">
+                      <Button type="button" variant="outline" size="sm" onClick={() => setRange(7)}>Next 7 days</Button>
+                      <Button type="button" variant="outline" size="sm" onClick={() => setRange(30)}>Next 30 days</Button>
+                      <Button type="button" variant="outline" size="sm" onClick={() => setRange(null)}>Any time</Button>
+                    </div>
                     <div className="grid grid-cols-2 gap-2">
                       <div>
-                        <label className="text-xs text-muted-foreground">From</label>
+                        <label htmlFor="events-from" className="text-sm text-muted-foreground">From</label>
                         <Input
+                          id="events-from"
                           type="date"
                           value={startDate}
                           onChange={(e) => setStartDate(e.target.value)}
@@ -340,8 +427,9 @@ export default function EventsPage() {
                         />
                       </div>
                       <div>
-                        <label className="text-xs text-muted-foreground">To</label>
+                        <label htmlFor="events-to" className="text-sm text-muted-foreground">To</label>
                         <Input
+                          id="events-to"
                           type="date"
                           value={endDate}
                           onChange={(e) => setEndDate(e.target.value)}
@@ -352,7 +440,7 @@ export default function EventsPage() {
                   </div>
                   
                   <Button className="w-full" onClick={() => setShowFilters(false)}>
-                    Apply Filters
+                    Show events
                   </Button>
                 </div>
               </PopoverContent>
@@ -363,26 +451,26 @@ export default function EventsPage() {
           {activeFiltersCount > 0 && (
             <div className="flex flex-wrap gap-2">
               {eventType !== "all" && (
-                <Badge variant="secondary" className="flex items-center gap-1">
+                <Badge variant="secondary" data-testid="filter-chip" className="flex items-center gap-1 py-1 pl-3 pr-1 text-sm">
                   {EVENT_TYPES.find(t => t.value === eventType)?.label}
-                  <button onClick={() => setEventType("all")} className="ml-1 hover:bg-muted rounded-full">
-                    <X className="h-3 w-3" />
+                  <button type="button" aria-label={`Remove filter: ${EVENT_TYPES.find(t => t.value === eventType)?.label}`} onClick={() => setEventType("all")} className="flex h-8 w-8 items-center justify-center rounded-full hover:bg-foreground/10">
+                    <X className="h-4 w-4" aria-hidden="true" />
                   </button>
                 </Badge>
               )}
               {startDate && (
-                <Badge variant="secondary" className="flex items-center gap-1">
-                  From: {new Date(startDate).toLocaleDateString()}
-                  <button onClick={() => setStartDate("")} className="ml-1 hover:bg-muted rounded-full">
-                    <X className="h-3 w-3" />
+                <Badge variant="secondary" data-testid="filter-chip" className="flex items-center gap-1 py-1 pl-3 pr-1 text-sm">
+                  From: {dayLabel(startDate)}
+                  <button type="button" aria-label={`Remove filter: From ${dayLabel(startDate)}`} onClick={() => setStartDate("")} className="flex h-8 w-8 items-center justify-center rounded-full hover:bg-foreground/10">
+                    <X className="h-4 w-4" aria-hidden="true" />
                   </button>
                 </Badge>
               )}
               {endDate && (
-                <Badge variant="secondary" className="flex items-center gap-1">
-                  To: {new Date(endDate).toLocaleDateString()}
-                  <button onClick={() => setEndDate("")} className="ml-1 hover:bg-muted rounded-full">
-                    <X className="h-3 w-3" />
+                <Badge variant="secondary" data-testid="filter-chip" className="flex items-center gap-1 py-1 pl-3 pr-1 text-sm">
+                  To: {dayLabel(endDate)}
+                  <button type="button" aria-label={`Remove filter: To ${dayLabel(endDate)}`} onClick={() => setEndDate("")} className="flex h-8 w-8 items-center justify-center rounded-full hover:bg-foreground/10">
+                    <X className="h-4 w-4" aria-hidden="true" />
                   </button>
                 </Badge>
               )}
@@ -396,17 +484,21 @@ export default function EventsPage() {
             {filteredEvents.map((event) => (
               <Card
                 key={event.id}
+                data-testid="event-card"
                 className={cn(
-                  "overflow-hidden cursor-pointer hover:shadow-lg transition-all",
-                  event.is_joined && !event.is_cancelled && "ring-2 ring-primary",
-                  event.is_cancelled && "opacity-70"
+                  "overflow-hidden hover:shadow-lg transition-all py-0",
+                  event.is_joined && !event.is_cancelled && "ring-2 ring-primary"
                 )}
-                onClick={() => setSelectedEvent(event)}
               >
                 <CardContent className="p-0">
-                  <div className="flex flex-col sm:flex-row">
+                  <button
+                    type="button"
+                    className="flex w-full flex-col text-left sm:flex-row"
+                    aria-label={`${event.title}, ${formatDate(event.start_date)} at ${formatTime(event.start_date)}. Read more`}
+                    onClick={(e) => { openerRef.current = e.currentTarget; setActionError(null); setSelectedEvent(event) }}
+                  >
                     {/* Event Image */}
-                    <div className="sm:w-48 h-32 sm:h-auto relative shrink-0 overflow-hidden">
+                    <div className="w-full sm:w-48 h-32 sm:h-auto sm:self-stretch sm:min-h-36 relative shrink-0 overflow-hidden">
                       {event.image ? (
                         <Image
                           src={event.image || "/placeholder.svg"}
@@ -427,31 +519,31 @@ export default function EventsPage() {
                         <div className="flex-1">
                           <div className="flex items-center gap-2 mb-2 flex-wrap">
                             {event.event_type && (
-                              <Badge variant="outline" className="text-xs capitalize">
+                              <Badge variant="outline" className="text-sm capitalize">
                                 {EVENT_TYPES.find(t => t.value === event.event_type)?.label || event.event_type}
                               </Badge>
                             )}
                             {event.category && (
-                              <Badge className={`text-xs capitalize border ${getCategoryColor(event.category)}`}>
-                                {event.category}
+                              <Badge className={`text-sm capitalize border ${getCategoryColor(event.category)}`}>
+                                {categoryName(event.category)}
                               </Badge>
                             )}
                             {event.is_cancelled && (
-                              <Badge variant="destructive" className="text-xs">
+                              <Badge variant="destructive" className="text-sm">
                                 Cancelled
                               </Badge>
                             )}
                             {event.is_joined && !event.is_cancelled && (
-                              <Badge className="bg-primary text-primary-foreground text-xs">
-                                <Check className="h-3 w-3 mr-1" />
-                                Attending
+                              <Badge className="bg-primary text-primary-foreground text-sm">
+                                <Check className="h-3 w-3 mr-1" aria-hidden="true" />
+                                You're going
                               </Badge>
                             )}
                           </div>
-                          <h3 className="font-semibold text-lg text-foreground mb-2">
+                          <h2 className="font-semibold text-lg text-foreground mb-2">
                             {event.title}
-                          </h3>
-                          <div className="space-y-1 text-sm text-muted-foreground">
+                          </h2>
+                          <div className="space-y-1 text-muted-foreground">
                             <div className="flex items-center gap-2">
                               <Calendar className="h-4 w-4" />
                               <span>{formatDate(event.start_date)}</span>
@@ -471,10 +563,10 @@ export default function EventsPage() {
                             </div>
                           </div>
                         </div>
-                        <ChevronRight className="h-5 w-5 text-muted-foreground shrink-0" />
+                        <ChevronRight className="h-5 w-5 text-muted-foreground shrink-0" aria-hidden="true" />
                       </div>
                     </div>
-                  </div>
+                  </button>
                 </CardContent>
               </Card>
             ))}
@@ -482,7 +574,7 @@ export default function EventsPage() {
         ) : searchQuery ? (
           <div className="text-center py-12">
             <Search className="h-12 w-12 text-muted-foreground/50 mx-auto mb-4" />
-            <h3 className="text-lg font-medium text-foreground mb-2">No events found</h3>
+            <h2 className="text-lg font-medium text-foreground mb-2">No events found</h2>
             <p className="text-muted-foreground">
               No events match "{searchQuery}"
             </p>
@@ -490,21 +582,36 @@ export default function EventsPage() {
         ) : (
           <div className="text-center py-12">
             <Calendar className="h-12 w-12 text-muted-foreground/50 mx-auto mb-4" />
-            <h3 className="text-lg font-medium text-foreground mb-2">
-              {activeTab === "past" ? "No past events" : "No upcoming events"}
-            </h3>
+            <h2 className="text-lg font-medium text-foreground mb-2">
+              {activeFiltersCount > 0 ? "No events match your filters" : activeTab === "past" ? "No past events" : "No upcoming events"}
+            </h2>
             <p className="text-muted-foreground">
-              {activeTab === "past"
-                ? "Past events will appear here"
-                : "Check back later for upcoming events"}
+              {activeFiltersCount > 0
+                ? "Try a different kind of event or a wider range of dates."
+                : activeTab === "past"
+                  ? "Past events will appear here"
+                  : "Check back later for upcoming events"}
             </p>
+            {activeFiltersCount > 0 && (
+              <Button variant="outline" className="mt-4" onClick={clearFilters}>
+                Clear filters
+              </Button>
+            )}
           </div>
         )}
 
         {/* Event Details Dialog */}
-        <Dialog open={!!selectedEvent} onOpenChange={() => setSelectedEvent(null)}>
+        <Dialog open={!!selectedEvent} onOpenChange={() => { setSelectedEvent(null); setActionError(null) }}>
           {selectedEvent && (
-            <DialogContent className="sm:max-w-lg">
+            <DialogContent
+              className="max-h-[90vh] overflow-y-auto sm:max-w-lg"
+              onCloseAutoFocus={(e) => {
+                if (openerRef.current?.isConnected) {
+                  e.preventDefault()
+                  openerRef.current.focus()
+                }
+              }}
+            >
               {selectedEvent.image && (
                 <div className="relative h-48 -mx-6 -mt-6 mb-4 overflow-hidden rounded-t-lg">
                   <Image
@@ -518,24 +625,24 @@ export default function EventsPage() {
               <DialogHeader>
                 <div className="flex items-center gap-2 mb-2 flex-wrap">
                   {selectedEvent.event_type && (
-                    <Badge variant="outline" className="text-xs capitalize">
+                    <Badge variant="outline" className="text-sm capitalize">
                       {EVENT_TYPES.find(t => t.value === selectedEvent.event_type)?.label || selectedEvent.event_type}
                     </Badge>
                   )}
                   {selectedEvent.category && (
-                    <Badge className={`text-xs capitalize border ${getCategoryColor(selectedEvent.category)}`}>
-                      {selectedEvent.category}
+                    <Badge className={`text-sm capitalize border ${getCategoryColor(selectedEvent.category)}`}>
+                      {categoryName(selectedEvent.category)}
                     </Badge>
                   )}
                   {selectedEvent.is_cancelled && (
-                    <Badge variant="destructive" className="text-xs">
+                    <Badge variant="destructive" className="text-sm">
                       Cancelled
                     </Badge>
                   )}
                   {selectedEvent.is_joined && !selectedEvent.is_cancelled && (
-                    <Badge className="bg-primary text-primary-foreground text-xs">
-                      <Check className="h-3 w-3 mr-1" />
-                      Attending
+                    <Badge className="bg-primary text-primary-foreground text-sm">
+                      <Check className="h-3 w-3 mr-1" aria-hidden="true" />
+                      You're going
                     </Badge>
                   )}
                 </div>
@@ -544,7 +651,7 @@ export default function EventsPage() {
                   <div className="space-y-4 pt-2">
                     <p className="text-foreground">{selectedEvent.description}</p>
 
-                    <div className="space-y-2 text-sm">
+                    <div className="space-y-2">
                       <div className="flex items-center gap-3 text-muted-foreground">
                         <Calendar className="h-4 w-4 shrink-0" />
                         <span>
@@ -568,17 +675,17 @@ export default function EventsPage() {
                     </div>
 
                     {actionError && (
-                      <p className="text-sm text-destructive">{actionError}</p>
+                      <p role="alert" className="font-medium text-destructive">{actionError}</p>
                     )}
 
                     {/* Cancelled and finished events are read-only — there is
                         nothing to RSVP to. */}
                     {selectedEvent.is_cancelled ? (
-                      <div className="w-full mt-4 rounded-lg bg-destructive/10 border border-destructive/20 p-3 text-center text-sm text-destructive">
+                      <div className="w-full mt-4 rounded-lg border-2 border-destructive/40 p-3 text-center font-medium text-foreground">
                         This event has been cancelled.
                       </div>
                     ) : isPastEvent(selectedEvent) ? (
-                      <div className="w-full mt-4 rounded-lg bg-muted p-3 text-center text-sm text-muted-foreground">
+                      <div className="w-full mt-4 rounded-lg bg-muted p-3 text-center text-foreground">
                         This event has already taken place.
                       </div>
                     ) : (
@@ -589,14 +696,19 @@ export default function EventsPage() {
                         disabled={isActioning === selectedEvent.id}
                       >
                         {isActioning === selectedEvent.id ? (
-                          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                          <Loader2 className="h-4 w-4 mr-2 animate-spin" aria-label="Working" />
                         ) : selectedEvent.is_joined ? (
-                          "Leave Event"
+                          "I can't go"
                         ) : (
-                          "Join Event"
+                          "I'm going"
                         )}
                       </Button>
                     )}
+                    <EventExtras
+                      event={selectedEvent}
+                      isJoined={selectedEvent.is_joined}
+                      canRsvp={!selectedEvent.is_cancelled && !isPastEvent(selectedEvent)}
+                    />
                   </div>
                 </DialogDescription>
               </DialogHeader>

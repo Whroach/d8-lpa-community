@@ -1,3 +1,4 @@
+import { requireMongoUri, requireEnv } from './utils/script-env.js';
 import mongoose from 'mongoose';
 import bcrypt from 'bcryptjs';
 import dotenv from 'dotenv';
@@ -15,12 +16,12 @@ dotenv.config({ path: rootEnvPath });
 async function createAdminAccount() {
   try {
     // Connect to MongoDB
-    await mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/dating-app');
+    await mongoose.connect(requireMongoUri());
     console.log('Connected to MongoDB');
 
     // Admin account details
     const adminEmail = 'admin@d8lpa.com';
-    const adminPassword = 'Admin123!'; // Change this to a secure password
+    const adminPassword = requireEnv('ADMIN_PASSWORD'); // Change this to a secure password
     const adminFirstName = 'Admin';
     const adminLastName = 'User';
 

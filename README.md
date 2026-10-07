@@ -2,6 +2,25 @@
 
 A modern dating and community platform built for the LPA (Little People of America) community. Connect, browse profiles, message, and attend events with real-time updates.
 
+## Quick start (safe local run)
+
+```bash
+npm install
+npm run dev:local     # http://localhost:3000
+```
+
+This starts a throwaway in-memory database with fictional members, the API and the website. It never reads `.env` and cannot reach production, S3 or Mailgun. Demo sign-ins, tests and options are in [docs/LOCAL-DEVELOPMENT.md](docs/LOCAL-DEVELOPMENT.md).
+
+| Document | What it is |
+|---|---|
+| [docs/LOCAL-DEVELOPMENT.md](docs/LOCAL-DEVELOPMENT.md) | Running and testing locally |
+| [docs/FUNCTION-INVENTORY.md](docs/FUNCTION-INVENTORY.md) | Every user-facing function, its status and its test |
+| [docs/ROLLOUT.md](docs/ROLLOUT.md) | Production rollout steps and open decisions |
+| [docs/DESIGN-REVIEW.md](docs/DESIGN-REVIEW.md) | Design and accessibility review notes |
+| [ROADMAP.md](ROADMAP.md) | What was built and what is next |
+
+The backend is the Express server in `server/`. (An older set of Next.js API route handlers under `app/api` was removed: the website never used them.)
+
 ## 🛠️ Tech Stack
 
 ### Frontend

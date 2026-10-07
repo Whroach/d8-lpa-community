@@ -6,6 +6,7 @@ import { AppLayout } from "@/components/app-layout"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { api } from "@/lib/api"
+import { toast } from "sonner"
 import Image from "next/image"
 import Link from "next/link"
 import { Skeleton } from "@/components/ui/skeleton"
@@ -20,7 +21,7 @@ import {
   DropdownMenuCheckboxItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-import { Dialog, DialogContent } from "@/components/ui/dialog"
+import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog"
 
 interface Profile {
   id: string
@@ -69,13 +70,6 @@ const locationLabel = (profile: Profile): string =>
     .filter(Boolean)
     .join(", ")
 
-const ALL_ACTIVITIES = [
-  "travel", "food", "yoga", "photography", "design", "art", "hiking", "cooking",
-  "music", "coffee", "startups", "fitness", "networking", "dancing", "movies",
-  "brunch", "law", "wine", "reading", "writing", "cats", "baking", "environment",
-  "camping", "astronomy", "sustainability", "farmers markets", "rock climbing",
-  "outdoors", "comedy", "podcasts", "board games", "dogs", "trivia", "medicine"
-]
 
 export default function BrowsePage() {
   const [profiles, setProfiles] = useState<Profile[]>([])
@@ -96,11 +90,7 @@ export default function BrowsePage() {
   const [displayCount, setDisplayCount] = useState(12)
   const loadMoreRef = useRef<HTMLDivElement>(null)
 
-  useEffect(() => {
-    loadProfiles()
-  }, [])
-
-  const loadProfiles = async () => {
+  const loadProfiles = useCallback(async () => {
     setIsLoading(true)
     setLoadError(null)
     const result = await api.browse.getProfiles()
@@ -124,13 +114,37 @@ export default function BrowsePage() {
       setLikeIds(likeIdMap)
     }
     setIsLoading(false)
-  }
+  }, [])
+
+  useEffect(() => {
+    void loadProfiles()
+  }, [loadProfiles])
+
+  // The Activities filter lists the interests members here actually have.
+  // It used to be a fixed list that left out most of the interests offered at
+  // sign-up (Sports, Pets, Gaming...), so those could never be filtered on.
+  const activityOptions = useMemo(() => {
+    const byKey = new Map<string, string>()
+    for (const profile of profiles) {
+      for (const interest of profile.interests || []) {
+        const label = (interest || "").trim()
+        if (label && !byKey.has(label.toLowerCase())) byKey.set(label.toLowerCase(), label)
+      }
+    }
+    for (const selected of selectedActivities) {
+      if (!byKey.has(selected)) byKey.set(selected, selected)
+    }
+    return [...byKey.entries()]
+      .map(([key, label]) => ({ key, label }))
+      .sort((a, b) => a.label.localeCompare(b.label))
+  }, [profiles, selectedActivities])
+  const activityLabel = (key: string) => activityOptions.find((o) => o.key === key)?.label || key
 
   const filteredProfiles = useMemo(() => {
     const normalizedSelectedStates = selectedStates.map((state) => state.toLowerCase())
     const normalizedSelectedActivities = selectedActivities.map((activity) => activity.toLowerCase())
 
-    let filtered = profiles.filter((profile) => {
+    const filtered = profiles.filter((profile) => {
       // Filter by state
       if (
         normalizedSelectedStates.length > 0 &&
@@ -153,7 +167,7 @@ export default function BrowsePage() {
       // Filter by activities/interests
       if (normalizedSelectedActivities.length > 0) {
         const hasMatchingActivity = (profile.interests || []).some((interest) =>
-          normalizedSelectedActivities.includes((interest || "").toLowerCase())
+          normalizedSelectedActivities.includes((interest || "").trim().toLowerCase())
         )
         if (!hasMatchingActivity) return false
       }
@@ -245,6 +259,8 @@ export default function BrowsePage() {
       newMap.delete(profileId)
       return newMap
     })
+    const name = profiles.find((p) => p.id === profileId)?.first_name
+    toast.success(name ? `You no longer like ${name}` : "Like removed")
     setActioningId(null)
   }
 
@@ -285,32 +301,32 @@ export default function BrowsePage() {
         <div className="p-4 md:p-6 lg:p-8">
         {/* Header */}
         <div className="mb-6">
-          <h1 className="text-2xl md:text-3xl font-bold text-foreground">Discover</h1>
-          <p className="text-muted-foreground mt-1">Find your perfect match</p>
+          <h1 className="text-2xl md:text-3xl font-bold text-foreground">Browse</h1>
+          <p className="text-muted-foreground mt-1">Meet other members. Choose a card to read more.</p>
         </div>
 
         {/* Filter Bar */}
-        <div className="flex flex-wrap items-center gap-3 mb-6 p-4 bg-card rounded-lg border border-border">
+        <div role="group" aria-label="Filters" className="flex flex-wrap items-center gap-3 mb-6 p-4 bg-card rounded-lg border border-border">
           <div className="flex items-center gap-2 text-muted-foreground">
-            <Filter className="h-4 w-4" />
-            <span className="text-sm font-medium">Filters:</span>
+            <Filter className="h-5 w-5" aria-hidden="true" />
+            <span className="font-medium">Show only:</span>
           </div>
 
           {/* State Filter */}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="outline" size="sm" className="gap-2 bg-transparent">
+              <Button variant="outline" className="gap-2 bg-transparent">
                 <MapPin className="h-4 w-4" />
                 State
                 {selectedStates.length > 0 && (
-                  <Badge variant="secondary" className="ml-1 px-1.5 py-0 text-xs bg-primary/10 text-primary">
+                  <Badge variant="secondary" className="ml-1 px-2 py-0 text-sm">
                     {selectedStates.length}
                   </Badge>
                 )}
-                <ChevronDown className="h-3 w-3 opacity-50" />
+                <ChevronDown className="h-4 w-4" aria-hidden="true" />
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="start" className="w-48 max-h-64 overflow-y-auto">
+            <DropdownMenuContent align="start" className="w-56 max-h-72 overflow-y-auto">
               {ALL_STATES.map((state) => (
                 <DropdownMenuCheckboxItem
                   key={state}
@@ -326,17 +342,17 @@ export default function BrowsePage() {
           {/* District Filter */}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="outline" size="sm" className="gap-2 bg-transparent">
+              <Button variant="outline" className="gap-2 bg-transparent">
                 District
                 {selectedDistricts.length > 0 && (
-                  <Badge variant="secondary" className="ml-1 px-1.5 py-0 text-xs bg-primary/10 text-primary">
+                  <Badge variant="secondary" className="ml-1 px-2 py-0 text-sm">
                     {selectedDistricts.length}
                   </Badge>
                 )}
-                <ChevronDown className="h-3 w-3 opacity-50" />
+                <ChevronDown className="h-4 w-4" aria-hidden="true" />
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="start" className="w-36 max-h-48 overflow-y-auto">
+            <DropdownMenuContent align="start" className="w-44 max-h-72 overflow-y-auto">
               {ALL_DISTRICTS.map((district) => (
                 <DropdownMenuCheckboxItem
                   key={district}
@@ -352,26 +368,28 @@ export default function BrowsePage() {
           {/* Activities Filter */}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="outline" size="sm" className="gap-2 bg-transparent">
+              <Button variant="outline" className="gap-2 bg-transparent">
                 <Heart className="h-4 w-4" />
-                Activities
+                Interests
                 {selectedActivities.length > 0 && (
-                  <Badge variant="secondary" className="ml-1 px-1.5 py-0 text-xs bg-primary/10 text-primary">
+                  <Badge variant="secondary" className="ml-1 px-2 py-0 text-sm">
                     {selectedActivities.length}
                   </Badge>
                 )}
-                <ChevronDown className="h-3 w-3 opacity-50" />
+                <ChevronDown className="h-4 w-4" aria-hidden="true" />
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="start" className="w-56 max-h-64 overflow-y-auto">
-              {ALL_ACTIVITIES.sort().map((activity) => (
+            <DropdownMenuContent align="start" className="w-60 max-h-72 overflow-y-auto">
+              {activityOptions.length === 0 && (
+                <p className="px-3 py-2 text-muted-foreground">No interests to choose from yet</p>
+              )}
+              {activityOptions.map((activity) => (
                 <DropdownMenuCheckboxItem
-                  key={activity}
-                  checked={selectedActivities.includes(activity)}
-                  onCheckedChange={() => toggleActivity(activity)}
-                  className="capitalize"
+                  key={activity.key}
+                  checked={selectedActivities.includes(activity.key)}
+                  onCheckedChange={() => toggleActivity(activity.key)}
                 >
-                  {activity}
+                  {activity.label}
                 </DropdownMenuCheckboxItem>
               ))}
             </DropdownMenuContent>
@@ -379,32 +397,30 @@ export default function BrowsePage() {
 
           {/* Clear Filters */}
           {hasActiveFilters && (
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={clearFilters}
-              className="text-muted-foreground hover:text-foreground gap-1"
-            >
-              <X className="h-3 w-3" />
+            <Button variant="ghost" onClick={clearFilters} className="gap-1">
+              <X aria-hidden="true" />
               Clear all
             </Button>
           )}
 
           {/* Active filter tags */}
           {hasActiveFilters && (
-            <div className="flex flex-wrap gap-1.5 ml-auto">
+            <div className="flex w-full flex-wrap gap-2" aria-label="Filters in use">
               {selectedStates.map((state) => (
                 <Badge
                   key={state}
                   variant="secondary"
-                  className="gap-1 pr-1 bg-primary/10 text-primary"
+                  data-testid="filter-chip"
+                  className="gap-1 py-1 pl-3 pr-1 text-sm"
                 >
                   {state}
                   <button
+                    type="button"
+                    aria-label={`Remove filter: ${state}`}
                     onClick={() => toggleState(state)}
-                    className="hover:bg-primary/20 rounded-full p-0.5"
+                    className="flex h-8 w-8 items-center justify-center rounded-full hover:bg-foreground/10"
                   >
-                    <X className="h-3 w-3" />
+                    <X className="h-4 w-4" aria-hidden="true" />
                   </button>
                 </Badge>
               ))}
@@ -412,14 +428,17 @@ export default function BrowsePage() {
                 <Badge
                   key={district}
                   variant="secondary"
-                  className="gap-1 pr-1 bg-blue-500/10 text-blue-600"
+                  data-testid="filter-chip"
+                  className="gap-1 py-1 pl-3 pr-1 text-sm"
                 >
                   District {district}
                   <button
+                    type="button"
+                    aria-label={`Remove filter: District ${district}`}
                     onClick={() => toggleDistrict(district)}
-                    className="hover:bg-blue-500/20 rounded-full p-0.5"
+                    className="flex h-8 w-8 items-center justify-center rounded-full hover:bg-foreground/10"
                   >
-                    <X className="h-3 w-3" />
+                    <X className="h-4 w-4" aria-hidden="true" />
                   </button>
                 </Badge>
               ))}
@@ -427,14 +446,17 @@ export default function BrowsePage() {
                 <Badge
                   key={activity}
                   variant="secondary"
-                  className="gap-1 pr-1 bg-secondary/20 text-secondary capitalize"
+                  data-testid="filter-chip"
+                  className="gap-1 py-1 pl-3 pr-1 text-sm"
                 >
-                  {activity}
+                  {activityLabel(activity)}
                   <button
+                    type="button"
+                    aria-label={`Remove filter: ${activityLabel(activity)}`}
                     onClick={() => toggleActivity(activity)}
-                    className="hover:bg-secondary/30 rounded-full p-0.5"
+                    className="flex h-8 w-8 items-center justify-center rounded-full hover:bg-foreground/10"
                   >
-                    <X className="h-3 w-3" />
+                    <X className="h-4 w-4" aria-hidden="true" />
                   </button>
                 </Badge>
               ))}
@@ -443,15 +465,20 @@ export default function BrowsePage() {
         </div>
 
         {(loadError || actionError) && (
-          <div className="mb-6 flex items-start gap-3 p-4 rounded-lg bg-destructive/10 border border-destructive/20 text-destructive">
-            <X className="h-5 w-5 shrink-0 mt-0.5" />
+          <div role="alert" className="mb-6 flex flex-wrap items-start gap-3 p-4 rounded-lg bg-card border-2 border-destructive/50">
+            <X className="h-5 w-5 shrink-0 mt-0.5 text-destructive" aria-hidden="true" />
             <div className="flex-1">
-              <p className="font-medium">Something went wrong</p>
-              <p className="text-sm">{loadError || actionError}</p>
+              <p className="font-semibold">{loadError ? "We could not load Browse" : "That did not work"}</p>
+              <p>{loadError || actionError}</p>
             </div>
             {loadError && (
-              <Button variant="outline" size="sm" onClick={loadProfiles}>
+              <Button variant="outline" onClick={loadProfiles}>
                 Try again
+              </Button>
+            )}
+            {!loadError && (
+              <Button variant="ghost" onClick={() => setActionError(null)}>
+                Dismiss
               </Button>
             )}
           </div>
@@ -474,16 +501,16 @@ export default function BrowsePage() {
               </div>
             ))}
           </div>
-        ) : filteredProfiles.length === 0 ? (
+        ) : loadError && profiles.length === 0 ? null : filteredProfiles.length === 0 ? (
           <div className="flex items-center justify-center min-h-[60vh]">
             <div className="text-center">
               <p className="text-xl font-medium text-foreground mb-2">
-                {hasActiveFilters ? "No profiles match your filters" : "No more profiles"}
+                {hasActiveFilters ? "No profiles match your filters" : "No profiles to show yet"}
               </p>
               <p className="text-muted-foreground mb-4">
                 {hasActiveFilters
                   ? "Try adjusting your filters to see more people"
-                  : "Check back later for new matches!"}
+                  : "New members join regularly. Please check back soon."}
               </p>
               {hasActiveFilters && (
                 <Button variant="outline" onClick={clearFilters} className="bg-transparent">
@@ -506,6 +533,7 @@ export default function BrowsePage() {
               return (
                 <div
                   key={profile.id}
+                  data-testid="browse-card"
                   className="bg-card rounded-xl overflow-hidden border border-border shadow-sm hover:shadow-md transition-shadow"
                 >
                   {/* Profile Image - Clickable to view profile */}
@@ -528,7 +556,7 @@ export default function BrowsePage() {
                           used to fall back to "California, District 5" for
                           everyone with a blank location. */}
                       {locationLabel(profile) && (
-                        <div className="flex items-center gap-1 text-white/80 text-sm mt-1">
+                        <div className="flex items-center gap-1 text-white text-sm mt-1">
                           <MapPin className="h-3.5 w-3.5" />
                           <span>{locationLabel(profile)}</span>
                         </div>
@@ -539,7 +567,7 @@ export default function BrowsePage() {
                   {/* Profile Details */}
                   <div className="p-4">
                     {/* Bio */}
-                    <p className="text-sm text-muted-foreground line-clamp-2 mb-3">
+                    <p className="text-muted-foreground line-clamp-2 mb-3">
                       {profile.bio}
                     </p>
 
@@ -549,7 +577,7 @@ export default function BrowsePage() {
                         <Badge
                           key={interest}
                           variant="secondary"
-                          className="text-xs px-2 py-0.5 bg-primary/10 text-primary border-0"
+                          className="text-sm px-2 py-0.5"
                         >
                           {interest}
                         </Badge>
@@ -557,7 +585,7 @@ export default function BrowsePage() {
                       {(profile.interests || []).length > 4 && (
                         <Badge
                           variant="secondary"
-                          className="text-xs px-2 py-0.5 bg-muted text-muted-foreground border-0"
+                          className="text-sm px-2 py-0.5 bg-muted text-muted-foreground border-0"
                         >
                           +{(profile.interests || []).length - 4}
                         </Badge>
@@ -570,27 +598,23 @@ export default function BrowsePage() {
                         <PopoverTrigger asChild>
                           <Button
                             variant="outline"
-                            className="w-full border-primary/30 text-primary hover:bg-primary/5 bg-transparent"
+                            className="w-full bg-transparent"
                             disabled={actioningId === profile.id}
+                            aria-label={`You like ${profile.first_name}. Change`}
                           >
                             {actioningId === profile.id ? (
-                              <Loader2 className="h-4 w-4 animate-spin" />
+                              <Loader2 className="h-4 w-4 animate-spin" aria-label="Working" />
                             ) : (
                               <>
-                                <Heart className="h-4 w-4 mr-1.5 fill-primary" />
-                                You Liked This User
+                                <Heart className="h-4 w-4 mr-1.5 fill-primary text-primary" aria-hidden="true" />
+                                You like {profile.first_name}
                               </>
                             )}
                           </Button>
                         </PopoverTrigger>
                         <PopoverContent className="w-auto p-2" align="center" side="top">
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className="text-destructive hover:text-destructive hover:bg-destructive/10"
-                            onClick={() => handleUnlike(profile.id)}
-                          >
-                            Unlike
+                          <Button variant="ghost" onClick={() => handleUnlike(profile.id)}>
+                            Remove like
                           </Button>
                         </PopoverContent>
                       </Popover>
@@ -599,9 +623,10 @@ export default function BrowsePage() {
                         className="w-full bg-primary hover:bg-primary/90 text-primary-foreground"
                         onClick={() => handleLike(profile.id)}
                         disabled={actioningId === profile.id}
+                        aria-label={`Like ${profile.first_name}`}
                       >
                         {actioningId === profile.id ? (
-                          <Loader2 className="h-4 w-4 animate-spin" />
+                          <Loader2 className="h-4 w-4 animate-spin" aria-label="Working" />
                         ) : (
                           <>
                             <Heart className="h-4 w-4 mr-1.5" />
@@ -628,7 +653,7 @@ export default function BrowsePage() {
         )}
 
         {/* Results count */}
-        <div className="text-center py-4 text-sm text-muted-foreground">
+        <div className="text-center py-4 text-muted-foreground" role="status" data-testid="results-count">
           Showing {displayedProfiles.length} of {filteredProfiles.length} profiles
         </div>
 
@@ -638,7 +663,7 @@ export default function BrowsePage() {
             <div className="py-4 space-y-4">
               <Heart className="h-16 w-16 text-primary fill-primary mx-auto" />
               <div>
-                <h2 className="text-2xl font-bold">It&apos;s a match!</h2>
+                <DialogTitle className="text-2xl font-bold">It&apos;s a match!</DialogTitle>
                 <p className="text-muted-foreground mt-1">
                   You and {newMatchName} liked each other. Say hello.
                 </p>

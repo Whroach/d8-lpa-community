@@ -13,6 +13,21 @@ const reportSchema = new mongoose.Schema({
     type: String,
     maxlength: 1000
   },
+  // What the reporter picked from the list ("Asked me for money", ...).
+  category: {
+    type: String,
+    default: ''
+  },
+  // Where the report was made from, and the conversation if it was a chat.
+  source: {
+    type: String,
+    enum: ['profile', 'chat', 'browse', 'matches', ''],
+    default: ''
+  },
+  match_id: {
+    type: String,
+    default: null
+  },
   status: {
     type: String,
     enum: ['pending', 'reviewed', 'resolved', 'dismissed'],

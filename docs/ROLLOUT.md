@@ -53,6 +53,24 @@ Members who said "I'm going" get an in-app notification the day before an event 
 - **Dependency updates** (commit `e4110e0`, on its own so it can be reverted alone): the non-breaking fixes `npm audit` offers, for the website and the API - patch and minor releases inside the ranges already in `package.json` (Next.js 16.1.6 to 16.4.0, Express 4.22.1 to 4.22.3, Mongoose 8.22.0 to 8.24.5, ws, socket.io-parser, the AWS S3 client and others). Both now report 0 known vulnerabilities. Checked with the full test suites and `npm run smoke:prod` (production build, API in production mode, S3 and Mailgun stand-ins). `server/node_modules` is committed (decision 4), so it was updated to match `server/package-lock.json`; that is why the commit is thousands of files. What cannot be checked locally: a real upload to the real S3 bucket with the newer AWS client - the release checklist has that as a step straight after deploy.
 - No new environment variable. Token format and secret unchanged; sign-ins stay valid.
 
+## 2c. Round 4 (2026-10-25): finishing security pass
+
+- `users.verification_attempts` (number, default 0): wrong email codes typed against the current code. After 5 the code is withdrawn and the member is told to ask for a new one (the "Resend code" button). Additive; no migration.
+- New limit on the signed-in actions that re-check the password (change password, take a break, delete account): 10 wrong passwords per address and session in 15 minutes, then 429. Only failures count.
+- Sign-in with an unknown email now takes as long as a wrong password (timing no longer reveals who is a member).
+- The API now **refuses to start in production without `MONGODB_URI`** (it used to fall back to a built-in local address). Railway already sets it, so nothing changes there - but check it is set before deploying.
+- Dependencies: Next.js 16.4.0 to 16.4.3 (critical advisories in 16.0.0-16.4.0) and body-parser 1.20.8 to 1.20.9 (high, denial of service), both via the non-breaking `npm audit fix`. Production audit 0 for website and API. **`main` (what is live now) has the vulnerable Next.js too** - merging this branch fixes it. Left: vitest / tinypool advisories, test tooling only (needs a major vitest upgrade; never shipped).
+- No new environment variable.
+
+### Every environment variable the code reads (names only)
+
+API, required: `MONGODB_URI`, `JWT_SECRET`, `NODE_ENV=production`, `FRONTEND_URL`, `AWS_REGION`, `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `AWS_S3_BUCKET_NAME`, `MAILGUN_API_KEY`, `MAILGUN_DOMAIN`, `SMTP_FROM_EMAIL`.
+API, optional: `PORT`, `TRUST_PROXY`, `ALLOWED_ORIGINS`, `PUBLIC_API_URL`, `SMTP_FROM_NAME`, `COMMUNITY_TIME_ZONE`, `ENFORCE_EMAIL_VERIFICATION`, `LOG_LEVEL`.
+Website (build time): `NEXT_PUBLIC_API_URL`; optional `NEXT_PUBLIC_DISABLE_EMAIL_VERIFICATION`.
+Local development and tests only (ignored or unused in production): `SKIP_DOTENV`, `ENV_FILE`, `STORAGE_DRIVER`, `MAIL_DRIVER`, `REQUIRE_EMAIL_VERIFICATION`, `RATE_LIMIT_DISABLED`, `ENABLE_TEST_ROUTES`, `LOCAL_UPLOAD_DIR`, `NEXT_DIST_DIR`, `SEED_RESET`, `SEED_BULK`, `ALLOW_REMOTE_DB_WIPE`.
+
+No secret is read from source code: every password, key and connection string comes from these variables. The admin scripts in `server/src/` (`create-admin*.js`, `make-admin.js`, `toggle-admin.js`, `clear.js`) take the database address and admin password from the environment and refuse to run without them.
+
 ## 3. Deploy order
 
 Deploy the API and the website **together** (same commit). The live chat connection now requires the member's token:

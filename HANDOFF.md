@@ -83,3 +83,20 @@ Six files were uncommitted:
 ## Owner decisions - unchanged, still open (details in `docs/ROLLOUT.md` section 5)
 
 1. Insist on verified email at sign-in? 2. Schedule the email summary? 3. What should "Delete account" mean? 4. Keep the committed `server/node_modules`? 5. Terms and Privacy text to be read by whoever is responsible for it. 6. LPA membership-number verification.
+
+---
+
+# Round 4 (2026-10-25): finishing round
+
+Branch merged-up check: `main` had nothing new (0 commits behind). Nothing touched production; the PR is still a draft.
+
+## Done
+
+- **Security:** email codes are withdrawn after 5 wrong tries per account (stops guessing the 6-digit code from many addresses); new limit on wrong passwords for change password / take a break / delete account; sign-in timing no longer reveals whether an email is registered; the API refuses to start in production without `MONGODB_URI`. Each has a unit test; the limiter and code withdrawal are also checked in `smoke:prod`.
+- **Secret sweep:** no connection string, password or key in the current source (the only `mongodb+srv://` strings are placeholders in docs and tests). Every secret comes from environment variables - the full list (names only) is in `docs/ROLLOUT.md` section 2c.
+- **Dependencies:** Next.js 16.4.3 (critical advisories up to 16.4.0 - `main`, which is live, has them too) and body-parser 1.20.9. Production `npm audit`: 0 for website and API. Left: vitest/tinypool advisories, test tooling only.
+- **The checks round 3 left undone:** three consecutive full browser runs on the final code - 175/175, 175/175, 175/175 (including the suspension test); switch build 3/3; `smoke:prod` 11/11 (9 old + 2 new) after the final fixes; `npm test` 171/171; typecheck and ESLint clean.
+
+## Still open
+
+Owner steps in `docs/SECURITY-INCIDENT.md`; owner decisions in `docs/ROLLOUT.md` section 5; 55 desktop dark design-review sheets never inspected (cosmetic).

@@ -7,6 +7,7 @@
  * - HPP for parameter pollution
  */
 
+import crypto from 'crypto';
 import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
 import mongoSanitize from 'express-mongo-sanitize';
@@ -89,11 +90,38 @@ export const createLimiters = (overrides = {}) => {
     }
   });
 
+  // Signed-in actions that check the member's password again (change
+  // password, take a break, delete account). Only wrong passwords count, per
+  // address and session, so a stolen session cannot be used to work out the
+  // password by trying again and again.
+  const passwordCheckLimiter = rateLimit({
+    ...common,
+    windowMs: 15 * 60 * 1000, // 15 minutes
+    max: overrides.passwordCheckMax ?? 10,
+    skipSuccessfulRequests: true,
+    skip: () => disabled(),
+    keyGenerator: (req) => {
+      const session = crypto
+        .createHash('sha256')
+        .update(String(req.headers.authorization || ''))
+        .digest('hex')
+        .slice(0, 32);
+      return `${req.ip}|${session}`;
+    },
+    handler: (req, res) => {
+      logger.security('Password check rate limit exceeded from IP:', req.ip);
+      res.status(429).json({
+        message: 'Too many attempts. Please wait 15 minutes and try again.'
+      });
+    }
+  });
+
   return {
     apiLimiter,
     authLimiter,
     emailLimiter,
-    signupLimiter
+    signupLimiter,
+    passwordCheckLimiter
   };
 };
 

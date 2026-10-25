@@ -92,6 +92,12 @@ const userSchema = new mongoose.Schema({
   verification_code_expires: {
     type: Date
   },
+  // Wrong codes typed against the current code. After a few the code is
+  // thrown away, so a 6-digit code cannot be guessed from many addresses.
+  verification_attempts: {
+    type: Number,
+    default: 0
+  },
   password_reset_token: {
     type: String
   },
@@ -146,6 +152,7 @@ userSchema.methods.toJSON = function() {
   delete obj.password;
   delete obj.verification_code;
   delete obj.verification_code_expires;
+  delete obj.verification_attempts;
   delete obj.password_reset_token;
   delete obj.password_reset_expires;
   // Moderation records are for admins only; they used to be sent to the

@@ -160,6 +160,32 @@ test.describe("rate limits behind one proxy (trust proxy = 1, the production def
     const elsewhere = await request.post(`${API}/auth/login`, { headers: from("203.0.113.21"), data: { email: member.email, password: PASSWORD } })
     expect(elsewhere.status()).toBe(200)
   })
+
+  test("signed-in password re-checks (change password, take a break, delete account) stop after ten wrong passwords", async ({ request }) => {
+    const member = await createMember(request, "Rhoda")
+    const headers = { ...auth(member.token), ...from("203.0.113.30") }
+    for (let i = 0; i < 10; i += 1) {
+      const wrong = await request.post(`${API}/auth/change-password`, { headers, data: { current_password: "Wrong-Pass-1!", new_password: "Changed-Pass-5678!" } })
+      expect(wrong.status()).toBe(400)
+    }
+    const blocked = await request.post(`${API}/settings/delete`, { headers, data: { password: "Wrong-Pass-1!" } })
+    expect(blocked.status()).toBe(429)
+    // The member's session is still good for everything else.
+    expect((await request.get(`${API}/auth/me`, { headers })).status()).toBe(200)
+  })
+
+  test("a 6-digit email code is withdrawn after five wrong tries, from any address", async ({ request }) => {
+    const email = uniqueEmail("codeguess")
+    expect((await request.post(`${API}/auth/signup`, { data: { email, password: PASSWORD } })).status()).toBe(201)
+    const code = (await latestEmail(request, email)).text.match(/\b(\d{6})\b/)![1]
+    const wrongCode = code === "111111" ? "222222" : "111111"
+    for (let i = 0; i < 5; i += 1) {
+      const res = await request.post(`${API}/auth/verify-email`, { headers: from(`203.0.113.${40 + i}`), data: { email, code: wrongCode } })
+      expect(res.status()).toBe(400)
+    }
+    const tooLate = await request.post(`${API}/auth/verify-email`, { headers: from("203.0.113.50"), data: { email, code } })
+    expect(tooLate.status()).toBe(400)
+  })
 })
 
 test.describe("core flows on the production build", () => {

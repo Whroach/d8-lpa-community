@@ -1,4 +1,7 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest'
+import { spawnSync } from 'child_process'
+import path from 'path'
+import { fileURLToPath } from 'url'
 import express from 'express'
 import request from 'supertest'
 import { startApp, makeUser, getOutbox, clearOutbox, PASSWORD, tokenFor } from './helpers.js'
@@ -6,6 +9,7 @@ import User from '../src/models/User.js'
 import Profile from '../src/models/Profile.js'
 import LPAMembership from '../src/models/LPAMembership.js'
 import { createLimiters } from '../src/middleware/security.js'
+import { MAX_CODE_ATTEMPTS } from '../src/routes/auth.js'
 
 let ctx
 beforeAll(async () => { ctx = await startApp() })
@@ -86,6 +90,41 @@ describe('sign up and email verification', () => {
     const res = await ctx.api.post('/api/auth/verify-email').send({ email: 'nobody@example.test', code: '123456' })
     expect(res.status).toBe(400)
     expect(res.body.message).toBe('Invalid verification code')
+  })
+})
+
+describe('verification code guessing', () => {
+  it('withdraws the code after a few wrong tries, whatever address they come from; a new code works', async () => {
+    const email = 'guesser-target@example.test'
+    clearOutbox()
+    expect((await ctx.api.post('/api/auth/signup').send({ email, password: PASSWORD })).status).toBe(201)
+    const real = (await User.findOne({ email })).verification_code
+    const wrong = real === '111111' ? '222222' : '111111'
+
+    for (let i = 1; i < MAX_CODE_ATTEMPTS; i += 1) {
+      const res = await ctx.api.post('/api/auth/verify-email').send({ email, code: wrong })
+      expect(res.status).toBe(400)
+      expect(res.body.message).toBe('Invalid verification code')
+    }
+    const last = await ctx.api.post('/api/auth/verify-email').send({ email, code: wrong })
+    expect(last.status).toBe(400)
+    expect(last.body.codeWithdrawn).toBe(true)
+    expect(last.body.message).toMatch(/new code/i)
+
+    // Even the right code no longer works once withdrawn.
+    const tooLate = await ctx.api.post('/api/auth/verify-email').send({ email, code: real })
+    expect(tooLate.status).toBe(400)
+    expect((await User.findOne({ email })).email_verified).toBe(false)
+
+    clearOutbox()
+    expect((await ctx.api.post('/api/auth/resend-verification').send({ email })).status).toBe(200)
+    const fresh = codeFrom(getOutbox().find((m) => m.to === email))
+    const ok = await ctx.api.post('/api/auth/verify-email').send({ email, code: fresh })
+    expect(ok.status).toBe(200)
+    const user = await User.findOne({ email })
+    expect(user.email_verified).toBe(true)
+    expect(user.verification_attempts).toBe(0)
+    expect(user.toJSON().verification_attempts).toBeUndefined()
   })
 })
 
@@ -383,6 +422,50 @@ describe('rate limiting', () => {
     expect(blocked.body.message).toMatch(/15 minutes/)
     // A different member on the same address is not locked out with them.
     expect((await request(app).post('/login').send({ email: 'b@example.test' })).status).toBe(401)
+  })
+})
+
+describe('password re-check limits (change password, take a break, delete account)', () => {
+  it('counts only wrong passwords, per session, and answers 429 after the limit', async () => {
+    const limiters = createLimiters({ force: true, passwordCheckMax: 2 })
+    const app = express()
+    app.use(express.json())
+    app.post('/check', limiters.passwordCheckLimiter, (req, res) =>
+      req.body.ok ? res.json({ ok: true }) : res.status(400).json({ message: 'no' }))
+    const a = { Authorization: 'Bearer session-a' }
+    const b = { Authorization: 'Bearer session-b' }
+
+    for (let i = 0; i < 4; i += 1) {
+      expect((await request(app).post('/check').set(a).send({ ok: true })).status).toBe(200)
+    }
+    expect((await request(app).post('/check').set(a).send({})).status).toBe(400)
+    expect((await request(app).post('/check').set(a).send({})).status).toBe(400)
+    const blocked = await request(app).post('/check').set(a).send({})
+    expect(blocked.status).toBe(429)
+    expect(blocked.body.message).toMatch(/15 minutes/)
+    expect((await request(app).post('/check').set(b).send({})).status).toBe(400)
+  })
+})
+
+describe('login timing', () => {
+  it('answers an unknown email the same way as a wrong password', async () => {
+    const member = await makeUser()
+    const unknown = await ctx.api.post('/api/auth/login').send({ email: 'no-such-member@example.test', password: PASSWORD })
+    const wrong = await ctx.api.post('/api/auth/login').send({ email: member.user.email, password: 'Wrong-Pass-1!' })
+    expect(unknown.status).toBe(401)
+    expect(wrong.status).toBe(401)
+    expect(unknown.body).toEqual(wrong.body)
+  })
+})
+
+describe('production start-up', () => {
+  it('refuses to start without MONGODB_URI instead of falling back to a built-in address', () => {
+    const here = path.dirname(fileURLToPath(import.meta.url))
+    const entry = path.resolve(here, '../src/index.js')
+    const env = { PATH: process.env.PATH, SystemRoot: process.env.SystemRoot, NODE_ENV: 'production', SKIP_DOTENV: '1', JWT_SECRET: 'test-only-not-a-real-secret' }
+    const run = spawnSync(process.execPath, [entry], { env, encoding: 'utf8', timeout: 20000 })
+    expect(run.status).toBe(1)
+    expect(run.stderr).toMatch(/MONGODB_URI is not set/)
   })
 })
 

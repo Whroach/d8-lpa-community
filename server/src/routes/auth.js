@@ -41,6 +41,21 @@ const validatePasswordStrength = (password) => {
   return { isValid: errors.length === 0, errors };
 };
 
+// Wrong verification codes allowed per code before it is withdrawn.
+export const MAX_CODE_ATTEMPTS = 5;
+
+// Constant-time comparison of a stored code with what was typed.
+const codesMatch = (stored, typed) => {
+  const a = Buffer.from(String(stored));
+  const b = Buffer.from(String(typed));
+  return a.length === b.length && crypto.timingSafeEqual(a, b);
+};
+
+// A fixed bcrypt hash of a random throwaway value. Comparing against it when
+// no account matches makes "no such email" take as long as "wrong password",
+// so response time does not reveal who is a member.
+const DUMMY_HASH = bcryptjs.hashSync(crypto.randomBytes(16).toString('hex'), 10);
+
 // Generate verification code
 const generateVerificationCode = () => {
   return crypto.randomInt(100000, 1000000).toString();
@@ -94,6 +109,7 @@ router.post('/signup', [
       const freshCode = generateVerificationCode();
       existingUser.verification_code = freshCode;
       existingUser.verification_code_expires = new Date(Date.now() + 10 * 60 * 1000);
+      existingUser.verification_attempts = 0;
       await existingUser.save();
       sendVerificationEmail(email, freshCode).catch((emailError) => {
         logger.error('[SIGNUP] Failed to send verification email:', emailError.message);
@@ -181,7 +197,26 @@ router.post('/verify-email', [
       return res.json({ message: 'Email already verified' });
     }
 
-    if (!user.verification_code || user.verification_code !== String(code)) {
+    if (!user.verification_code || !codesMatch(user.verification_code, code)) {
+      if (user.verification_code) {
+        // Count wrong codes per account, whatever address they come from.
+        // After MAX_CODE_ATTEMPTS the code is thrown away and a new one must
+        // be asked for, so the million possible codes cannot be worked
+        // through from many addresses.
+        user.verification_attempts = (user.verification_attempts || 0) + 1;
+        if (user.verification_attempts >= MAX_CODE_ATTEMPTS) {
+          user.verification_code = undefined;
+          user.verification_code_expires = undefined;
+          user.verification_attempts = 0;
+          await user.save();
+          logger.security('[VERIFY] Code withdrawn after too many wrong attempts, user id:', String(user._id));
+          return res.status(400).json({
+            message: 'Too many wrong codes. Please ask for a new code.',
+            codeWithdrawn: true
+          });
+        }
+        await user.save();
+      }
       return res.status(400).json({ message: 'Invalid verification code' });
     }
 
@@ -192,6 +227,7 @@ router.post('/verify-email', [
     user.email_verified = true;
     user.verification_code = undefined;
     user.verification_code_expires = undefined;
+    user.verification_attempts = 0;
     await user.save();
 
     logger.info('[VERIFY] Email verified for user id:', String(user._id));
@@ -221,6 +257,7 @@ router.post('/resend-verification', [
     const verificationCode = generateVerificationCode();
     user.verification_code = verificationCode;
     user.verification_code_expires = new Date(Date.now() + 10 * 60 * 1000);
+    user.verification_attempts = 0;
     await user.save();
 
 
@@ -261,6 +298,7 @@ router.post('/login', [
     // form can't be used to discover who is a member.
     const user = await User.findOne({ email });
     if (!user) {
+      await bcryptjs.compare(password, DUMMY_HASH);
       return res.status(401).json({ message: INVALID_LOGIN });
     }
 

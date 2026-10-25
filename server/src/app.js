@@ -116,6 +116,9 @@ export function createApp() {
   app.use('/api/auth/forgot-password', limiters.emailLimiter);
   app.use('/api/auth/resend-verification', limiters.emailLimiter);
   app.use('/api/auth/signup', limiters.signupLimiter);
+  app.use('/api/auth/change-password', limiters.passwordCheckLimiter);
+  app.use('/api/settings/disable', limiters.passwordCheckLimiter);
+  app.use('/api/settings/delete', limiters.passwordCheckLimiter);
 
   // Local photo storage (development / tests only - never in production).
   if (config.storageDriver === 'local') {

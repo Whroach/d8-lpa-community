@@ -8,6 +8,13 @@ if (!process.env.JWT_SECRET) {
   process.exit(1);
 }
 
+if (process.env.NODE_ENV === 'production' && !process.env.MONGODB_URI) {
+  // Never fall back to a built-in address in production: the database
+  // address (with its password) must come from the environment.
+  console.error('MONGODB_URI is not set. Refusing to start.');
+  process.exit(1);
+}
+
 const { app, httpServer } = createApp();
 const PORT = process.env.PORT || 5001;
 

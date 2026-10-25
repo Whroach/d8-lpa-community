@@ -67,6 +67,8 @@ const userSchema = new mongoose.Schema({
     action: { type: String },
     reason: { type: String, default: '' },
     admin: { type: String, default: '' },
+    // The member report this action answered, if any (optional, added later).
+    report_id: { type: String },
     created_at: { type: Date, default: Date.now }
   }],
   // Free-form private notes written by admins about this account.
@@ -89,6 +91,12 @@ const userSchema = new mongoose.Schema({
   },
   verification_code_expires: {
     type: Date
+  },
+  // Wrong codes typed against the current code. After a few the code is
+  // thrown away, so a 6-digit code cannot be guessed from many addresses.
+  verification_attempts: {
+    type: Number,
+    default: 0
   },
   password_reset_token: {
     type: String
@@ -115,6 +123,11 @@ const userSchema = new mongoose.Schema({
   },
   delete_reason: {
     type: String
+  },
+  // Whether the member has been through (or skipped) the welcome tour.
+  has_seen_tour: {
+    type: Boolean,
+    default: false
   }
 }, {
   timestamps: { createdAt: 'created_at', updatedAt: 'updated_at' }
@@ -123,7 +136,7 @@ const userSchema = new mongoose.Schema({
 // Hash password before saving
 userSchema.pre('save', async function() {
   if (!this.isModified('password')) return;
-  
+
   const salt = await bcrypt.genSalt(10);
   this.password = await bcrypt.hash(this.password, salt);
 });
@@ -139,8 +152,15 @@ userSchema.methods.toJSON = function() {
   delete obj.password;
   delete obj.verification_code;
   delete obj.verification_code_expires;
+  delete obj.verification_attempts;
   delete obj.password_reset_token;
   delete obj.password_reset_expires;
+  // Moderation records are for admins only; they used to be sent to the
+  // member's own browser with every login and profile load.
+  delete obj.admin_notes;
+  delete obj.moderation_history;
+  delete obj.delete_reason;
+  delete obj.disable_reason;
   return obj;
 };
 

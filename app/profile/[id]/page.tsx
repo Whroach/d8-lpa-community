@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useCallback, useEffect, useState } from "react"
 import { useParams, useRouter } from "next/navigation"
 import Image from "next/image"
 import { ArrowLeft, MapPin, Briefcase, GraduationCap, Heart, MessageCircle, Flag, User as UserIcon, ChevronLeft, ChevronRight, Target, Globe, Compass, X, MoreVertical } from "lucide-react"
@@ -10,7 +10,7 @@ import { Badge } from "@/components/ui/badge"
 import { Card, CardContent } from "@/components/ui/card"
 import { Separator } from "@/components/ui/separator"
 import { Label } from "@/components/ui/label"
-import { Dialog, DialogContent } from "@/components/ui/dialog"
+import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -18,6 +18,12 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { api } from "@/lib/api"
+import { toast } from "sonner"
+import { BadgeCheck, Ban, Bookmark } from "lucide-react"
+import { LoadError } from "@/components/load-error"
+import { BlockDialog, ReportDialog } from "@/components/safety/safety-dialogs"
+import { sharedInterests } from "@/lib/icebreakers"
+import { useAuthStore } from "@/lib/store/auth-store"
 import { Skeleton } from "@/components/ui/skeleton"
 import { cn } from "@/lib/utils"
 
@@ -38,73 +44,40 @@ export default function UserProfilePage() {
   const [hasMatched, setHasMatched] = useState(false)
   const [matchId, setMatchId] = useState<string | null>(null)
   const [showReportDialog, setShowReportDialog] = useState(false)
-  const [reportReason, setReportReason] = useState("")
-  const [isReporting, setIsReporting] = useState(false)
-  const [reportSubmitted, setReportSubmitted] = useState(false)
+  const [showBlockDialog, setShowBlockDialog] = useState(false)
+  const [isSaved, setIsSaved] = useState(false)
+  const [loadError, setLoadError] = useState("")
+  const [notFound, setNotFound] = useState(false)
+  const myProfile = useAuthStore((state) => state.profile)
+  const me = useAuthStore((state) => state.user)
 
-  useEffect(() => {
-    loadProfile()
-  }, [userId])
-
-  useEffect(() => {
-    const loadLikeStatus = async () => {
-      const result = await api.browse.getLikedProfiles()
-      if (result.data) {
-        const match = result.data.find((p: { id: string; like_id?: string }) => p.id === userId)
-        setIsLiked(!!match)
-        setLikeId(match?.like_id || null)
-      }
-    }
-
-    if (userId) {
-      loadLikeStatus()
-    }
-  }, [userId])
-
-  useEffect(() => {
-    // api.matches.getAll() returns { active, inactive } from the server; an
-    // earlier call to a non-existent api.matches.getMatches() threw, so the
-    // Message button never appeared for people you had actually matched with.
-    const loadMatchStatus = async () => {
-      const result = await api.matches.getAll()
-      if (result.data) {
-        const active = Array.isArray(result.data)
-          ? result.data
-          : result.data.active || []
-        const match = active.find((m: any) => m.user?.id === userId)
-        setHasMatched(!!match)
-        setMatchId(match?.id || null)
-      }
-    }
-
-    if (userId) {
-      loadMatchStatus()
-    }
-  }, [userId])
-
-  const loadProfile = async () => {
+  // One request now returns the profile and how I relate to this member
+  // (liked, matched, saved); this page used to make three.
+  const loadProfile = useCallback(async () => {
     setIsLoading(true)
+    setLoadError("")
+    setNotFound(false)
     const result = await api.users.getById(userId)
     if (result.data) {
       setUser(result.data.user)
       setProfile(result.data.profile)
+      const relationship = result.data.relationship || {}
+      setIsLiked(Boolean(relationship.is_liked))
+      setLikeId(relationship.like_id || null)
+      setHasMatched(Boolean(relationship.match_id))
+      setMatchId(relationship.match_id || null)
+      setIsSaved(Boolean(relationship.is_favorite))
+    } else if (result.status === 404) {
+      setNotFound(true)
     } else {
-      console.error('[PROFILE_LOAD] Failed to load profile:', result.error)
+      setLoadError(result.error || "Please try again.")
     }
     setIsLoading(false)
-  }
+  }, [userId])
 
-  const calculateAge = () => {
-    if (!user?.birthdate) return null
-    const birthDate = new Date(user.birthdate)
-    const today = new Date()
-    let age = today.getFullYear() - birthDate.getFullYear()
-    const monthDiff = today.getMonth() - birthDate.getMonth()
-    if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
-      age--
-    }
-    return age
-  }
+  useEffect(() => {
+    void loadProfile()
+  }, [loadProfile])
 
   const nextPhoto = () => {
     if (selectedPhotoIndex < photos.length - 1) {
@@ -129,35 +102,64 @@ export default function UserProfilePage() {
     router.push(matchId ? `/messages?match=${matchId}` : `/messages`)
   }
 
-  const handleSubmitReport = async () => {
-    if (!reportReason.trim()) return
-    setIsReporting(true)
-    const result = await api.browse.report(userId, reportReason.trim())
-    setIsReporting(false)
-    if (!result.error) {
-      setReportSubmitted(true)
-    }
-  }
-
   const handleToggleLike = async () => {
     if (isLiking) return
     setIsLiking(true)
 
     if (isLiked && likeId) {
-      await api.browse.unlike(likeId)
-      setIsLiked(false)
-      setLikeId(null)
+      const result = await api.browse.unlike(likeId)
+      if (result.error) {
+        toast.error(`We could not undo your like. ${result.error}`)
+      } else {
+        setIsLiked(false)
+        setLikeId(null)
+        if (hasMatched) {
+          setHasMatched(false)
+          setMatchId(null)
+          toast.success(`You are no longer matched with ${user?.first_name}`)
+        } else {
+          toast.success("Like removed")
+        }
+      }
     } else {
-      await api.browse.like(userId)
-      const result = await api.browse.getLikedProfiles()
-      if (result.data) {
-        const match = result.data.find((p: { id: string; like_id?: string }) => p.id === userId)
-        setIsLiked(!!match)
-        setLikeId(match?.like_id || null)
+      const result = await api.browse.like(userId)
+      if (result.error) {
+        toast.error(`Your like was not saved. ${result.error}`)
+      } else {
+        setIsLiked(true)
+        setLikeId(result.data?.like_id || null)
+        if (result.data?.is_match) {
+          setHasMatched(true)
+          setMatchId(result.data.match?.id || null)
+          toast.success(`It's a match! You and ${user?.first_name} like each other.`, {
+            duration: 10000,
+            action: result.data.match?.id
+              ? { label: "Say hello", onClick: () => router.push(`/messages?match=${result.data.match.id}`) }
+              : undefined,
+          })
+        } else {
+          toast.success(`You liked ${user?.first_name}`, {
+            description: "If they like you too, you will both be told.",
+          })
+        }
       }
     }
 
     setIsLiking(false)
+  }
+
+  const handleToggleSave = async () => {
+    const next = !isSaved
+    setIsSaved(next)
+    const result = next ? await api.favorites.add(userId) : await api.favorites.remove(userId)
+    if (result.error) {
+      setIsSaved(!next)
+      toast.error(`That did not work. ${result.error}`)
+      return
+    }
+    toast.success(next ? `${user?.first_name} saved` : `${user?.first_name} removed from Saved`, {
+      description: next ? "Find saved profiles under Saved in the menu. They are not told." : undefined,
+    })
   }
 
   if (isLoading) {
@@ -179,22 +181,34 @@ export default function UserProfilePage() {
     )
   }
 
-  if (!user || !profile) {
+  if (loadError) {
+    return (
+      <AppLayout>
+        <div className="max-w-4xl mx-auto p-4 md:p-6">
+          <LoadError what="this profile" detail={loadError} onRetry={loadProfile} />
+        </div>
+      </AppLayout>
+    )
+  }
+
+  if (notFound || !user || !profile) {
     return (
       <AppLayout>
         <div className="max-w-4xl mx-auto p-4 md:p-6">
           <div className="text-center py-12">
-            <UserIcon className="h-16 w-16 text-muted-foreground mx-auto mb-4" />
-            <h2 className="text-xl font-semibold mb-2">Profile not found</h2>
-            <p className="text-muted-foreground mb-4">This user may have deleted their account.</p>
-            <Button onClick={() => router.back()}>Go Back</Button>
+            <UserIcon className="h-16 w-16 text-muted-foreground mx-auto mb-4" aria-hidden="true" />
+            <h1 className="text-xl font-semibold mb-2">This profile is not available</h1>
+            <p className="text-lg text-muted-foreground mb-4">The member may have paused or closed their account.</p>
+            <Button onClick={() => router.push("/browse")}>Back to Browse</Button>
           </div>
         </div>
       </AppLayout>
     )
   }
 
-  const age = calculateAge()
+  const age = user.age ?? null
+  const isOwnProfile = String(user._id || user.id) === String(me?.id || me?._id)
+  const inCommon = sharedInterests(myProfile?.interests, profile.interests)
   const photos = user.photos || []
   const location = [profile.location_city, profile.location_state].filter(Boolean).join(", ")
 
@@ -233,9 +247,23 @@ export default function UserProfilePage() {
           {/* Profile Info */}
           <div className="space-y-8">
             <div className="space-y-3">
-              <h1 className="text-5xl md:text-6xl font-bold text-foreground">
+              <h1 className="text-4xl md:text-5xl font-bold text-foreground">
                 {user.first_name}
               </h1>
+              <div className="flex flex-wrap gap-2">
+                {user.email_verified && (
+                  <Badge variant="outline" className="gap-1 border-success text-sm text-success" data-testid="verified-badge">
+                    <BadgeCheck className="h-4 w-4" aria-hidden="true" />
+                    Email confirmed
+                  </Badge>
+                )}
+                {user.is_online && (
+                  <Badge variant="outline" className="gap-1 text-sm">
+                    <span className="h-2.5 w-2.5 rounded-full bg-success" aria-hidden="true" />
+                    Online now
+                  </Badge>
+                )}
+              </div>
               <div className="flex items-baseline gap-3">
                 {age && <span className="text-3xl font-semibold text-primary">{age}</span>}
                 {location && (
@@ -249,7 +277,7 @@ export default function UserProfilePage() {
                 <div className="flex items-center gap-2 text-base text-muted-foreground pt-2">
                   <Compass className="h-5 w-5 text-primary flex-shrink-0" />
                   <span className="font-medium">
-                    {profile.district_number.includes('district_') 
+                    {profile.district_number.includes('district_')
                       ? `District ${profile.district_number.replace('district_', '')}`
                       : `District ${profile.district_number}`}
                   </span>
@@ -258,53 +286,48 @@ export default function UserProfilePage() {
             </div>
 
             {/* Action Buttons */}
-            <div className="flex gap-3 pt-2">
-              {hasMatched && (
-                <Button className="flex-1" onClick={handleMessage}>
-                  <MessageCircle className="h-4 w-4 mr-2" />
-                  Message
-                </Button>
-              )}
-              <Button
-                size="lg"
-                className={cn(
-                  "flex-1 font-semibold",
-                  isLiked
-                    ? "bg-red-500 hover:bg-red-600 text-white"
-                    : "bg-primary hover:bg-primary/90 text-primary-foreground"
-                )}
-                onClick={handleToggleLike}
-                disabled={isLiking}
-              >
-                <Heart
-                  className={cn(
-                    "h-5 w-5 mr-2",
-                    isLiked && "fill-white"
+            {!isOwnProfile && (
+              <div className="space-y-3 pt-2">
+                <div className="flex flex-wrap gap-3">
+                  {hasMatched && (
+                    <Button size="lg" className="flex-1" onClick={handleMessage}>
+                      <MessageCircle aria-hidden="true" />
+                      Message {user.first_name}
+                    </Button>
                   )}
-                />
-                {isLiked ? "Liked" : "Like"}
-              </Button>
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="outline" size="icon" className="bg-transparent">
-                    <MoreVertical className="h-4 w-4" />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end">
-                  <DropdownMenuItem
-                    className="text-destructive"
-                    onClick={() => {
-                      setReportReason("")
-                      setReportSubmitted(false)
-                      setShowReportDialog(true)
-                    }}
+                  <Button
+                    size="lg"
+                    variant={isLiked ? "outline" : hasMatched ? "outline" : "default"}
+                    className="flex-1"
+                    onClick={handleToggleLike}
+                    disabled={isLiking}
+                    aria-pressed={isLiked}
                   >
-                    <Flag className="mr-2 h-4 w-4" />
+                    <Heart className={cn(isLiked && "fill-primary text-primary")} aria-hidden="true" />
+                    {isLiked ? "Liked - tap to undo" : `Like ${user.first_name}`}
+                  </Button>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  <Button variant="outline" onClick={handleToggleSave} aria-pressed={isSaved}>
+                    <Bookmark className={cn(isSaved && "fill-primary text-primary")} aria-hidden="true" />
+                    {isSaved ? "Saved" : "Save"}
+                  </Button>
+                  <Button variant="outline" onClick={() => setShowReportDialog(true)}>
+                    <Flag aria-hidden="true" />
                     Report
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-            </div>
+                  </Button>
+                  <Button variant="outline" onClick={() => setShowBlockDialog(true)}>
+                    <Ban aria-hidden="true" />
+                    Block
+                  </Button>
+                </div>
+                {inCommon.length > 0 && (
+                  <p className="text-base text-muted-foreground" data-testid="in-common">
+                    <span className="font-semibold text-foreground">You both like:</span> {inCommon.join(", ")}
+                  </p>
+                )}
+              </div>
+            )}
           </div>
         </div>
 
@@ -327,11 +350,13 @@ export default function UserProfilePage() {
                     const isLastPhoto = idx === 5;
                     const hasMorePhotos = photos.length > 6;
                     const remainingCount = photos.length - 6;
-                    
+
                     return (
-                      <div
+                      <button
+                        type="button"
                         key={idx}
-                        className="relative aspect-square rounded-lg overflow-hidden cursor-pointer group border-2 border-border hover:border-primary/50 transition-all"
+                        aria-label={isLastPhoto && hasMorePhotos ? `Open photo ${idx + 1} of ${photos.length} (${remainingCount} more)` : `Open photo ${idx + 1} of ${photos.length}`}
+                        className="relative aspect-square rounded-lg overflow-hidden group border-2 border-border hover:border-primary/50 transition-all"
                         onClick={() => {
                           if (isLastPhoto && hasMorePhotos) {
                             setSelectedPhotoIndex(idx);
@@ -355,7 +380,7 @@ export default function UserProfilePage() {
                             <span className="text-white text-4xl font-bold">+{remainingCount}</span>
                           </div>
                         )}
-                      </div>
+                      </button>
                     );
                   })}
                 </div>
@@ -433,15 +458,28 @@ export default function UserProfilePage() {
 
         {/* Photo Modal */}
         <Dialog open={showPhotoModal} onOpenChange={setShowPhotoModal}>
-          <DialogContent className="max-w-4xl p-0 bg-black/95">
+          <DialogContent
+            className="max-w-4xl p-0 bg-black/95 [&>button:last-child]:hidden"
+            onKeyDown={(e) => {
+              if (e.key === "ArrowLeft") prevPhoto()
+              if (e.key === "ArrowRight") nextPhoto()
+            }}
+          >
+            <DialogTitle className="sr-only">{user.first_name}&apos;s photos</DialogTitle>
             <div className="relative h-[80vh]">
               <button
+                type="button"
+                aria-label="Close photos"
                 onClick={() => setShowPhotoModal(false)}
-                className="absolute top-4 right-4 z-50 p-2 rounded-full bg-black/50 text-white hover:bg-black/70 transition-colors"
+                className="absolute top-4 right-4 z-50 flex items-center gap-2 rounded-full bg-black/70 px-4 py-2 text-white hover:bg-black/90 transition-colors"
               >
-                <X className="h-6 w-6" />
+                <X className="h-5 w-5" aria-hidden="true" />
+                Close
               </button>
-              
+              <p className="absolute top-5 left-4 z-50 rounded-full bg-black/70 px-3 py-1 text-white" aria-live="polite">
+                Photo {selectedPhotoIndex + 1} of {photos.length}
+              </p>
+
               {photos.length > 0 && (
                 <>
                   <div className="relative w-full h-full flex items-center justify-center">
@@ -456,31 +494,36 @@ export default function UserProfilePage() {
                   {photos.length > 1 && (
                     <>
                       <button
+                        type="button"
+                        aria-label="Previous photo"
                         onClick={prevPhoto}
                         disabled={selectedPhotoIndex === 0}
-                        className="absolute left-4 top-1/2 -translate-y-1/2 p-3 rounded-full bg-black/50 text-white hover:bg-black/70 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                        className="absolute left-4 top-1/2 -translate-y-1/2 p-3 rounded-full bg-black/70 text-white hover:bg-black/90 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
                       >
-                        <ChevronLeft className="h-8 w-8" />
+                        <ChevronLeft className="h-8 w-8" aria-hidden="true" />
                       </button>
                       <button
+                        type="button"
+                        aria-label="Next photo"
                         onClick={nextPhoto}
                         disabled={selectedPhotoIndex === photos.length - 1}
-                        className="absolute right-4 top-1/2 -translate-y-1/2 p-3 rounded-full bg-black/50 text-white hover:bg-black/70 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                        className="absolute right-4 top-1/2 -translate-y-1/2 p-3 rounded-full bg-black/70 text-white hover:bg-black/90 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
                       >
-                        <ChevronRight className="h-8 w-8" />
+                        <ChevronRight className="h-8 w-8" aria-hidden="true" />
                       </button>
-                      
+
                       <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-2">
                         {photos.map((_: any, idx: number) => (
                           <button
+                            type="button"
                             key={idx}
+                            aria-label={`Go to photo ${idx + 1}`}
+                            aria-current={idx === selectedPhotoIndex}
                             onClick={() => setSelectedPhotoIndex(idx)}
-                            className={`h-2 rounded-full transition-all ${
-                              idx === selectedPhotoIndex
-                                ? "w-8 bg-white"
-                                : "w-2 bg-white/50 hover:bg-white/70"
-                            }`}
-                          />
+                            className="flex h-11 w-8 items-center justify-center"
+                          >
+                            <span className={`block h-2.5 rounded-full transition-all ${idx === selectedPhotoIndex ? "w-8 bg-white" : "w-2.5 bg-white/60"}`} />
+                          </button>
                         ))}
                       </div>
                     </>
@@ -491,58 +534,21 @@ export default function UserProfilePage() {
           </DialogContent>
         </Dialog>
 
-        {/* Report Dialog */}
-        <Dialog open={showReportDialog} onOpenChange={setShowReportDialog}>
-          <DialogContent className="sm:max-w-md">
-            {reportSubmitted ? (
-              <div className="py-4 text-center space-y-3">
-                <Flag className="h-10 w-10 text-primary mx-auto" />
-                <h2 className="text-lg font-semibold">Report submitted</h2>
-                <p className="text-sm text-muted-foreground">
-                  Thank you. Our team will review this and take action if needed.
-                </p>
-                <Button className="w-full" onClick={() => setShowReportDialog(false)}>
-                  Close
-                </Button>
-              </div>
-            ) : (
-              <div className="space-y-4">
-                <div>
-                  <h2 className="text-lg font-semibold flex items-center gap-2">
-                    <Flag className="h-5 w-5 text-destructive" />
-                    Report {user?.first_name}
-                  </h2>
-                  <p className="text-sm text-muted-foreground mt-1">
-                    Tell us what happened. Reports are private and reviewed by our team.
-                  </p>
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="report-reason">Reason</Label>
-                  <textarea
-                    id="report-reason"
-                    rows={4}
-                    value={reportReason}
-                    onChange={(e) => setReportReason(e.target.value)}
-                    placeholder="Please describe the issue..."
-                    className="w-full rounded-md border border-input bg-background px-3 py-2 text-base"
-                  />
-                </div>
-                <div className="flex justify-end gap-2">
-                  <Button variant="outline" onClick={() => setShowReportDialog(false)}>
-                    Cancel
-                  </Button>
-                  <Button
-                    variant="destructive"
-                    onClick={handleSubmitReport}
-                    disabled={!reportReason.trim() || isReporting}
-                  >
-                    {isReporting ? "Submitting..." : "Submit Report"}
-                  </Button>
-                </div>
-              </div>
-            )}
-          </DialogContent>
-        </Dialog>
+        <ReportDialog
+          userId={userId}
+          firstName={user.first_name}
+          open={showReportDialog}
+          onOpenChange={setShowReportDialog}
+          source="profile"
+          onAlsoBlock={() => setShowBlockDialog(true)}
+        />
+        <BlockDialog
+          userId={userId}
+          firstName={user.first_name}
+          open={showBlockDialog}
+          onOpenChange={setShowBlockDialog}
+          onBlocked={() => router.push("/browse")}
+        />
 
         {/* Favorites */}
         <Card className="mb-6 border-border">

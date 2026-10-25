@@ -2,90 +2,80 @@
 
 import { useState } from "react"
 import Link from "next/link"
-import { usePathname, useRouter } from "next/navigation"
-import {
-  Compass,
-  Users,
-  MessageCircle,
-  User,
-  Calendar,
-  Bell,
-  Settings,
-  LogOut,
-  Shield,
-  Menu,
-} from "lucide-react"
+import { usePathname } from "next/navigation"
+import { Compass, Users, MessageCircle, User, Calendar, Bell, LogOut, Shield, Menu, Bookmark } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { useAuthStore } from "@/lib/store/auth-store"
-import { useNotificationStore } from "@/lib/store/notification-store"
+import { useNotificationStore, type BadgeCounts } from "@/lib/store/notification-store"
+import { useLogout } from "@/lib/use-logout"
+import { secondaryNavItems, badgeText, isNavActive } from "@/components/app-sidebar"
 import {
   Sheet,
   SheetContent,
+  SheetDescription,
   SheetHeader,
   SheetTitle,
   SheetTrigger,
 } from "@/components/ui/sheet"
 
-// The five primary destinations. Everything else lives behind "More" — on
-// mobile there is no sidebar, so without that menu Events, Notifications and
-// Settings were unreachable entirely.
-const navItems = [
+type Item = { href: string; label: string; icon: typeof User; badgeKey: keyof BadgeCounts | null }
+
+// The four places people go most, plus "More". Every item has a word under
+// its icon.
+const navItems: Item[] = [
   { href: "/browse", label: "Browse", icon: Compass, badgeKey: null },
   { href: "/matches", label: "Matches", icon: Users, badgeKey: "matches" },
-  { href: "/messages", label: "Chat", icon: MessageCircle, badgeKey: "messages" },
+  { href: "/messages", label: "Messages", icon: MessageCircle, badgeKey: "messages" },
   { href: "/profile", label: "Profile", icon: User, badgeKey: null },
-] as const
+]
 
-const moreItems = [
+const moreItems: Item[] = [
   { href: "/events", label: "Events", icon: Calendar, badgeKey: "events" },
   { href: "/notifications", label: "Notifications", icon: Bell, badgeKey: "notifications" },
-  { href: "/settings", label: "Settings", icon: Settings, badgeKey: null },
-] as const
+  { href: "/saved", label: "Saved", icon: Bookmark, badgeKey: null },
+  ...secondaryNavItems,
+]
 
 export function MobileNav() {
   const pathname = usePathname()
-  const router = useRouter()
-  const { user, logout } = useAuthStore()
+  const user = useAuthStore((state) => state.user)
+  const logout = useLogout()
   const [isMoreOpen, setIsMoreOpen] = useState(false)
-
-  // Same source as the desktop sidebar — RealtimeProvider loads these once and
-  // keeps them live, so the two navs can no longer disagree.
   const badgeCounts = useNotificationStore((state) => state.counts)
 
-  const moreBadgeTotal =
-    badgeCounts.events + badgeCounts.notifications
+  const moreBadgeTotal = badgeCounts.events + badgeCounts.notifications
 
   const renderBadge = (count: number) =>
     count > 0 ? (
-      <span className="absolute -top-1 -right-1 flex h-5 min-w-5 items-center justify-center rounded-full bg-primary px-1 text-[11px] font-bold text-primary-foreground">
-        {count > 9 ? "9+" : count}
+      <span className="absolute -right-2 -top-1 flex h-5 min-w-5 items-center justify-center rounded-full bg-primary px-1 text-xs font-bold text-primary-foreground">
+        <span aria-hidden="true">{count > 9 ? "9+" : count}</span>
+        <span className="sr-only">{count} new</span>
       </span>
     ) : null
 
+  const tabClass = (active: boolean) =>
+    cn(
+      "flex min-h-14 flex-1 flex-col items-center justify-center gap-0.5 rounded-lg px-1 py-1.5 transition-colors",
+      active ? "font-bold text-primary" : "text-foreground hover:bg-muted"
+    )
+
   return (
-    <nav className="fixed bottom-0 left-0 right-0 z-50 md:hidden bg-card border-t border-border pb-[env(safe-area-inset-bottom)]">
-      <div className="flex items-stretch justify-around py-1.5">
+    <nav
+      aria-label="Main"
+      data-tour="nav-mobile"
+      className="fixed bottom-0 left-0 right-0 z-40 border-t border-border bg-card pb-[env(safe-area-inset-bottom)] lg:hidden"
+    >
+      <div className="flex items-stretch justify-around px-1 py-1">
         {navItems.map((item) => {
-          const isActive = pathname === item.href
-          const count = item.badgeKey
-            ? badgeCounts[item.badgeKey as keyof typeof badgeCounts]
-            : 0
+          const active = isNavActive(pathname, item.href)
+          const count = item.badgeKey ? badgeCounts[item.badgeKey] : 0
           return (
-            <Link
-              key={item.href}
-              href={item.href}
-              className={cn(
-                // min-h-14 keeps every tap target comfortably above the 44px
-                // accessibility floor.
-                "flex flex-1 flex-col items-center justify-center gap-1 min-h-14 px-1 py-1.5 rounded-lg transition-colors",
-                isActive ? "text-primary" : "text-muted-foreground hover:text-foreground"
-              )}
-            >
+            <Link key={item.href} href={item.href} aria-current={active ? "page" : undefined} className={tabClass(active)}>
               <span className="relative">
-                <item.icon className={cn("h-6 w-6", isActive && "fill-primary/20")} />
+                <item.icon className={cn("h-6 w-6", active && "fill-primary/20")} aria-hidden="true" />
                 {renderBadge(count)}
               </span>
-              <span className="text-xs font-medium">{item.label}</span>
+              <span className="text-xs">{item.label}</span>
             </Link>
           )
         })}
@@ -93,80 +83,67 @@ export function MobileNav() {
         <Sheet open={isMoreOpen} onOpenChange={setIsMoreOpen}>
           <SheetTrigger asChild>
             <button
-              className={cn(
-                "flex flex-1 flex-col items-center justify-center gap-1 min-h-14 px-1 py-1.5 rounded-lg transition-colors",
-                moreItems.some((i) => i.href === pathname)
-                  ? "text-primary"
-                  : "text-muted-foreground hover:text-foreground"
-              )}
+              type="button"
+              className={tabClass(moreItems.some((i) => isNavActive(pathname, i.href)) || pathname === "/admin")}
             >
               <span className="relative">
-                <Menu className="h-6 w-6" />
+                <Menu className="h-6 w-6" aria-hidden="true" />
                 {renderBadge(moreBadgeTotal)}
               </span>
-              <span className="text-xs font-medium">More</span>
+              <span className="text-xs">More</span>
             </button>
           </SheetTrigger>
-          <SheetContent side="bottom" className="rounded-t-2xl">
+          <SheetContent side="bottom" className="max-h-[85vh] overflow-y-auto rounded-t-2xl">
             <SheetHeader className="text-left">
               <SheetTitle>More</SheetTitle>
+              <SheetDescription className="sr-only">Other parts of the app</SheetDescription>
             </SheetHeader>
-            <div className="mt-4 space-y-1">
-              {moreItems.map((item) => {
-                const count = item.badgeKey
-                  ? badgeCounts[item.badgeKey as keyof typeof badgeCounts]
-                  : 0
+            <ul className="mt-2 space-y-1 pb-4">
+              {[
+                ...moreItems,
+                ...(user?.role === "admin"
+                  ? [{ href: "/admin", label: "Admin", icon: Shield, badgeKey: null } as Item]
+                  : []),
+              ].map((item) => {
+                const count = item.badgeKey ? badgeCounts[item.badgeKey] : 0
+                const active = isNavActive(pathname, item.href)
                 return (
-                  <Link
-                    key={item.href}
-                    href={item.href}
-                    onClick={() => setIsMoreOpen(false)}
-                    className={cn(
-                      "flex items-center gap-3 px-4 py-4 rounded-lg text-base font-medium transition-colors",
-                      pathname === item.href
-                        ? "bg-primary text-primary-foreground"
-                        : "text-foreground hover:bg-muted"
-                    )}
-                  >
-                    <item.icon className="h-5 w-5 shrink-0" />
-                    <span className="flex-1">{item.label}</span>
-                    {count > 0 && (
-                      <span className="flex h-6 min-w-6 items-center justify-center rounded-full bg-primary px-2 text-xs font-bold text-primary-foreground">
-                        {count > 99 ? "99+" : count}
-                      </span>
-                    )}
-                  </Link>
+                  <li key={item.href}>
+                    <Link
+                      href={item.href}
+                      onClick={() => setIsMoreOpen(false)}
+                      aria-current={active ? "page" : undefined}
+                      className={cn(
+                        "flex min-h-14 items-center gap-3 rounded-lg px-4 py-3 text-lg font-medium transition-colors",
+                        active ? "bg-primary text-primary-foreground" : "text-foreground hover:bg-muted"
+                      )}
+                    >
+                      <item.icon className="h-6 w-6 shrink-0" aria-hidden="true" />
+                      <span className="flex-1">{item.label}</span>
+                      {count > 0 && (
+                        <span className="flex h-7 min-w-7 items-center justify-center rounded-full bg-primary px-2 text-sm font-bold text-primary-foreground">
+                          <span aria-hidden="true">{badgeText(count)}</span>
+                          <span className="sr-only">{count} new</span>
+                        </span>
+                      )}
+                    </Link>
+                  </li>
                 )
               })}
-
-              {user?.role === "admin" && (
-                <Link
-                  href="/admin"
-                  onClick={() => setIsMoreOpen(false)}
-                  className={cn(
-                    "flex items-center gap-3 px-4 py-4 rounded-lg text-base font-medium transition-colors",
-                    pathname === "/admin"
-                      ? "bg-primary text-primary-foreground"
-                      : "text-foreground hover:bg-muted"
-                  )}
+              <li>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsMoreOpen(false)
+                    logout()
+                  }}
+                  className="flex min-h-14 w-full items-center gap-3 rounded-lg px-4 py-3 text-lg font-medium text-foreground transition-colors hover:bg-muted"
                 >
-                  <Shield className="h-5 w-5 shrink-0" />
-                  Admin
-                </Link>
-              )}
-
-              <button
-                onClick={() => {
-                  setIsMoreOpen(false)
-                  logout()
-                  router.push("/login")
-                }}
-                className="w-full flex items-center gap-3 px-4 py-4 rounded-lg text-base font-medium text-white bg-destructive hover:bg-destructive/90 transition-colors"
-              >
-                <LogOut className="h-5 w-5 shrink-0" />
-                Log Out
-              </button>
-            </div>
+                  <LogOut className="h-6 w-6 shrink-0" aria-hidden="true" />
+                  Log Out
+                </button>
+              </li>
+            </ul>
           </SheetContent>
         </Sheet>
       </div>

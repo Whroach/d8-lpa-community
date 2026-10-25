@@ -6,6 +6,7 @@ import Match from '../models/Match.js';
 import Like from '../models/Like.js';
 import ActionHistory from '../models/ActionHistory.js';
 import logger from '../utils/logger.js';
+import { calculateAge, validateIdParams } from '../utils/helpers.js';
 
 const router = express.Router();
 
@@ -14,9 +15,9 @@ router.get('/', auth, async (req, res) => {
   try {
     // Prevent caching
     res.set('Cache-Control', 'no-store, no-cache, must-revalidate, private');
-    
+
     const allMatches = await Match.find({
-      users: req.userId
+      users: req.userId.toString()
     }).sort({ matched_at: -1 });
 
     // Format matches with user details
@@ -28,17 +29,10 @@ router.get('/', auth, async (req, res) => {
 
       if (!otherUser || otherUser.role === 'admin') return null;
 
-      // Hide deleted users from matches
-      if (otherUser.is_deleted) return null;
+      // Hide deleted and banned users from matches
+      if (otherUser.is_deleted || otherUser.is_banned) return null;
 
-      // Calculate age
-      const birthDate = new Date(otherUser.birthdate);
-      const today = new Date();
-      let age = today.getFullYear() - birthDate.getFullYear();
-      const monthDiff = today.getMonth() - birthDate.getMonth();
-      if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
-        age--;
-      }
+      const age = calculateAge(otherUser.birthdate);
 
       // Get unread count for current user
       const unreadCount = match.unread_counts?.get(req.userId.toString()) || 0;
@@ -50,6 +44,7 @@ router.get('/', auth, async (req, res) => {
           first_name: otherUser.first_name,
           last_name: otherUser.last_name,
           age,
+          email_verified: Boolean(otherUser.email_verified),
           photos: otherProfile?.photos || [],
           profile_picture_url: otherProfile?.profile_picture_url || null,
           bio: otherProfile?.bio || '',
@@ -94,11 +89,11 @@ router.get('/', auth, async (req, res) => {
 });
 
 // GET /api/matches/:matchId
-router.get('/:matchId', auth, async (req, res) => {
+router.get('/:matchId', auth, validateIdParams('matchId'), async (req, res) => {
   try {
     const match = await Match.findOne({
       _id: req.params.matchId,
-      users: req.userId,
+      users: req.userId.toString(),
       is_active: true
     });
 
@@ -114,14 +109,7 @@ router.get('/:matchId', auth, async (req, res) => {
       return res.status(404).json({ message: 'User not found' });
     }
 
-    // Calculate age
-    const birthDate = new Date(otherUser.birthdate);
-    const today = new Date();
-    let age = today.getFullYear() - birthDate.getFullYear();
-    const monthDiff = today.getMonth() - birthDate.getMonth();
-    if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
-      age--;
-    }
+    const age = calculateAge(otherUser.birthdate);
 
     res.json({
       id: match._id,
@@ -130,7 +118,10 @@ router.get('/:matchId', auth, async (req, res) => {
         first_name: otherUser.first_name,
         last_name: otherUser.last_name,
         age,
-        photos: otherUser.photos,
+        // Photos live on the Profile; User has no photos field, so this was
+        // always undefined.
+        photos: otherProfile?.photos || [],
+        profile_picture_url: otherProfile?.profile_picture_url || null,
         bio: otherProfile?.bio || '',
         location_city: otherProfile?.location_city || ''
       },
@@ -145,11 +136,11 @@ router.get('/:matchId', auth, async (req, res) => {
 });
 
 // DELETE /api/matches/:matchId - Unmatch
-router.delete('/:matchId', auth, async (req, res) => {
+router.delete('/:matchId', auth, validateIdParams('matchId'), async (req, res) => {
   try {
     const match = await Match.findOne({
       _id: req.params.matchId,
-      users: req.userId
+      users: req.userId.toString()
     });
 
     if (!match) {

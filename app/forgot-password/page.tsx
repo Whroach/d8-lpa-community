@@ -69,7 +69,7 @@ export default function ForgotPasswordPage() {
 
             <form onSubmit={handleSubmit} className="space-y-6">
               {error && (
-                <div className="p-3 bg-destructive/10 border border-destructive/20 rounded-lg text-destructive text-sm">
+                <div role="alert" className="p-3 bg-destructive/10 border border-destructive/20 rounded-lg text-destructive text-base">
                   {error}
                 </div>
               )}

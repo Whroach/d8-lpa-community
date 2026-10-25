@@ -1,35 +1,32 @@
 "use client"
 
 import React from "react"
-
 import { ProtectedRoute } from "@/components/protected-route"
 import { AppSidebar } from "@/components/app-sidebar"
 import { MobileNav } from "@/components/mobile-nav"
 import { RealtimeProvider } from "@/components/realtime-provider"
-import { useSidebarStore } from "@/lib/store/sidebar-store"
-import { cn } from "@/lib/utils"
+import { WelcomeTour } from "@/components/welcome-tour"
+import { OfflineBanner } from "@/components/offline-banner"
 
 interface AppLayoutProps {
   children: React.ReactNode
 }
 
 export function AppLayout({ children }: AppLayoutProps) {
-  const { isCollapsed } = useSidebarStore()
-
   return (
     <ProtectedRoute>
       <div className="min-h-screen bg-background">
+        <a href="#main-content" className="skip-link">
+          Skip to main content
+        </a>
         <RealtimeProvider />
         <AppSidebar />
-        <main
-          className={cn(
-            "pb-20 md:pb-0 transition-all duration-300",
-            isCollapsed ? "md:ml-[72px]" : "md:ml-64"
-          )}
-        >
+        <main id="main-content" tabIndex={-1} className="pb-24 outline-none lg:ml-64 lg:pb-0">
+          <OfflineBanner />
           {children}
         </main>
         <MobileNav />
+        <WelcomeTour />
       </div>
     </ProtectedRoute>
   )

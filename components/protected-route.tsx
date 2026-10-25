@@ -1,9 +1,8 @@
 "use client"
 
 import React from "react"
-
-import { useEffect, useState } from "react"
-import { useRouter } from "next/navigation"
+import { useEffect, useRef, useState } from "react"
+import { usePathname, useRouter } from "next/navigation"
 import { Loader2 } from "lucide-react"
 import { useAuthStore } from "@/lib/store/auth-store"
 import { api } from "@/lib/api"
@@ -22,54 +21,102 @@ interface ProtectedRouteProps {
 
 export function ProtectedRoute({ children }: ProtectedRouteProps) {
   const router = useRouter()
-  const { isAuthenticated, isLoading, checkSession, logout, token } = useAuthStore()
+  const pathname = usePathname()
+  const { isAuthenticated, checkSession, logout, token, user, setUser, setProfile, refreshSession } = useAuthStore()
   const [isMounted, setIsMounted] = useState(false)
   const [showBanModal, setShowBanModal] = useState(false)
+  const timedOut = useRef(false)
+  // Set when the server says the account is suspended or banned. Signing out
+  // re-runs the effect below; without this it then sent the member straight
+  // to the login screen, so the explanation only flashed past or never
+  // appeared at all.
+  const blocked = useRef(false)
 
   useEffect(() => {
     setIsMounted(true)
   }, [])
 
   useEffect(() => {
-    if (!isMounted || isLoading) return
+    if (!isMounted) return
 
     // Check if session is still valid
     const isSessionValid = checkSession()
-    
+
     // If user is not authenticated or session expired, redirect to login
     if (!isAuthenticated || !isSessionValid || !token) {
       if (isAuthenticated && !isSessionValid) {
-        // Session expired, log out
+        // Signing out re-runs this effect; remember why, so the plain
+        // redirect below does not replace the one that carries the
+        // explanation. (It used to, and the member was signed out after
+        // eight hours with no word about why.)
+        timedOut.current = true
         logout()
+        router.replace("/login?expired=1")
+        return
       }
-      router.push('/login')
+      if (timedOut.current || blocked.current) return
+      router.push("/login")
       return
     }
 
-    // Verify user status with backend
-    const verifyUserStatus = async () => {
-      const result = await api.auth.me()
-      if (result.error && result.error.includes("suspended or banned")) {
-        // User has been banned/suspended, show modal and logout
-        setShowBanModal(true)
-        logout()
-      }
+    // Someone who has not finished setting up their profile goes back to it,
+    // instead of wandering the app with an empty profile.
+    if (user && user.onboarding_completed === false && user.role !== "admin") {
+      router.push("/onboarding")
+      return
     }
 
+    // Verify user status with backend, and pick up anything that changed on
+    // another device (for example the welcome tour already being done).
+    let cancelled = false
+    const verifyUserStatus = async () => {
+      const result = await api.auth.me()
+      if (cancelled) return
+      if (result.error && result.error.includes("suspended or banned")) {
+        blocked.current = true
+        setShowBanModal(true)
+        logout()
+        return
+      }
+      if (result.data?.user) {
+        const fresh = result.data.user
+        // Using the app keeps the session alive; it only times out after
+        // eight hours of not being used.
+        refreshSession()
+        const current = useAuthStore.getState().user
+        if (
+          current &&
+          (current.has_seen_tour !== fresh.has_seen_tour ||
+            current.onboarding_completed !== fresh.onboarding_completed ||
+            current.role !== fresh.role)
+        ) {
+          setUser({ ...current, ...fresh, id: fresh.id || fresh._id })
+          if (result.data.profile) setProfile(result.data.profile)
+        }
+      }
+    }
     verifyUserStatus()
-  }, [isAuthenticated, isLoading, isMounted, router, checkSession, logout, token])
+    return () => {
+      cancelled = true
+    }
+    // `pathname` is here on purpose: the checks run again on each navigation.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isAuthenticated, isMounted, token, pathname])
 
-  // Show loading spinner while checking authentication
-  if (!isMounted || isLoading) {
+  // Show loading spinner while checking authentication. (This used to also
+  // wait on a shared "isLoading" flag that some screens set and never
+  // cleared, which left a spinner on screen forever.)
+  if (!isMounted) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      <div className="flex min-h-screen items-center justify-center" role="status">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" aria-hidden="true" />
+        <span className="sr-only">Loading</span>
       </div>
     )
   }
 
   // If not authenticated, don't render children (user will be redirected)
-  if (!isAuthenticated) {
+  if (!isAuthenticated && !showBanModal) {
     return null
   }
 
@@ -83,9 +130,7 @@ export function ProtectedRoute({ children }: ProtectedRouteProps) {
               Your account has been suspended or banned. Please contact d8lpa.community@gmail.com for more info.
             </AlertDialogDescription>
           </AlertDialogHeader>
-          <AlertDialogAction onClick={() => router.push('/login')}>
-            Go to Login
-          </AlertDialogAction>
+          <AlertDialogAction onClick={() => router.push("/login")}>Go to Login</AlertDialogAction>
         </AlertDialogContent>
       </AlertDialog>
       {!showBanModal && children}

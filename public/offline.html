@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>You are offline | D8-LPA</title>
+  <style>
+    body { margin: 0; min-height: 100vh; display: flex; align-items: center; justify-content: center;
+      font-family: system-ui, -apple-system, "Segoe UI", Arial, sans-serif; font-size: 20px; line-height: 1.5;
+      background: #fdfbfc; color: #2a1c22; padding: 24px; box-sizing: border-box; }
+    main { max-width: 32rem; text-align: center; }
+    h1 { font-size: 1.8rem; margin-bottom: 0.5rem; }
+    button { margin-top: 1.5rem; font-size: 1.1rem; font-weight: 600; padding: 0.9rem 2rem; border: 0; border-radius: 0.5rem;
+      background: #a3173f; color: #fff; cursor: pointer; }
+    button:focus-visible { outline: 3px solid #2a1c22; outline-offset: 3px; }
+    @media (prefers-color-scheme: dark) { body { background: #1a1216; color: #f3ecef; } button { background: #f08aa6; color: #1a1216; } }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>You are offline</h1>
+    <p>D8-LPA needs an internet connection. Please check your Wi-Fi or mobile data, then try again.</p>
+    <button type="button" onclick="location.reload()">Try again</button>
+  </main>
+</body>
+</html>

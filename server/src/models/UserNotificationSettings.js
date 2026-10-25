@@ -33,6 +33,29 @@ const UserNotificationSettingsSchema = new mongoose.Schema({
     type: Boolean,
     default: true
   },
+  // Quiet hours: no chime between these times (the member's own clock).
+  // Notifications still arrive and badges still update, silently.
+  quiet_hours_enabled: {
+    type: Boolean,
+    default: false
+  },
+  quiet_hours_start: {
+    type: String,
+    default: '21:00'
+  },
+  quiet_hours_end: {
+    type: String,
+    default: '08:00'
+  },
+  // Opt-in email summary of unread messages and upcoming events.
+  email_digest: {
+    type: Boolean,
+    default: false
+  },
+  email_digest_last_sent: {
+    type: Date,
+    default: null
+  },
   created_at: {
     type: Date,
     default: Date.now
@@ -43,9 +66,8 @@ const UserNotificationSettingsSchema = new mongoose.Schema({
   }
 });
 
-UserNotificationSettingsSchema.pre('save', function(next) {
+UserNotificationSettingsSchema.pre('save', function() {
   this.updated_at = new Date();
-  next();
 });
 
 const UserNotificationSettings = mongoose.model('UserNotificationSettings', UserNotificationSettingsSchema);

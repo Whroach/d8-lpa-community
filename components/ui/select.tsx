@@ -67,6 +67,32 @@ const SelectScrollDownButton = React.forwardRef<
 SelectScrollDownButton.displayName =
   SelectPrimitive.ScrollDownButton.displayName
 
+/**
+ * While a list is open Radix hides the rest of the page from screen readers
+ * (aria-hidden) and keeps focus inside the list. This marks the same parts
+ * `inert` too, so the two always agree: nothing behind an open list can take
+ * focus. Everything is put back when the list closes.
+ */
+function InertBehind() {
+  const marker = React.useRef<HTMLSpanElement>(null)
+  React.useEffect(() => {
+    // While a list is closed Radix still renders its options, into a detached
+    // fragment (so the chosen option's text can be shown). Only act when this
+    // really is on the page - otherwise the whole page would be switched off.
+    if (!marker.current?.isConnected) return
+    let top: HTMLElement | null = marker.current
+    while (top?.parentElement && top.parentElement !== document.body) top = top.parentElement
+    const others = Array.from(document.body.children).filter(
+      (el): el is HTMLElement => el instanceof HTMLElement && el !== top && !el.inert && !/^(SCRIPT|STYLE|LINK)$/.test(el.tagName),
+    )
+    for (const el of others) el.inert = true
+    return () => {
+      for (const el of others) el.inert = false
+    }
+  }, [])
+  return <span ref={marker} hidden />
+}
+
 const SelectContent = React.forwardRef<
   React.ElementRef<typeof SelectPrimitive.Content>,
   React.ComponentPropsWithoutRef<typeof SelectPrimitive.Content>
@@ -83,6 +109,7 @@ const SelectContent = React.forwardRef<
       position={position}
       {...props}
     >
+      <InertBehind />
       <SelectScrollUpButton />
       <SelectPrimitive.Viewport
         className={cn(

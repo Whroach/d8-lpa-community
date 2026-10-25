@@ -1,3 +1,4 @@
+import { requireMongoUri, requireEnv } from './utils/script-env.js';
 import mongoose from 'mongoose';
 import bcrypt from 'bcryptjs';
 import path from 'path';
@@ -6,7 +7,7 @@ import User from './models/User.js';
 import Profile from './models/Profile.js';
 
 // Production MongoDB URI (passed as argument or environment variable)
-const prodMongoDBUri = 'mongodb+srv://lpa-d8:Qd1gXd48ljTQDzGP3477UeNrlQrdRjhG7eXpQ@cluster0.iogpu.mongodb.net/prod?retryWrites=true&w=majority&appName=Cluster0';
+const prodMongoDBUri = requireMongoUri();
 
 async function createProdAdminAccount() {
   try {
@@ -19,7 +20,7 @@ async function createProdAdminAccount() {
 
     // Admin account details
     const adminEmail = 'd8lpa.community@gmail.com';
-    const adminPassword = 'bxPqkfzBpSFJ8ih7lOO3p';
+    const adminPassword = requireEnv('ADMIN_PASSWORD');
     const adminFirstName = 'Admin';
     const adminLastName = 'Community';
 

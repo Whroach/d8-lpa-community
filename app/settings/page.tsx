@@ -5,7 +5,7 @@ import { SelectContent } from "@/components/ui/select"
 import { SelectValue } from "@/components/ui/select"
 import { SelectTrigger } from "@/components/ui/select"
 import { Select } from "@/components/ui/select"
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback } from "react"
 import { useRouter } from "next/navigation"
 import {
   Settings,
@@ -42,6 +42,12 @@ import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { api } from "@/lib/api"
 import { toast } from "sonner"
+import { useTheme } from "next-themes"
+import { TermsContent } from "@/components/terms-content"
+import { LoadError } from "@/components/load-error"
+import { PasswordInput } from "@/components/ui/password-input"
+import { TEXT_SIZES, getTextSize, setTextSize, type TextSize } from "@/lib/preferences"
+import { useLogout } from "@/lib/use-logout"
 import { useNotificationStore } from "@/lib/store/notification-store"
 import {
   playNotificationSound,
@@ -56,23 +62,35 @@ type BlockedUser = {
   blocked_at: string
 }
 
+/** What a new password is still missing (same rules as the server). */
+function passwordProblems(password: string): string[] {
+  const missing: string[] = []
+  if (password.length < 8) missing.push("at least 8 characters")
+  if (!/[A-Z]/.test(password)) missing.push("a capital letter")
+  if (!/[a-z]/.test(password)) missing.push("a small letter")
+  if (!/\d/.test(password)) missing.push("a number")
+  if (!/[!@#$%^&*(),.?":{}|<>]/.test(password)) missing.push("a symbol such as ! or ?")
+  return missing
+}
+
 export default function SettingsPage() {
   const router = useRouter()
   const { logout } = useAuthStore()
   const setSoundEnabled = useNotificationStore((state) => state.setSoundEnabled)
+  const setQuietHours = useNotificationStore((state) => state.setQuietHours)
   const [isSaving, setIsSaving] = useState(false)
   const [hasChanges, setHasChanges] = useState(false)
   const [saveSuccess, setSaveSuccess] = useState(false)
-  
+
   // Blocked users states
   const [showBlockedUsersDialog, setShowBlockedUsersDialog] = useState(false)
   const [blockedUsers, setBlockedUsers] = useState<BlockedUser[]>([])
   const [isLoadingBlocked, setIsLoadingBlocked] = useState(false)
   const [isUnblocking, setIsUnblocking] = useState<string | null>(null)
-  
+
   // Terms & Privacy Policy state
   const [showTermsDialog, setShowTermsDialog] = useState(false)
-  
+
   // Password change states
   const [showPasswordDialog, setShowPasswordDialog] = useState(false)
   const [currentPassword, setCurrentPassword] = useState("")
@@ -81,7 +99,7 @@ export default function SettingsPage() {
   const [isChangingPassword, setIsChangingPassword] = useState(false)
   const [passwordError, setPasswordError] = useState<string | null>(null)
   const [passwordSuccess, setPasswordSuccess] = useState(false)
-  
+
   // Disable/Delete account states
   const [showDisableDialog, setShowDisableDialog] = useState(false)
   const [showDeleteDialog, setShowDeleteDialog] = useState(false)
@@ -93,7 +111,7 @@ export default function SettingsPage() {
   const [isDeletingAccount, setIsDeletingAccount] = useState(false)
   const [disableConfirmed, setDisableConfirmed] = useState(false)
   const [deleteConfirmed, setDeleteConfirmed] = useState(false)
-  
+
   const [settings, setSettings] = useState({
     theme: "light",
     lookingFor: [] as string[],
@@ -106,24 +124,36 @@ export default function SettingsPage() {
       events: true,
       admin_news: true,
       sound: true,
+      quiet_hours_enabled: false,
+      quiet_hours_start: "21:00",
+      quiet_hours_end: "08:00",
+      email_digest: false,
     },
     privacy: {
       profileVisible: true,
       selectiveMode: false,
-      showOnlineStatus: true,
-      showLastActive: true,
-      showDistance: true,
+      showOnline: true,
+      readReceipts: true,
     },
   })
 
   const [originalSettings, setOriginalSettings] = useState(settings)
+  // null = still loading, "" = loaded, anything else = the load failed.
+  const [loadError, setLoadError] = useState<string | null>(null)
+  const { theme, setTheme } = useTheme()
+  const [textSize, setTextSizeState] = useState<TextSize>("comfortable")
+  const doLogout = useLogout()
 
-  useEffect(() => {
-    loadSettings()
-  }, [])
-
-  const loadSettings = async () => {
+  const loadSettings = useCallback(async () => {
+    setLoadError(null)
     const result = await api.settings.get()
+    if (result.error || !result.data) {
+      // Never fall back to defaults here: saving them would overwrite the
+      // member's real choices.
+      setLoadError(result.error || "Please try again.")
+      return
+    }
+    setLoadError("")
     if (result.data) {
       // Ensure all fields have proper defaults, especially lookingFor
       const loadedSettings = {
@@ -138,13 +168,16 @@ export default function SettingsPage() {
           events: result.data.notifications?.events ?? true,
           admin_news: result.data.notifications?.admin_news ?? true,
           sound: result.data.notifications?.sound ?? true,
+          quiet_hours_enabled: result.data.notifications?.quiet_hours_enabled ?? false,
+          quiet_hours_start: result.data.notifications?.quiet_hours_start || "21:00",
+          quiet_hours_end: result.data.notifications?.quiet_hours_end || "08:00",
+          email_digest: result.data.notifications?.email_digest ?? false,
         },
         privacy: {
           profileVisible: result.data.privacy?.profileVisible ?? true,
           selectiveMode: result.data.privacy?.selectiveMode ?? false,
-          showOnlineStatus: result.data.privacy?.showOnlineStatus ?? true,
-          showLastActive: result.data.privacy?.showLastActive ?? true,
-          showDistance: result.data.privacy?.showDistance ?? true,
+          showOnline: result.data.privacy?.showOnline ?? true,
+          readReceipts: result.data.privacy?.readReceipts ?? true,
         },
       }
       setSettings(loadedSettings)
@@ -152,25 +185,62 @@ export default function SettingsPage() {
       setHasChanges(false)
       setSaveSuccess(false)
     }
-  }
+  }, [])
+
+  useEffect(() => {
+    setTextSizeState(getTextSize())
+    void loadSettings()
+    // Jump to a section when arriving from Help or Safety (#privacy, ...).
+    const hash = window.location.hash.slice(1)
+    if (hash) setTimeout(() => document.getElementById(hash)?.scrollIntoView(), 400)
+  }, [loadSettings])
 
   const saveSettings = async () => {
+    const toSave = settings
+    const min = Math.min(120, Math.max(18, Number(toSave.agePreferenceMin) || 18))
+    const max = Math.min(120, Math.max(18, Number(toSave.agePreferenceMax) || 100))
     setIsSaving(true)
-    const result = await api.settings.update(settings)
+    const result = await api.settings.update({
+      lookingFor: toSave.lookingFor,
+      agePreferenceMin: Math.min(min, max),
+      agePreferenceMax: Math.max(min, max),
+      notifications: toSave.notifications,
+      privacy: toSave.privacy,
+    })
     setIsSaving(false)
 
     // Don't claim success when the request failed — the banner used to show
     // "Saved" regardless of the outcome.
     if (result.error) {
-      toast.error(result.error)
+      toast.error(`Your change was not saved. ${result.error}`, { id: "settings-saved" })
+      // Put the screen back to what is really stored.
+      setSettings(originalSettings)
+      setHasChanges(false)
       return
     }
 
-    setOriginalSettings(settings)
+    setOriginalSettings(toSave)
+    setQuietHours(
+      toSave.notifications.quiet_hours_enabled,
+      toSave.notifications.quiet_hours_start,
+      toSave.notifications.quiet_hours_end
+    )
     setHasChanges(false)
     setSaveSuccess(true)
+    toast.success("Saved", { id: "settings-saved", duration: 2500 })
     setTimeout(() => setSaveSuccess(false), 3000)
   }
+
+  // Changes are saved as soon as they are made - there is no Save button to
+  // forget. A short pause groups quick changes into one request.
+  useEffect(() => {
+    if (!hasChanges || loadError !== "") return
+    const timer = setTimeout(() => {
+      void saveSettings()
+    }, 500)
+    return () => clearTimeout(timer)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [settings, hasChanges, loadError])
 
   const handleDisableAccount = async () => {
     if (!disableConfirmed || !disablePassword.trim()) {
@@ -184,23 +254,20 @@ export default function SettingsPage() {
         reason: disableReason,
         password: disablePassword
       })
-      
+
       if (result.data) {
-        toast.success("Your account has been disabled. You will be logged out.")
-        logout()
-        router.push("/login")
+        toast.success("Your account is paused. Log in again whenever you want to come back.", { duration: 10000 })
+        setShowDisableDialog(false)
+        doLogout()
       } else if (result.error) {
         toast.error(result.error)
+        setDisablePassword("")
       }
     } catch (error) {
-      toast.error("Error disabling account. Please try again.")
+      toast.error("We could not pause your account. Please try again.")
       console.error(error)
     } finally {
       setIsDisablingAccount(false)
-      setShowDisableDialog(false)
-      setDisableReason("")
-      setDisablePassword("")
-      setDisableConfirmed(false)
     }
   }
 
@@ -216,23 +283,20 @@ export default function SettingsPage() {
         reason: deleteReason,
         password: deletePassword
       })
-      
+
       if (result.data) {
-        toast.success("Your account has been deleted. You will be logged out.")
-        logout()
-        router.push("/login")
+        toast.success("Your account has been deleted.", { duration: 10000 })
+        setShowDeleteDialog(false)
+        doLogout()
       } else if (result.error) {
         toast.error(result.error)
+        setDeletePassword("")
       }
     } catch (error) {
-      toast.error("Error deleting account. Please try again.")
+      toast.error("We could not delete your account. Please try again.")
       console.error(error)
     } finally {
       setIsDeletingAccount(false)
-      setShowDeleteDialog(false)
-      setDeleteReason("")
-      setDeletePassword("")
-      setDeleteConfirmed(false)
     }
   }
 
@@ -249,8 +313,9 @@ export default function SettingsPage() {
       setPasswordError("New password is required")
       return
     }
-    if (newPassword.length < 8) {
-      setPasswordError("New password must be at least 8 characters")
+    const missing = passwordProblems(newPassword)
+    if (missing.length > 0) {
+      setPasswordError(`Your new password still needs: ${missing.join(", ")}.`)
       return
     }
     if (newPassword !== confirmPassword) {
@@ -290,6 +355,32 @@ export default function SettingsPage() {
     } finally {
       setIsChangingPassword(false)
     }
+  }
+
+  // The age boxes hold whatever is being typed; the numbers are tidied up
+  // and saved when the member leaves the box. (They used to be forced into
+  // range on every keystroke, which made "45" impossible to type.)
+  const [ageDraft, setAgeDraft] = useState({ min: "18", max: "100" })
+  useEffect(() => {
+    setAgeDraft({ min: String(originalSettings.agePreferenceMin), max: String(originalSettings.agePreferenceMax) })
+  }, [originalSettings.agePreferenceMin, originalSettings.agePreferenceMax])
+  const commitAges = () => {
+    const clamp = (value: string, fallback: number) => Math.min(120, Math.max(18, parseInt(value, 10) || fallback))
+    const a = clamp(ageDraft.min, 18)
+    const b = clamp(ageDraft.max, 100)
+    const min = Math.min(a, b)
+    const max = Math.max(a, b)
+    setAgeDraft({ min: String(min), max: String(max) })
+    if (min !== settings.agePreferenceMin || max !== settings.agePreferenceMax) {
+      setSettings((prev) => ({ ...prev, agePreferenceMin: min, agePreferenceMax: max }))
+      setHasChanges(true)
+    }
+  }
+
+  const updateNotificationValue = (key: "quiet_hours_start" | "quiet_hours_end", value: string) => {
+    if (!/^\d{2}:\d{2}$/.test(value)) return
+    setSettings((prev) => ({ ...prev, notifications: { ...prev.notifications, [key]: value } }))
+    setHasChanges(true)
   }
 
   const updateSettings = <K extends keyof typeof settings>(
@@ -398,7 +489,9 @@ export default function SettingsPage() {
     try {
       const result = await api.browse.unblock(userId)
       if (result.data?.success) {
+        const unblocked = blockedUsers.find(u => u.id === userId)
         setBlockedUsers(blockedUsers.filter(u => u.id !== userId))
+        toast.success(`${unblocked?.first_name || "This member"} is no longer blocked`)
       } else if (result.error) {
         toast.error("Error unblocking user: " + result.error)
       }
@@ -421,38 +514,104 @@ export default function SettingsPage() {
               Manage your app preferences
             </p>
           </div>
-          
-          {/* Save Button */}
-          {hasChanges && (
-            <Button
-              onClick={saveSettings}
-              disabled={isSaving}
-              className="gap-2"
-            >
-              {isSaving ? (
-                <>
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                  Saving...
-                </>
-              ) : (
-                <>
-                  <Check className="h-4 w-4" />
-                  Save Changes
-                </>
-              )}
-            </Button>
-          )}
-          
-          {saveSuccess && !hasChanges && (
-            <div className="flex items-center gap-2 text-green-600 text-sm">
-              <Check className="h-4 w-4" />
-              Saved
-            </div>
-          )}
+
+          <p className="flex min-h-10 items-center gap-2 text-base text-muted-foreground" aria-live="polite" data-testid="save-status">
+            {isSaving ? (
+              <>
+                <Loader2 className="h-5 w-5 animate-spin" aria-hidden="true" />
+                Saving…
+              </>
+            ) : saveSuccess ? (
+              <>
+                <Check className="h-5 w-5 text-success" aria-hidden="true" />
+                Saved
+              </>
+            ) : null}
+          </p>
         </div>
 
+        {loadError === null ? (
+          <div className="flex justify-center py-16" role="status">
+            <Loader2 className="h-8 w-8 animate-spin text-primary" aria-hidden="true" />
+            <span className="sr-only">Loading your settings</span>
+          </div>
+        ) : loadError ? (
+          <LoadError what="your settings" detail={loadError} onRetry={loadSettings} />
+        ) : (
+        <>
+        {/* Display */}
+        <Card className="mb-6 scroll-mt-4" id="display">
+          <CardHeader>
+            <CardTitle className="text-xl flex items-center gap-2">
+              <Settings className="h-5 w-5" aria-hidden="true" />
+              Display
+            </CardTitle>
+            <CardDescription className="text-base">
+              Make the app comfortable to read. These choices are kept on this device.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-6">
+            <fieldset>
+              <legend className="mb-2 text-base font-semibold">Text size</legend>
+              <div className="grid gap-2 sm:grid-cols-2">
+                {TEXT_SIZES.map((size) => (
+                  <label
+                    key={size.value}
+                    className="flex min-h-14 cursor-pointer items-center gap-3 rounded-lg border-2 border-border px-3 py-2 has-[:checked]:border-primary has-[:checked]:bg-primary/5"
+                  >
+                    <input
+                      type="radio"
+                      className="h-5 w-5 shrink-0"
+                      name="text-size"
+                      value={size.value}
+                      checked={textSize === size.value}
+                      onChange={() => {
+                        setTextSizeState(size.value)
+                        setTextSize(size.value)
+                        toast.success("Saved", { id: "settings-saved", duration: 2500 })
+                      }}
+                    />
+                    <span>
+                      <span className="block text-base font-medium">{size.label}</span>
+                      <span className="block text-sm text-muted-foreground">{size.hint}</span>
+                    </span>
+                  </label>
+                ))}
+              </div>
+            </fieldset>
+            <fieldset>
+              <legend className="mb-2 text-base font-semibold">Screen colours</legend>
+              <div className="grid gap-2 sm:grid-cols-3">
+                {[
+                  { value: "light", label: "Light" },
+                  { value: "dark", label: "Dark" },
+                  { value: "system", label: "Same as my device" },
+                ].map((option) => (
+                  <label
+                    key={option.value}
+                    className="flex min-h-14 cursor-pointer items-center gap-3 rounded-lg border-2 border-border px-3 py-2 has-[:checked]:border-primary has-[:checked]:bg-primary/5"
+                  >
+                    <input
+                      type="radio"
+                      className="h-5 w-5 shrink-0"
+                      name="theme"
+                      value={option.value}
+                      checked={(theme || "system") === option.value}
+                      onChange={() => {
+                        setTheme(option.value)
+                        toast.success("Saved", { id: "settings-saved", duration: 2500 })
+                      }}
+                    />
+                    <span className="text-base font-medium">{option.label}</span>
+                  </label>
+                ))}
+              </div>
+            </fieldset>
+          </CardContent>
+        </Card>
+
         {/* Notification Settings */}
-        <Card className="mb-6">
+        <Card className="mb-6 scroll-mt-4" id="notifications">
           <CardHeader>
             <CardTitle className="text-lg flex items-center gap-2">
               <Bell className="h-5 w-5" />
@@ -463,8 +622,8 @@ export default function SettingsPage() {
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="flex items-center justify-between">
-              <div>
+            <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
+              <div className="min-w-[12rem] flex-1">
                 <Label htmlFor="matches">New Matches</Label>
                 <p className="text-sm text-muted-foreground">
                   Get notified when you match with someone
@@ -482,8 +641,8 @@ export default function SettingsPage() {
               </div>
             </div>
             <Separator />
-            <div className="flex items-center justify-between">
-              <div>
+            <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
+              <div className="min-w-[12rem] flex-1">
                 <Label htmlFor="messages">Messages</Label>
                 <p className="text-sm text-muted-foreground">
                   Get notified when you receive a message
@@ -501,8 +660,8 @@ export default function SettingsPage() {
               </div>
             </div>
             <Separator />
-            <div className="flex items-center justify-between">
-              <div>
+            <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
+              <div className="min-w-[12rem] flex-1">
                 <Label htmlFor="likes">Likes</Label>
                 <p className="text-sm text-muted-foreground">
                   Get notified when someone likes your profile
@@ -520,8 +679,8 @@ export default function SettingsPage() {
               </div>
             </div>
             <Separator />
-            <div className="flex items-center justify-between">
-              <div>
+            <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
+              <div className="min-w-[12rem] flex-1">
                 <Label htmlFor="events">Events</Label>
                 <p className="text-sm text-muted-foreground">
                   Get notified about event updates
@@ -539,8 +698,8 @@ export default function SettingsPage() {
               </div>
             </div>
             <Separator />
-            <div className="flex items-center justify-between">
-              <div>
+            <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
+              <div className="min-w-[12rem] flex-1">
                 <Label htmlFor="admin_news">Admin Announcements</Label>
                 <p className="text-sm text-muted-foreground">
                   Get notified about admin news and announcements
@@ -558,8 +717,8 @@ export default function SettingsPage() {
               </div>
             </div>
             <Separator />
-            <div className="flex items-center justify-between">
-              <div>
+            <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
+              <div className="min-w-[12rem] flex-1">
                 <Label htmlFor="sound">Notification Sound</Label>
                 <p className="text-sm text-muted-foreground">
                   Play a chime when a message or alert arrives while you have
@@ -588,6 +747,67 @@ export default function SettingsPage() {
                 />
               </div>
             </div>
+            <Separator />
+            <div className="flex items-center justify-between gap-4">
+              <div>
+                <Label htmlFor="quiet_hours_enabled">Quiet hours</Label>
+                <p className="text-sm text-muted-foreground">
+                  No sound between the times below. Messages still arrive and the numbers in the menu still update.
+                </p>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="text-sm font-medium text-muted-foreground w-8 text-right">
+                  {settings.notifications.quiet_hours_enabled ? "On" : "Off"}
+                </span>
+                <Switch
+                  id="quiet_hours_enabled"
+                  checked={settings.notifications.quiet_hours_enabled}
+                  onCheckedChange={() => updateNotification("quiet_hours_enabled")}
+                />
+              </div>
+            </div>
+            {settings.notifications.quiet_hours_enabled && (
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-1">
+                  <Label htmlFor="quiet_hours_start">Quiet from</Label>
+                  <Input
+                    id="quiet_hours_start"
+                    type="time"
+                    value={settings.notifications.quiet_hours_start}
+                    onChange={(e) => updateNotificationValue("quiet_hours_start", e.target.value)}
+                  />
+                </div>
+                <div className="space-y-1">
+                  <Label htmlFor="quiet_hours_end">Until</Label>
+                  <Input
+                    id="quiet_hours_end"
+                    type="time"
+                    value={settings.notifications.quiet_hours_end}
+                    onChange={(e) => updateNotificationValue("quiet_hours_end", e.target.value)}
+                  />
+                </div>
+              </div>
+            )}
+            <Separator />
+            <div className="flex items-center justify-between gap-4">
+              <div>
+                <Label htmlFor="email_digest">Email summary</Label>
+                <p className="text-sm text-muted-foreground">
+                  An occasional email telling you how many new messages are waiting and which events are coming up.
+                  It never includes what a message says.
+                </p>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="text-sm font-medium text-muted-foreground w-8 text-right">
+                  {settings.notifications.email_digest ? "On" : "Off"}
+                </span>
+                <Switch
+                  id="email_digest"
+                  checked={settings.notifications.email_digest}
+                  onCheckedChange={() => updateNotification("email_digest")}
+                />
+              </div>
+            </div>
           </CardContent>
         </Card>
 
@@ -607,7 +827,7 @@ export default function SettingsPage() {
               {[
                 { value: "female", label: "Women" },
                 { value: "male", label: "Men" },
-                { value: "non-binary", label: "Non-binary" },
+                { value: "non_binary", label: "Non-binary" },
                 { value: "everyone", label: "Everyone" },
               ].map((option) => {
                 const isSelected = Array.isArray(settings.lookingFor) && settings.lookingFor.includes(option.value);
@@ -619,11 +839,10 @@ export default function SettingsPage() {
                         ? "bg-primary/10 border-primary"
                         : "bg-background border-border hover:border-primary/50"
                     }`}
-                    onClick={() => toggleLookingFor(option.value)}
                   >
                     <Label
                       htmlFor={`lookingFor-${option.value}`}
-                      className="cursor-pointer font-medium"
+                      className="flex-1 cursor-pointer py-2 text-base font-medium"
                     >
                       {option.label}
                     </Label>
@@ -637,7 +856,7 @@ export default function SettingsPage() {
               })}
             </div>
             <p className="text-xs text-muted-foreground">
-              Selecting "Everyone" will clear other selections.
+              Choosing &quot;Everyone&quot; clears the other choices. Leave all of them empty to see everyone as well.
             </p>
           </CardContent>
         </Card>
@@ -662,9 +881,10 @@ export default function SettingsPage() {
                   type="number"
                   min="18"
                   max="120"
-                  value={settings.agePreferenceMin || 18}
-                  onChange={(e) => updateSettings('agePreferenceMin', Math.max(18, parseInt(e.target.value) || 18))}
-                  className="h-10"
+                  inputMode="numeric"
+                  value={ageDraft.min}
+                  onChange={(e) => setAgeDraft((prev) => ({ ...prev, min: e.target.value }))}
+                  onBlur={commitAges}
                 />
               </div>
               <div className="space-y-2">
@@ -674,9 +894,10 @@ export default function SettingsPage() {
                   type="number"
                   min="18"
                   max="120"
-                  value={settings.agePreferenceMax || 100}
-                  onChange={(e) => updateSettings('agePreferenceMax', Math.min(120, parseInt(e.target.value) || 100))}
-                  className="h-10"
+                  inputMode="numeric"
+                  value={ageDraft.max}
+                  onChange={(e) => setAgeDraft((prev) => ({ ...prev, max: e.target.value }))}
+                  onBlur={commitAges}
                 />
               </div>
             </div>
@@ -686,8 +907,8 @@ export default function SettingsPage() {
           </CardContent>
         </Card>
 
-{/* Privacy Settings */}
-        <Card className="mb-6">
+        {/* Privacy Settings */}
+        <Card className="mb-6 scroll-mt-4" id="privacy">
           <CardHeader>
             <CardTitle className="text-lg flex items-center gap-2">
               <Lock className="h-5 w-5" />
@@ -698,11 +919,11 @@ export default function SettingsPage() {
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <Label htmlFor="profileVisible">Profile Visibility</Label>
+            <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
+              <div className="min-w-[12rem] flex-1">
+                <Label htmlFor="profileVisible">Show my profile in Browse</Label>
                 <p className="text-sm text-muted-foreground">
-                  Make your profile visible in Browse. If disabled, your profile will be hidden from all users.
+                  Switch this off to pause your profile: nobody new will see you. Your matches and messages stay.
                 </p>
               </div>
               <div className="flex items-center gap-2">
@@ -717,11 +938,11 @@ export default function SettingsPage() {
               </div>
             </div>
             <Separator />
-            <div className="flex items-center justify-between">
-              <div>
-                <Label htmlFor="selectiveMode">Selective Mode</Label>
+            <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
+              <div className="min-w-[12rem] flex-1">
+                <Label htmlFor="selectiveMode">Only show me to people I have liked</Label>
                 <p className="text-sm text-muted-foreground">
-                  Only show your profile to users you have liked. Hidden from users you have not liked.
+                  Your profile is hidden from everyone except members you have liked.
                 </p>
               </div>
               <div className="flex items-center gap-2">
@@ -735,15 +956,53 @@ export default function SettingsPage() {
                 />
               </div>
             </div>
+            <Separator />
+            <div className="flex items-center justify-between gap-4">
+              <div>
+                <Label htmlFor="showOnline">Show when I am online</Label>
+                <p className="text-sm text-muted-foreground">
+                  Your matches see a green dot and &quot;Online now&quot; while you are using the app.
+                </p>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="text-sm font-medium text-muted-foreground w-8 text-right">
+                  {settings.privacy.showOnline ? "On" : "Off"}
+                </span>
+                <Switch
+                  id="showOnline"
+                  checked={settings.privacy.showOnline}
+                  onCheckedChange={() => updatePrivacy("showOnline")}
+                />
+              </div>
+            </div>
+            <Separator />
+            <div className="flex items-center justify-between gap-4">
+              <div>
+                <Label htmlFor="readReceipts">Show when I have read a message</Label>
+                <p className="text-sm text-muted-foreground">
+                  The other person sees &quot;Seen&quot; under a message once you have opened it.
+                </p>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="text-sm font-medium text-muted-foreground w-8 text-right">
+                  {settings.privacy.readReceipts ? "On" : "Off"}
+                </span>
+                <Switch
+                  id="readReceipts"
+                  checked={settings.privacy.readReceipts}
+                  onCheckedChange={() => updatePrivacy("readReceipts")}
+                />
+              </div>
+            </div>
           </CardContent>
         </Card>
 
         {/* Blocked Users */}
-        <Card className="mb-6">
+        <Card className="mb-6 scroll-mt-4" id="blocked">
           <CardHeader>
             <CardTitle className="text-lg flex items-center gap-2">
               <Shield className="h-5 w-5" />
-              Blocked Users
+              Blocked Members
             </CardTitle>
             <CardDescription>
               Manage your blocked users list
@@ -756,10 +1015,13 @@ export default function SettingsPage() {
               className="w-full"
             >
               <Users className="h-4 w-4 mr-2" />
-              View Blocked Users
+              View Blocked Members
             </Button>
           </CardContent>
         </Card>
+
+        </>
+        )}
 
         {/* Contact Us */}
         <Card className="mb-6">
@@ -776,8 +1038,8 @@ export default function SettingsPage() {
             <div className="flex items-center gap-3 p-3 rounded-lg bg-muted/50">
               <div className="flex-1">
                 <p className="text-sm font-medium text-foreground mb-1">Email Support</p>
-                <a 
-                  href="mailto:d8lpa.community@gmail.com" 
+                <a
+                  href="mailto:d8lpa.community@gmail.com"
                   className="text-sm text-primary hover:underline"
                 >
                   d8lpa.community@gmail.com
@@ -796,7 +1058,7 @@ export default function SettingsPage() {
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-2">
-            <button 
+            <button
               onClick={() => setShowTermsDialog(true)}
               className="w-full flex items-center justify-between p-3 rounded-lg hover:bg-muted transition-colors"
             >
@@ -806,7 +1068,7 @@ export default function SettingsPage() {
               </div>
               <ChevronRight className="h-5 w-5 text-muted-foreground" />
             </button>
-            <button 
+            <button
               onClick={() => {
                 setShowPasswordDialog(true)
                 setPasswordError(null)
@@ -890,9 +1152,9 @@ export default function SettingsPage() {
                 <Label htmlFor="disable-password" className="text-base">
                   Enter your password to confirm
                 </Label>
-                <Input
+                <PasswordInput
                   id="disable-password"
-                  type="password"
+                  
                   placeholder="••••••••"
                   value={disablePassword}
                   onChange={(e) => setDisablePassword(e.target.value)}
@@ -949,7 +1211,7 @@ export default function SettingsPage() {
                 Delete Your Account
               </DialogTitle>
               <DialogDescription>
-                This will permanently delete your account and all associated data. This action cannot be undone.
+                Your profile is removed from the app straight away and you are signed out. Nobody can see you or write to you. To have every record erased, or to use this email address again, write to d8lpa.community@gmail.com.
               </DialogDescription>
             </DialogHeader>
             <div className="space-y-4">
@@ -980,9 +1242,9 @@ export default function SettingsPage() {
                 <Label htmlFor="delete-password" className="text-base">
                   Enter your password to confirm
                 </Label>
-                <Input
+                <PasswordInput
                   id="delete-password"
-                  type="password"
+                  
                   placeholder="••••••••"
                   value={deletePassword}
                   onChange={(e) => setDeletePassword(e.target.value)}
@@ -999,7 +1261,7 @@ export default function SettingsPage() {
                   I understand this is permanent and I'm 100% sure I want to delete my account
                 </Label>
               </div>
-              <div className="flex gap-3 pt-4">
+              <div className="flex flex-col-reverse gap-3 pt-4 sm:flex-row">
                 <Button
                   variant="outline"
                   onClick={() => {
@@ -1117,102 +1379,7 @@ export default function SettingsPage() {
                 Terms & Privacy Policy
               </DialogTitle>
             </DialogHeader>
-            <div className="space-y-6 py-4">
-              {/* Terms of Service */}
-              <div>
-                <h3 className="text-lg font-semibold mb-3">Terms of Service</h3>
-                <div className="space-y-3 text-sm text-muted-foreground">
-                  <p>
-                    Welcome to D8-LPA Community. By accessing and using this platform, you agree to be bound by these terms and conditions.
-                  </p>
-                  <div>
-                    <h4 className="font-medium text-foreground mb-1">1. User Conduct</h4>
-                    <p>
-                      Users agree to use the platform respectfully and lawfully. Any form of harassment, discrimination, or abusive behavior is strictly prohibited.
-                    </p>
-                  </div>
-                  <div>
-                    <h4 className="font-medium text-foreground mb-1">2. Content Responsibility</h4>
-                    <p>
-                      You are responsible for all content you post. We reserve the right to remove content that violates our guidelines or applicable laws.
-                    </p>
-                  </div>
-                  <div>
-                    <h4 className="font-medium text-foreground mb-1">3. Account Security</h4>
-                    <p>
-                      You are responsible for maintaining the confidentiality of your account credentials. You agree to notify us immediately of any unauthorized access.
-                    </p>
-                  </div>
-                  <div>
-                    <h4 className="font-medium text-foreground mb-1">4. Limitation of Liability</h4>
-                    <p>
-                      D8-LPA Community is provided "as is" without warranties. We are not liable for any indirect, incidental, special, or consequential damages.
-                    </p>
-                  </div>
-                  <div>
-                    <h4 className="font-medium text-foreground mb-1">5. Termination</h4>
-                    <p>
-                      We reserve the right to terminate or suspend accounts that violate these terms without prior notice.
-                    </p>
-                  </div>
-                </div>
-              </div>
-
-              <Separator />
-
-              {/* Privacy Policy */}
-              <div>
-                <h3 className="text-lg font-semibold mb-3">Privacy Policy</h3>
-                <div className="space-y-3 text-sm text-muted-foreground">
-                  <p>
-                    Your privacy is important to us. This policy outlines how we collect, use, and protect your information.
-                  </p>
-                  <div>
-                    <h4 className="font-medium text-foreground mb-1">1. Information Collection</h4>
-                    <p>
-                      We collect information you provide directly (profile data, photos, preferences) and information collected automatically (device information, usage analytics).
-                    </p>
-                  </div>
-                  <div>
-                    <h4 className="font-medium text-foreground mb-1">2. Data Usage</h4>
-                    <p>
-                      Your data is used to provide, improve, and personalize our services. We do not sell or share your personal information with third parties without consent.
-                    </p>
-                  </div>
-                  <div>
-                    <h4 className="font-medium text-foreground mb-1">3. Security Measures</h4>
-                    <p>
-                      We implement industry-standard security measures to protect your information from unauthorized access, alteration, and destruction.
-                    </p>
-                  </div>
-                  <div>
-                    <h4 className="font-medium text-foreground mb-1">4. Cookies & Tracking</h4>
-                    <p>
-                      We use cookies and similar technologies to enhance your experience. You can control cookie settings through your browser.
-                    </p>
-                  </div>
-                  <div>
-                    <h4 className="font-medium text-foreground mb-1">5. Your Rights</h4>
-                    <p>
-                      You have the right to access, correct, or delete your personal information. Contact us for any privacy-related requests.
-                    </p>
-                  </div>
-                  <div>
-                    <h4 className="font-medium text-foreground mb-1">6. Contact Us</h4>
-                    <p>
-                      For privacy inquiries, please contact us at d8lpa.community@gmail.com
-                    </p>
-                  </div>
-                </div>
-              </div>
-
-              <Separator />
-
-              {/* Last Updated */}
-              <p className="text-xs text-muted-foreground text-center">
-                Last updated: February 2026
-              </p>
-            </div>
+            <TermsContent />
             <div className="flex justify-end gap-2 pt-4">
               <Button variant="outline" onClick={() => setShowTermsDialog(false)}>
                 Close
@@ -1230,7 +1397,7 @@ export default function SettingsPage() {
                 Change Your Password
               </DialogTitle>
               <DialogDescription>
-                Enter your current password and choose a new password. Password must be at least 8 characters.
+                Enter your current password, then choose a new one. It needs at least 8 characters, with a capital letter, a small letter, a number and a symbol such as ! or ?.
               </DialogDescription>
             </DialogHeader>
 
@@ -1257,10 +1424,10 @@ export default function SettingsPage() {
                 <Label htmlFor="current-password" className="text-base">
                   Current Password <span className="text-destructive">*</span>
                 </Label>
-                <Input
+                <PasswordInput
                   id="current-password"
-                  type="password"
-                  placeholder="Enter your current password"
+                  
+                  placeholder="Current password"
                   value={currentPassword}
                   onChange={(e) => setCurrentPassword(e.target.value)}
                   disabled={isChangingPassword}
@@ -1272,17 +1439,17 @@ export default function SettingsPage() {
                 <Label htmlFor="new-password" className="text-base">
                   New Password <span className="text-destructive">*</span>
                 </Label>
-                <Input
+                <PasswordInput
                   id="new-password"
-                  type="password"
-                  placeholder="Enter a new password (min 8 characters)"
+                  
+                  placeholder="New password"
                   value={newPassword}
                   onChange={(e) => setNewPassword(e.target.value)}
                   disabled={isChangingPassword}
                   className="mt-2 h-10"
                 />
                 {newPassword && newPassword.length < 8 && (
-                  <p className="text-xs text-destructive mt-1">Password must be at least 8 characters</p>
+                  <p className="text-sm text-destructive mt-1">Still needs: {passwordProblems(newPassword).join(", ") || "at least 8 characters"}</p>
                 )}
               </div>
 
@@ -1290,10 +1457,10 @@ export default function SettingsPage() {
                 <Label htmlFor="confirm-password" className="text-base">
                   Confirm New Password <span className="text-destructive">*</span>
                 </Label>
-                <Input
+                <PasswordInput
                   id="confirm-password"
-                  type="password"
-                  placeholder="Confirm your new password"
+                  
+                  placeholder="Type it again"
                   value={confirmPassword}
                   onChange={(e) => setConfirmPassword(e.target.value)}
                   disabled={isChangingPassword}
@@ -1314,14 +1481,14 @@ export default function SettingsPage() {
             </div>
 
             <div className="flex justify-end gap-2 pt-4">
-              <Button 
-                variant="outline" 
+              <Button
+                variant="outline"
                 onClick={() => setShowPasswordDialog(false)}
                 disabled={isChangingPassword}
               >
                 Cancel
               </Button>
-              <Button 
+              <Button
                 onClick={handleChangePassword}
                 disabled={isChangingPassword}
               >
